@@ -1,28 +1,5 @@
-#include "utils.h"
-
-
-void* serializar_paquete(t_paquete* paquete, int *bytes)
-{
-	*bytes = paquete->buffer->size + sizeof(int) + sizeof(op_code);
-	printf("Hago malloc");
-	void* aEnviar = malloc(*bytes);
-	printf("Fin malloc");
-	int offset = 0;
-
-	memcpy(aEnviar + offset, &paquete->codigo_operacion, sizeof(op_code));//copiando codigo de operacion
-	printf("SerializarPaquete -> Operación: %d (1 = MENSAJE).\n", *(int*)(aEnviar+offset));
-	offset += sizeof(op_code);//desplazamiento
-
-	memcpy(aEnviar + offset, &paquete->buffer->size, sizeof(int));//copia tamaño del stream (del contenido)
-	printf("SerializarPaquete -> Size: %d.\n", *(int*)(aEnviar+offset));
-	offset += sizeof(int);//desplazamiento
-
-
-	memcpy(aEnviar + offset, paquete->buffer->stream, paquete->buffer->size);//copia el stream (el contenido)
-	printf("SerializarPaquete -> Stream: \"%s\".\n", (char*)(aEnviar+offset));
-
-	return aEnviar;
-}
+#include "conexion.h"
+#include "serializacion.h"
 
 int crear_conexion(char *ip, char* puerto)
 {
@@ -46,7 +23,6 @@ int crear_conexion(char *ip, char* puerto)
 	return socket_cliente;
 }
 
-//TODO
 void enviar_mensaje(char* mensaje, int socket_cliente)
 {
 	int estado = 0;
@@ -76,7 +52,6 @@ void enviar_mensaje(char* mensaje, int socket_cliente)
 	printf("\n");
 }
 
-//TODO
 char* recibir_mensaje(int socket_cliente)
 {
 	int codigo_operacion = 0;
@@ -92,8 +67,10 @@ char* recibir_mensaje(int socket_cliente)
 				stream = malloc(size);
 				string = malloc(size);
 				recv(socket_cliente,stream, size, 0);
+
 				memcpy(string, stream, size);
 				printf("RecibirMensaje -> Mensaje: \"%s\" - Longitud: %d.\n", string, strlen(string));
+				printf("DINl");
 				break;
 			default:
 				printf("RecibirMensaje -> Error OpCode: %d.\n", codigo_operacion);
@@ -107,16 +84,4 @@ char* recibir_mensaje(int socket_cliente)
 void liberar_conexion(int socket_cliente)
 {
 	close(socket_cliente);
-}
-
-t_log* iniciar_logger(char* log_file)
-{
-	t_log* unLogger = log_create(log_file, "Team", true, LOG_LEVEL_INFO);
-
-	return unLogger;
-}
-
-t_config* leer_config(char* file)
-{
-	return config_create(file);
 }

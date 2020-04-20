@@ -4,13 +4,19 @@
 
 # Add inputs and outputs from these tool invocations to the build variables 
 C_SRCS += \
-../utils.c 
+../conexion.c \
+../config.c \
+../serializacion.c 
 
 OBJS += \
-./utils.o 
+./conexion.o \
+./config.o \
+./serializacion.o 
 
 C_DEPS += \
-./utils.d 
+./conexion.d \
+./config.d \
+./serializacion.d 
 
 
 # Each subdirectory must supply rules for building sources it contributes
