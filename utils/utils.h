@@ -1,5 +1,5 @@
-#ifndef UTILS_H_
-#define UTILS_H_
+#ifndef TEAM_UTILS_H_
+#define TEAM_UTILS_H_
 
 #include<stdio.h>
 #include<stdlib.h>
@@ -8,6 +8,10 @@
 #include<sys/socket.h>
 #include<netdb.h>
 #include<string.h>
+#include<commons/log.h>
+#include<commons/string.h>
+#include<commons/config.h>
+#include<readline/readline.h>
 
 typedef enum
 {
@@ -31,5 +35,7 @@ void enviar_mensaje(char* mensaje, int socket_cliente);
 char* recibir_mensaje(int socket_cliente);
 void eliminar_paquete(t_paquete* paquete);
 void liberar_conexion(int socket_cliente);
+t_log* iniciar_logger(char*);
+t_config* leer_config(char*);
 
-#endif /* UTILS_H_ */
+#endif /* TEAM_UTILS_H_ */

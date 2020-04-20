@@ -8,11 +8,6 @@
 #include<commons/config.h>
 #include<readline/readline.h>
 
-#include "utils.h"
-
-
-t_log* iniciar_logger(char*);
-t_config* leer_config(void);
 void terminar_programa(int, t_log*, t_config*);
 
 #endif

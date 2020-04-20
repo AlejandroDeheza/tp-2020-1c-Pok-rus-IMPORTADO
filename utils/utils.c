@@ -4,7 +4,9 @@
 void* serializar_paquete(t_paquete* paquete, int *bytes)
 {
 	*bytes = paquete->buffer->size + sizeof(int) + sizeof(op_code);
+	printf("Hago malloc");
 	void* aEnviar = malloc(*bytes);
+	printf("Fin malloc");
 	int offset = 0;
 
 	memcpy(aEnviar + offset, &paquete->codigo_operacion, sizeof(op_code));//copiando codigo de operacion
@@ -55,10 +57,11 @@ void enviar_mensaje(char* mensaje, int socket_cliente)
 	memcpy(paquete->buffer->stream, mensaje, paquete->buffer->size);
 	printf("EnviarMensaje -> Mensaje Empaquetado: \"%s\".\n", (char*)paquete->buffer->stream);
 	int bytes = 0;
+	printf("voy a serializar");
 	void* aEnviar = serializar_paquete(paquete, &bytes);
 	printf("EnviarMensaje -> Paquete Serializado - Tamaño Total: %d Bytes.\n", bytes);
 	estado = send(socket_cliente, aEnviar, bytes, 0);
-
+	printf("pude hacer send");
 	switch (estado) {
 		case -1:
 			printf("EnviarMensaje -> Error al enviar.\n");
@@ -104,4 +107,16 @@ char* recibir_mensaje(int socket_cliente)
 void liberar_conexion(int socket_cliente)
 {
 	close(socket_cliente);
+}
+
+t_log* iniciar_logger(char* log_file)
+{
+	t_log* unLogger = log_create(log_file, "Team", true, LOG_LEVEL_INFO);
+
+	return unLogger;
+}
+
+t_config* leer_config(char* file)
+{
+	return config_create(file);
 }
