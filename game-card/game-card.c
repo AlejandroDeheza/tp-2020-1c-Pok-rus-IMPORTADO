@@ -16,7 +16,7 @@ int main(void) {
 	t_log* logger;
 	t_config* config;
 
-	config = leer_config("game-card.config");
+	config = leer_config("../game-card.config");
 
 	asignar_string_property(config, "IP_BROKER", &ip);
 	asignar_string_property(config, "PUERTO_BROKER", &puerto);
