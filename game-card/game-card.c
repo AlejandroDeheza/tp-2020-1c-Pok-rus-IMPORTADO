@@ -1,16 +1,6 @@
-/*
- ============================================================================
- Name        : team.c
- Author      : 
- Version     :
- Copyright   : 
- Description : Hello World in C, Ansi-style
- ============================================================================
- */
-
 #include <stdio.h>
 #include <stdlib.h>
-#include "team.h"
+#include "game-card.h"
 #include <conexion.h>
 #include "../utils/conexion.h"
 #include "../utils/config.h"
@@ -26,15 +16,15 @@ int main(void) {
 	t_log* logger;
 	t_config* config;
 
-	config = leer_config("team.config");
+	config = leer_config("game-card.config");
 
 	asignar_string_property(config, "IP_BROKER", &ip);
 	asignar_string_property(config, "PUERTO_BROKER", &puerto);
 	asignar_string_property(config, "LOG_FILE", &log_file);
 
-	logger = log_create(log_file, "team" , true, LOG_LEVEL_INFO);
+	logger = log_create(log_file, "game-card" , true, LOG_LEVEL_INFO);
 	if(!log_file){
-		log_file = "team.log";
+		log_file = "game-card.log";
 	}
 
 	if(!ip || !puerto){

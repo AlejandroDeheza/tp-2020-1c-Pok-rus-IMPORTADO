@@ -3,9 +3,8 @@
 
 t_log* iniciar_logger(char* log_file, char* project)
 {
-	t_log* unLogger = log_create(log_file, project , true, LOG_LEVEL_INFO);
+	return log_create(log_file, project , true, LOG_LEVEL_INFO);
 
-	return unLogger;
 }
 
 t_config* leer_config(char* file)
