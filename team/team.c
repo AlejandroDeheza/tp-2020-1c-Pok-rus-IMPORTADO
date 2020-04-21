@@ -51,9 +51,9 @@ int main(void) {
 	scanf("%s", mensaje);
 	enviar_mensaje(mensaje, conexion);
 
-	printf("REturn");
+	printf("Return\n");
 
-    log_info(logger, "Saliendo");
+    //log_info(logger, "Saliendo");
 
 	terminar_programa(conexion, logger, config);
 
