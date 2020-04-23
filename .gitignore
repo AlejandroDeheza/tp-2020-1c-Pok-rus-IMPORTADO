@@ -55,11 +55,9 @@ dkms.conf
 *.log
 
 */src/subir.mk
-*.cproject
 /team/Debug/team
 /game-card/Debug/game-card
 /game-boy/Debug/game-boy
-/broker/Debug/broker
 /broker/.settings
 /team/.settings
 /game-boy/.settings
