@@ -60,3 +60,8 @@ dkms.conf
 /game-card/Debug/game-card
 /game-boy/Debug/game-boy
 /broker/Debug/broker
+/broker/.settings
+/team/.settings
+/game-boy/.settings
+/game-card/.settings
+/utils/.settings
