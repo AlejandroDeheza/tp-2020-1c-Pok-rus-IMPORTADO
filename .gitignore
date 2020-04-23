@@ -56,3 +56,7 @@ dkms.conf
 
 */src/subir.mk
 *.cproject
+/team/Debug/team
+/game-card/Debug/game-card
+/game-boy/Debug/game-boy
+/broker/Debug/broker

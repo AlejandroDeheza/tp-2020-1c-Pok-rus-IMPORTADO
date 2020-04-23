@@ -36,14 +36,22 @@ int main(void) {
 
 	conexion = crear_conexion( ip, puerto);
 
-	char* mensaje;
-	printf("Ingrese un mensaje:\n");
-	scanf("%s", mensaje);
-	enviar_mensaje(mensaje, conexion);
+	char* nombre;
+	int posx;
+	int posy;
+	int cantidad;
+	printf("Ingrese nombre del pokemon:\n");
+	scanf("%s", nombre);
+	printf("Ingrese posicion X:\n");
+	scanf("%d", &posx);
+	printf("Ingrese posicion Y:\n");
+	scanf("%d", &posy);
+	printf("Ingrese cantidad:\n");
+	scanf("%d", &cantidad);
+	new_pokemon(nombre, posx, posy, cantidad, conexion);
 
-	printf("REturn");
-
-    log_info(logger, "Saliendo");
+	char* response = recibir_mensaje(conexion);
+	printf("Menaje devuelto: %s", response);
 
 	terminar_programa(conexion, logger, config);
 
