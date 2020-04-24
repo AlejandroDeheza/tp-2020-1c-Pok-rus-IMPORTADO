@@ -11,10 +11,11 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include "team.h"
-#include <conexion.h>
-#include "../utils/conexion.h"
+
+#include <cliente.h>
+#include "../utils/cliente.h"
 #include "../utils/config.h"
-#include "../utils/serializacion.h"
+
 
 int main(void) {
 
@@ -49,8 +50,9 @@ int main(void) {
 	char* mensaje;
 	printf("Ingrese un mensaje:\n");
 	scanf("%s", mensaje);
-	enviar_mensaje(mensaje, conexion);
+	enviar_mensaje(mensaje, conexion, MENSAJE);
 
+	recibir_mensaje(conexion);
 	printf("Return\n");
 
     //log_info(logger, "Saliendo");

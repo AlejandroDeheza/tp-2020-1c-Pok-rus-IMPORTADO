@@ -1,7 +1,7 @@
 #include "game-boy.h"
-#include "../utils/conexion.h"
+
+#include <cliente.h>
 #include "../utils/config.h"
-#include "../utils/serializacion.h"
 
 int main(void) {
 
@@ -47,7 +47,8 @@ int main(void) {
 	printf("Ingrese cantidad:\n");
 	scanf("%d", &cantidad);
 
-	new_pokemon(nombre, posx, posy, cantidad, conexion);
+	t_new_pokemon* pokemon = new_pokemon(nombre, posx, posy, cantidad);
+	enviar_mensaje(pokemon, conexion, NEW_POKEMON);
 
 	//char* response = recibir_mensaje(conexion);
 	//printf("Mensaje devuelto: %s", response);
