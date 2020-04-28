@@ -30,6 +30,7 @@ typedef struct
 
 typedef struct
 {
+	int size;
 	void* nombre;
 	t_coordenadas posicion;
 	int cantidad;
@@ -37,6 +38,7 @@ typedef struct
 
 typedef struct
 {
+	int size;
 	void* nombre;
 	int cantidad_de_posiciones;
     t_list* coordenadas;
@@ -55,8 +57,7 @@ typedef struct
 {
 	int size;
 	void* nombre;
-	int posx;
-	int posy;
+	t_coordenadas coordenadas;
 } t_appaeared_pokemon;
 
 
@@ -64,8 +65,7 @@ typedef struct
 {
 	int size;
 	void* nombre;
-	int posx;
-	int posy;
+	t_coordenadas coordenadas;
 } t_catch_pokemon;
 
 

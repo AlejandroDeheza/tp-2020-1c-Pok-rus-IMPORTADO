@@ -39,7 +39,7 @@ void enviar_mensaje(void* mensaje, int socket_cliente, op_code codigo_operacion)
 		case NEW_POKEMON:
 			printf("Creo un paquete para NEW_POKEMON");
 			t_new_pokemon* new_pokemon = mensaje;
-			paquete->buffer->size = sizeof(t_new_pokemon*) + strlen(new_pokemon->nombre) + 1;
+			paquete->buffer->size = sizeof(t_new_pokemon) +  new_pokemon->size;
 			break;
 	}
 
@@ -58,7 +58,9 @@ void enviar_mensaje(void* mensaje, int socket_cliente, op_code codigo_operacion)
 t_new_pokemon* new_pokemon(char* nombre, int posx, int posy, int cantidad)
 {
 	t_new_pokemon* new_pokemon = malloc(sizeof(t_new_pokemon));
-	new_pokemon->nombre = nombre;
+	new_pokemon->size = strlen(nombre) + 1;
+	new_pokemon->nombre = malloc(new_pokemon->size);
+	memcpy(new_pokemon->nombre, nombre, new_pokemon->size);
 	new_pokemon->posicion.posx = posx;
 	new_pokemon->posicion.posy = posy;
 	new_pokemon->cantidad = cantidad;

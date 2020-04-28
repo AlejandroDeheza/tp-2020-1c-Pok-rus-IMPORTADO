@@ -50,6 +50,8 @@ int main(void) {
 	t_new_pokemon* pokemon = new_pokemon(nombre, posx, posy, cantidad);
 	enviar_mensaje(pokemon, conexion, NEW_POKEMON);
 
+	printf("Corrio re cheto");
+
 	//char* response = recibir_mensaje(conexion);
 	//printf("Mensaje devuelto: %s", response);
 
