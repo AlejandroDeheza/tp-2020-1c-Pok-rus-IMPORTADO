@@ -6,17 +6,20 @@
 C_SRCS += \
 ../cliente.c \
 ../config.c \
-../serializacion.c 
+../serializacion.c \
+../servidor.c 
 
 OBJS += \
 ./cliente.o \
 ./config.o \
-./serializacion.o 
+./serializacion.o \
+./servidor.o 
 
 C_DEPS += \
 ./cliente.d \
 ./config.d \
-./serializacion.d 
+./serializacion.d \
+./servidor.d 
 
 
 # Each subdirectory must supply rules for building sources it contributes
