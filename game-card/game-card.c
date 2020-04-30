@@ -1,10 +1,9 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include "game-card.h"
-#include <conexion.h>
-#include "../utils/conexion.h"
+
+#include <cliente.h>
 #include "../utils/config.h"
-#include "../utils/serializacion.h"
 
 int main(void) {
 
@@ -36,6 +35,8 @@ int main(void) {
 
 	conexion = crear_conexion( ip, puerto);
 
+
+
 	char* nombre;
 	int posx;
 	int posy;
@@ -48,7 +49,9 @@ int main(void) {
 	scanf("%d", &posy);
 	printf("Ingrese cantidad:\n");
 	scanf("%d", &cantidad);
-	new_pokemon(nombre, posx, posy, cantidad, conexion);
+
+	t_new_pokemon* pokemon = new_pokemon(nombre, posx, posy, cantidad);
+	enviar_mensaje(pokemon, conexion, NEW_POKEMON);
 
 	char* response = recibir_mensaje(conexion);
 	printf("Menaje devuelto: %s", response);

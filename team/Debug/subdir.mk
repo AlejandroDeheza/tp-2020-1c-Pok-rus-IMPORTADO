@@ -6,10 +6,6 @@
 C_SRCS += \
 ../team.c 
 
-O_SRCS += \
-../team.o \
-../utils.o 
-
 OBJS += \
 ./team.o 
 
