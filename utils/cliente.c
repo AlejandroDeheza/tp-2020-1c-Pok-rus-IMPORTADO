@@ -30,8 +30,13 @@ void enviar_mensaje(void* mensaje, int socket_cliente, op_code codigo_operacion)
 
 	t_paquete* paquete = malloc(sizeof(t_paquete));
 	paquete->codigo_operacion = codigo_operacion;
+	paquete->buffer = malloc(sizeof(t_buffer));
 
 	switch (codigo_operacion){
+		case IDENTIFICACION:
+			printf("Creo un paquete para un identificarme\n");
+			paquete->buffer->size = sizeof(int);
+			break;
 		case MENSAJE:
 			printf("Creo un paquete para un MENSAJE");
 			paquete->buffer->size = strlen(mensaje)+ 1;
@@ -52,6 +57,11 @@ void enviar_mensaje(void* mensaje, int socket_cliente, op_code codigo_operacion)
 
 	estado = send(socket_cliente, aEnviar, bytes, 0);
 	verificar_estado(estado);
+
+	free(aEnviar);
+	free(paquete->buffer->stream);
+	free(paquete->buffer);
+	free(paquete);
 	printf("\n");
 }
 
@@ -82,40 +92,40 @@ void verificar_estado(int estado) {
 	}
 }
 
-char* recibir_mensaje(int socket_cliente) {
+void* recibir_mensaje(int socket_cliente) {
 	int codigo_operacion = 0;
-		recv(socket_cliente, &codigo_operacion, sizeof(op_code), 0);
-		int size;
-		void* stream;
-		char* string;
-		switch (codigo_operacion) {
-			case MENSAJE:
-				printf("RecibirMensaje -> Operación: %d (1 = MENSAJE).\n", codigo_operacion);
-				recv(socket_cliente,&size, sizeof(int), 0);
-				printf("RecibirMensaje -> Size: %d Bytes.\n", size);
-				stream = malloc(size);
-				string = malloc(size);
-				recv(socket_cliente,stream, size, 0);
-
-				memcpy(string, stream, size);
-				printf("RecibirMensaje -> Mensaje: \"%s\" - Longitud: %d.\n", string, strlen(string));
-				break;
-			case NEW_POKEMON_RESPONSE:
-				printf("Recibir Respuesta -> Operación: %s .\n", codigo_operacion);
-				recv(socket_cliente,&size, sizeof(int), 0);
-				printf("RecibirMensaje -> Size: %d Bytes.\n", size);
-				stream = malloc(size);
-				string = malloc(size);
-				recv(socket_cliente,stream, size, 0);
-				memcpy(string, stream, size);
-				break;
-			default:
-				printf("RecibirMensaje -> Error OpCode: %d.\n", codigo_operacion);
-				break;
-		}
+	recv(socket_cliente, &codigo_operacion, sizeof(op_code), 0);
+	int size;
+	void* stream;
+	char* string;
+	switch (codigo_operacion) {
+		case IDENTIFICACION:
+		case MENSAJE:
+			printf("RecibirMensaje -> Operación: %d (1 = MENSAJE).\n", codigo_operacion);
+			recv(socket_cliente,&size, sizeof(int), 0);
+			printf("RecibirMensaje -> Size: %d Bytes.\n", size);
+			stream = malloc(size);
+		//	string = malloc(size);
+			recv(socket_cliente,stream, size, 0);
+		//	memcpy(string, stream, size);
+		//	printf("RecibirMensaje -> Mensaje: \"%s\" - Longitud: %d.\n", string, strlen(string));
+			break;
+		case NEW_POKEMON_RESPONSE:
+			printf("Recibir Respuesta -> Operación: %s .\n", codigo_operacion);
+			recv(socket_cliente,&size, sizeof(int), 0);
+			printf("RecibirMensaje -> Size: %d Bytes.\n", size);
+			stream = malloc(size);
+			string = malloc(size);
+			recv(socket_cliente,stream, size, 0);
+			memcpy(string, stream, size);
+			break;
+		default:
+			printf("RecibirMensaje -> Error OpCode: %d.\n", codigo_operacion);
+			break;
+	}
 		printf("\n");
 
-		return string;
+		return stream;
 }
 
 void liberar_conexion(int socket_cliente)

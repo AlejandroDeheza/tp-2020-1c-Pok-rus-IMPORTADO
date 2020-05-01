@@ -47,12 +47,12 @@ int main(void) {
 
 	conexion = crear_conexion( ip, puerto);
 
-	char* mensaje;
-	printf("Ingrese un mensaje:\n");
-	scanf("%s", mensaje);
-	enviar_mensaje(mensaje, conexion, MENSAJE);
+	proyecto nombre_proyecto = TEAM;
+	enviar_mensaje(&nombre_proyecto, conexion, IDENTIFICACION);
 
-	recibir_mensaje(conexion);
+	proyecto *respuesta = (proyecto*) recibir_mensaje(conexion);
+
+	printf("la respuesta es %d\n", *respuesta);
 	printf("Return\n");
 
     //log_info(logger, "Saliendo");

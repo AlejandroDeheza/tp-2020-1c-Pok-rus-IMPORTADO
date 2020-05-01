@@ -4,11 +4,20 @@
 
 typedef enum
 {
-	MENSAJE = 1,
+	IDENTIFICACION = 1,
 	NEW_POKEMON = 2,
-	NEW_POKEMON_RESPONSE=3
+	NEW_POKEMON_RESPONSE=3,
+	MENSAJE = 4
 }op_code;
 
+
+typedef enum
+{
+	TEAM = 1,
+	GAMEBOY = 2,
+	GAMECARD = 3,
+	BROKER = 4
+} proyecto;
 
 typedef struct
 {
