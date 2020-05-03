@@ -4,11 +4,24 @@
 
 typedef enum
 {
-	MENSAJE = 1,
-	NEW_POKEMON = 2,
-	NEW_POKEMON_RESPONSE=3
+	IDENTIFICACION = 1,
+	NEW_POKEMON,
+	NEW_POKEMON_RESPONSE,
+	APPEARED_POKEMON,
+	CATCH_POKEMON,
+	CAUGHT_POKEMON,
+	GET_POKEMON,
+	MENSAJE
 }op_code;
 
+
+typedef enum
+{
+	TEAM = 1,
+	GAMEBOY = 2,
+	GAMECARD = 3,
+	BROKER = 4
+} proyecto;
 
 typedef struct
 {
@@ -58,7 +71,7 @@ typedef struct
 	int size;
 	void* nombre;
 	t_coordenadas coordenadas;
-} t_appaeared_pokemon;
+} t_appeared_pokemon;
 
 
 typedef struct
