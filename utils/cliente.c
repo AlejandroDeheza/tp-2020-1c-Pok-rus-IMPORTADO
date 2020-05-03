@@ -30,6 +30,7 @@ void enviar_mensaje(void* mensaje, int socket_cliente, op_code codigo_operacion)
 
 	t_paquete* paquete = malloc(sizeof(t_paquete));
 	paquete->codigo_operacion = codigo_operacion;
+	paquete->buffer = malloc(sizeof(t_buffer));
 
 	switch (codigo_operacion){
 		case MENSAJE:
@@ -52,6 +53,11 @@ void enviar_mensaje(void* mensaje, int socket_cliente, op_code codigo_operacion)
 
 	estado = send(socket_cliente, aEnviar, bytes, 0);
 	verificar_estado(estado);
+
+	free(aEnviar);
+	free(paquete->buffer->stream);
+	free(paquete->buffer);
+	free(paquete);
 	printf("\n");
 }
 
