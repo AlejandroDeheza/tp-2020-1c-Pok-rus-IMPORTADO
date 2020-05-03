@@ -17,9 +17,15 @@
 int crear_conexion(char* ip, char* puerto);
 void enviar_mensaje(void* mensaje, int socket_cliente, op_code codigo_operacion);
 t_new_pokemon* new_pokemon(char* nombre, int posx, int posy, int cantidad);
-char* recibir_mensaje(int socket_cliente);
+t_appeared_pokemon* appeared_pokemon(char* nombre, int posx, int posy);
+t_catch_pokemon* catch_pokemon(char* nombre, int posx, int posy);
+t_caught_pokemon* caught_pokemon(int resultado);
+t_get_pokemon* get_pokemon(char* nombre);
+
+void* recibir_mensaje(int socket_cliente);
 void liberar_conexion(int socket_cliente);
 t_log* iniciar_logger(char*, char*);
+void verificar_estado(int estado);
 
 
 #endif /* TEAM_UTILS_H_ */
