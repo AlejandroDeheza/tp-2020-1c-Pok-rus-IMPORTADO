@@ -45,11 +45,11 @@ int configuracionInicial(char* ip, char* puerto, t_log** logger, t_config** conf
 
 	*config = leer_config("../game-boy.config");
 	asignar_string_property(*config, "LOG_FILE", &log_file);
-	*logger = log_create(log_file, "game-boy" , true, LOG_LEVEL_INFO);
-
 	if(!log_file){
-		log_file = "game-boy.log";
+		printf("No se encontro LOG_FILE en el game-boy.config\n");
+		exit(-1);
 	}
+	*logger = iniciar_logger(log_file, "game-boy");
 	printf("\nConfiguraciones:.\nLOG_FILE = %s\n", log_file);
 
 	seleccionarFuncion(&funcion, argv[1]);
@@ -62,12 +62,11 @@ int configuracionInicial(char* ip, char* puerto, t_log** logger, t_config** conf
 	free(ipElegida);
 	free(puertoElegido);
 
-	printf("IP = %s.\nPUERTO = %s.\n", ip, puerto);
-
 	if(!ip || !puerto){
-		log_info(*logger, "Chequear archivo de configuracion");
+		printf("Chequear archivo de configuracion\n");
 		exit(-1);
 	}
+	printf("IP = %s.\nPUERTO = %s.\n", ip, puerto);
 
 	conexion = crear_conexion( ip, puerto);
 	strcat(logConexion,"Se realizo una conexion con ");
@@ -122,7 +121,7 @@ void logearEnvio(t_log** logger, char *argv[]){
 	char *logEnvioMensaje = malloc(100);
 	strcpy(logEnvioMensaje, "");
 
-	strcat(logEnvioMensaje,"Se envia el mensaje ");
+	strcat(logEnvioMensaje,"Se envio el mensaje ");
 	strcat(logEnvioMensaje, argv[2]);
 	strcat(logEnvioMensaje, " a ");
 	strcat(logEnvioMensaje, argv[1]);
