@@ -14,7 +14,8 @@ void verificarEntrada(int argc);
 int configuracionInicial(char* ip, char* puerto, t_log** logger, t_config** config, char *argv[]);
 void seleccionarFuncion(char **funcion, char *primerArg);
 
-void despacharMensaje(int conexion, int argc, char *argv[]);
+void despacharMensaje(int conexion, t_log** logger, int argc, char *argv[]);
+void logearEnvio(t_log** logger, char *argv[]);
 void enviarAlgoParaProbar(int conexion);	//PARA PROBAR A MANO
 void enviarNew(int conexion, int argc, char *argv[]);
 void enviarAppeared(int conexion, int argc, char *argv[]);

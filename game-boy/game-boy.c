@@ -12,7 +12,7 @@ int main(int argc, char *argv[]) {
 
 	verificarEntrada(argc);
 	int conexion = configuracionInicial(ip, puerto, &logger, &config, argv);
-	despacharMensaje(conexion, argc, argv);
+	despacharMensaje(conexion, &logger, argc, argv);
 	//enviarAlgoParaProbar(conexion); //PARA PROBAR A MANO
 	terminar_programa(conexion, logger, config);
 	exit(0);
@@ -41,6 +41,7 @@ int configuracionInicial(char* ip, char* puerto, t_log** logger, t_config** conf
 	char *funcion = malloc(20);
 	char *ipElegida = malloc(30);
 	char *puertoElegido = malloc(30);
+	char *logConexion = malloc(40);
 
 	*config = leer_config("../game-boy.config");
 	asignar_string_property(*config, "LOG_FILE", &log_file);
@@ -60,7 +61,6 @@ int configuracionInicial(char* ip, char* puerto, t_log** logger, t_config** conf
 	asignar_string_property(*config, puertoElegido, &puerto);
 	free(ipElegida);
 	free(puertoElegido);
-	free(funcion);
 
 	printf("IP = %s.\nPUERTO = %s.\n", ip, puerto);
 
@@ -70,10 +70,15 @@ int configuracionInicial(char* ip, char* puerto, t_log** logger, t_config** conf
 	}
 
 	conexion = crear_conexion( ip, puerto);
+	strcat(logConexion,"Se realizo una conexion con ");
+	strcat(logConexion, funcion);
+	log_info(*logger, logConexion);
+	free(funcion);
+	free(logConexion);
 	return conexion;
 }
 
-seleccionarFuncion(char **funcion, char *primerArg){
+void seleccionarFuncion(char **funcion, char *primerArg){
 
 	if(strcmp(primerArg,"SUSCRIPTOR")==0){
 		//suscribirAColaDeMensajes();			//TODO
@@ -89,22 +94,41 @@ seleccionarFuncion(char **funcion, char *primerArg){
 	}
 }
 
-void despacharMensaje(int conexion, int argc, char *argv[]){
+void despacharMensaje(int conexion, t_log** logger, int argc, char *argv[]){
 
 	if(strcmp(argv[2],"NEW_POKEMON")==0){
 		enviarNew(conexion, argc, argv);
+		logearEnvio(logger, argv);
 	}else if(strcmp(argv[2],"APPEARED_POKEMON")==0){
 		enviarAppeared(conexion, argc, argv);
+		logearEnvio(logger, argv);
 	}else if(strcmp(argv[2],"CATCH_POKEMON")==0){
 		enviarCatch(conexion, argc, argv);
+		logearEnvio(logger, argv);
 	}else if(strcmp(argv[2],"CAUGHT_POKEMON")==0){
 		enviarCaught(conexion, argc, argv);
+		logearEnvio(logger, argv);
 	}else if(strcmp(argv[2],"GET_POKEMON")==0){
 		enviarGet(conexion, argc, argv);
+		logearEnvio(logger, argv);
 	}else{
 		printf("El segundo argumento es incorrecto\n");
 		exit(-1);
 	}
+}
+
+void logearEnvio(t_log** logger, char *argv[]){
+
+	char *logEnvioMensaje = malloc(100);
+	strcpy(logEnvioMensaje, "");
+
+	strcat(logEnvioMensaje,"Se envia el mensaje ");
+	strcat(logEnvioMensaje, argv[2]);
+	strcat(logEnvioMensaje, " a ");
+	strcat(logEnvioMensaje, argv[1]);
+	log_info(*logger, logEnvioMensaje);
+
+	free(logEnvioMensaje);
 }
 
 /*	//PARA PROBAR A MANO
