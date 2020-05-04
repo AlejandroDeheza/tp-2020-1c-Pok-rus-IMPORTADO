@@ -38,30 +38,30 @@ void enviar_mensaje(void* mensaje, int socket_cliente, op_code codigo_operacion)
 			paquete->buffer->size = sizeof(int);
 			break;
 		case MENSAJE:
-			printf("Creo un paquete para un MENSAJE");
+			printf("Creo un paquete para un MENSAJE\n");
 			paquete->buffer->size = strlen(mensaje)+ 1;
 			break;
 		case NEW_POKEMON:
-			printf("Creo un paquete para NEW_POKEMON");
+			printf("Creo un paquete para NEW_POKEMON\n");
 			t_new_pokemon* new_pokemon = mensaje;
 			paquete->buffer->size = sizeof(t_new_pokemon) +  new_pokemon->size;
 			break;
 		case APPEARED_POKEMON:
-			printf("Creo un paquete para APPEARED_POKEMON");
+			printf("Creo un paquete para APPEARED_POKEMON\n");
 			t_appeared_pokemon* appaeared_pokemon = mensaje;
 			paquete->buffer->size = sizeof(t_appeared_pokemon) +  appaeared_pokemon->size;
 			break;
 		case CATCH_POKEMON:
-			printf("Creo un paquete para CATCH_POKEMON");
+			printf("Creo un paquete para CATCH_POKEMON\n");
 			t_catch_pokemon* catch_pokemon = mensaje;
 			paquete->buffer->size = sizeof(t_catch_pokemon) +  catch_pokemon->size;
 			break;
 		case CAUGHT_POKEMON:
-			printf("Creo un paquete para CAUGHT_POKEMON");
+			printf("Creo un paquete para CAUGHT_POKEMON\n");
 			paquete->buffer->size = sizeof(t_caught_pokemon);
 			break;
 		case GET_POKEMON:
-			printf("Creo un paquete para GET_POKEMON");
+			printf("Creo un paquete para GET_POKEMON\n");
 			t_get_pokemon* get_pokemon = mensaje;
 			paquete->buffer->size = sizeof(t_get_pokemon) +  get_pokemon->size;
 			break;

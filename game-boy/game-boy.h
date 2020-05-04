@@ -1,5 +1,5 @@
-#ifndef GAME-BOY_H_
-#define GAME-BOY_H_
+#ifndef GAMEBOY_H_
+#define GAMEBOY_H_
 
 #include<stdio.h>
 #include<stdlib.h>
@@ -12,17 +12,15 @@
 
 void verificarEntrada(int argc);
 int configuracionInicial(char* ip, char* puerto, t_log** logger, t_config** config, char *argv[]);
-void destinoBroker(char** ip, char** puerto, t_config* config);
-void destinoTeam(char** ip, char** puerto, t_config* config);
-void destinoGamecard(char** ip, char** puerto, t_config* config);
-void despacharMensaje(int conexion, int argc, char *argv[]);
+void seleccionarFuncion(char **funcion, char *primerArg);
 
+void despacharMensaje(int conexion, int argc, char *argv[]);
 void enviarAlgoParaProbar(int conexion);	//PARA PROBAR A MANO
-void enviarNew(int conexion, char *nombre, char *cuartoArg, char *quintoArg, char *sextoArg);
-void enviarAppeared(int conexion, char *nombre, char *cuartoArg, char *quintoArg);
-void enviarCatch(int conexion, char *nombre, char *cuartoArg, char *quintoArg);
-void enviarCaught(int conexion, char *tercerArg);
-void enviarGet(int conexion, char *nombre);
+void enviarNew(int conexion, int argc, char *argv[]);
+void enviarAppeared(int conexion, int argc, char *argv[]);
+void enviarCatch(int conexion, int argc, char *argv[]);
+void enviarCaught(int conexion, int argc, char *argv[]);
+void enviarGet(int conexion, int argc, char *argv[]);
 void terminar_programa(int, t_log*, t_config*);
 
 #endif

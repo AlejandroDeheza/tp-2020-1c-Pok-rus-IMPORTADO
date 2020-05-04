@@ -35,9 +35,12 @@ void verificarEntrada(int argc){
 
 int configuracionInicial(char* ip, char* puerto, t_log** logger, t_config** config, char *argv[]){
 
-	char primerArg[TAMANIO_MAXIMO_ARGUMENTO];
 	char* log_file = NULL;
 	int conexion = 0;
+
+	char *funcion = malloc(20);
+	char *ipElegida = malloc(30);
+	char *puertoElegido = malloc(30);
 
 	*config = leer_config("../game-boy.config");
 	asignar_string_property(*config, "LOG_FILE", &log_file);
@@ -48,22 +51,18 @@ int configuracionInicial(char* ip, char* puerto, t_log** logger, t_config** conf
 	}
 	printf("\nConfiguraciones:.\nLOG_FILE = %s\n", log_file);
 
-	strcpy(primerArg, argv[1]);
+	seleccionarFuncion(&funcion, argv[1]);
+	strcat(ipElegida,"IP_");
+	strcat(ipElegida, funcion);
+	strcat(puertoElegido,"PUERTO_");
+	strcat(puertoElegido,funcion);
+	asignar_string_property(*config, ipElegida, &ip);
+	asignar_string_property(*config, puertoElegido, &puerto);
+	free(ipElegida);
+	free(puertoElegido);
+	free(funcion);
 
-	if(strcmp(primerArg,"SUSCRIPTOR")==0){
-		//suscribirAColaDeMensajes();			//TODO
-		}else if(strcmp(primerArg,"BROKER")==0){
-			destinoBroker(&ip, &puerto, *config);
-		}else if(strcmp(primerArg,"TEAM")==0){
-			destinoTeam(&ip, &puerto, *config);
-		}else if(strcmp(primerArg,"GAMECARD")==0){
-			destinoGamecard(&ip, &puerto, *config);
-		}else{
-			printf("El primer argumento es incorrecto\n");
-			exit(-1);
-			}
-
-		printf("IP = %s.\nPUERTO = %s.\n", ip, puerto);
+	printf("IP = %s.\nPUERTO = %s.\n", ip, puerto);
 
 	if(!ip || !puerto){
 		log_info(*logger, "Chequear archivo de configuracion");
@@ -74,66 +73,38 @@ int configuracionInicial(char* ip, char* puerto, t_log** logger, t_config** conf
 	return conexion;
 }
 
-void destinoBroker(char** ip, char** puerto, t_config* config){
+seleccionarFuncion(char **funcion, char *primerArg){
 
-	asignar_string_property(config, "IP_BROKER", ip);
-	asignar_string_property(config, "PUERTO_BROKER", puerto);
-}
-
-void destinoTeam(char** ip, char** puerto, t_config* config){
-
-	asignar_string_property(config, "IP_TEAM", ip);
-	asignar_string_property(config, "PUERTO_TEAM", puerto);
-}
-
-void destinoGamecard(char** ip, char** puerto, t_config* config){
-
-	asignar_string_property(config, "IP_GAMECARD", ip);
-	asignar_string_property(config, "PUERTO_GAMECARD", puerto);
+	if(strcmp(primerArg,"SUSCRIPTOR")==0){
+		//suscribirAColaDeMensajes();			//TODO
+	}else if(strcmp(primerArg,"BROKER")==0){
+		strcpy(*funcion, "BROKER");
+	}else if(strcmp(primerArg,"TEAM")==0){
+		strcpy(*funcion, "TEAM");
+	}else if(strcmp(primerArg,"GAMECARD")==0){
+		strcpy(*funcion, "GAMECARD");
+	}else{
+		printf("El primer argumento es incorrecto\n");
+		exit(-1);
+	}
 }
 
 void despacharMensaje(int conexion, int argc, char *argv[]){
 
-	char segundoArg[TAMANIO_MAXIMO_ARGUMENTO];
-	char tercerArg[TAMANIO_MAXIMO_ARGUMENTO];
-	char cuartoArg[TAMANIO_MAXIMO_ARGUMENTO];
-	char quintoArg[TAMANIO_MAXIMO_ARGUMENTO];
-	char sextoArg[TAMANIO_MAXIMO_ARGUMENTO];
-	char septimoArg[TAMANIO_MAXIMO_ARGUMENTO];
-	char octavoArg[TAMANIO_MAXIMO_ARGUMENTO];
-
-	//tengo que pensar mejor esto
-	strcpy(segundoArg, argv[2]);
-	strcpy(tercerArg, argv[3]);
-	strcpy(cuartoArg, argv[4]);
-	strcpy(quintoArg, argv[5]);
-	strcpy(sextoArg, argv[6]);
-	//strcpy(septimoArg, argv[7]);
-	//strcpy(octavoArg, argv[8]);
-
-/*	//PARA PROBAR SIN CONSOLA
-	strcpy(primerArg, "BROKER");
-	strcpy(segundoArg, "NEW_POKEMON");
-	strcpy(tercerArg, "asd");
-	strcpy(cuartoArg, "1");
-	strcpy(quintoArg, "2");
-	strcpy(sextoArg, "3");
-*/
-
-	if(strcmp(segundoArg,"NEW_POKEMON")==0){
-		enviarNew(conexion, tercerArg, cuartoArg, quintoArg, sextoArg);
-		}else if(strcmp(segundoArg,"APPEARED_POKEMON")==0){
-			enviarAppeared(conexion, tercerArg, cuartoArg, quintoArg);
-		}else if(strcmp(segundoArg,"CATCH_POKEMON")==0){
-			enviarCatch(conexion, tercerArg, cuartoArg, quintoArg);
-		}else if(strcmp(segundoArg,"CAUGHT_POKEMON")==0){
-			enviarCaught(conexion, tercerArg);
-		}else if(strcmp(segundoArg,"GET_POKEMON")==0){
-			enviarGet(conexion, tercerArg);
-		}else{
-			printf("El segundo argumento es incorrecto\n");
-			exit(-1);
-		}
+	if(strcmp(argv[2],"NEW_POKEMON")==0){
+		enviarNew(conexion, argc, argv);
+	}else if(strcmp(argv[2],"APPEARED_POKEMON")==0){
+		enviarAppeared(conexion, argc, argv);
+	}else if(strcmp(argv[2],"CATCH_POKEMON")==0){
+		enviarCatch(conexion, argc, argv);
+	}else if(strcmp(argv[2],"CAUGHT_POKEMON")==0){
+		enviarCaught(conexion, argc, argv);
+	}else if(strcmp(argv[2],"GET_POKEMON")==0){
+		enviarGet(conexion, argc, argv);
+	}else{
+		printf("El segundo argumento es incorrecto\n");
+		exit(-1);
+	}
 }
 
 /*	//PARA PROBAR A MANO
@@ -163,45 +134,70 @@ void enviarAlgoParaProbar(int conexion){
 }
 */
 
-void enviarNew(int conexion, char nombre[], char cuartoArg[], char quintoArg[], char sextoArg[]){
+void enviarNew(int conexion, int argc, char *argv[]){
 
-	int posx = atoi(cuartoArg);
-	int posy = atoi(quintoArg);
-	int cantidad = atoi(sextoArg);
+	if(argc==6){
+		printf("Te faltan argumentos\n");
+		exit(-1);
+	}
 
-	t_new_pokemon* pokemon = new_pokemon(nombre, posx, posy, cantidad);
+	int posx = atoi(argv[4]);
+	int posy = atoi(argv[5]);
+	int cantidad = atoi(argv[6]);
+
+	t_new_pokemon* pokemon = new_pokemon(argv[3], posx, posy, cantidad);
 	enviar_mensaje(pokemon, conexion, NEW_POKEMON);
 }
 
-void enviarAppeared(int conexion, char nombre[], char cuartoArg[], char quintoArg[]){
+void enviarAppeared(int conexion, int argc, char *argv[]){
 
-	int posx = atoi(cuartoArg);
-	int posy = atoi(quintoArg);
+	if(argc==5){
+		printf("Te faltan argumentos\n");
+		exit(-1);
+	}
 
-	t_appeared_pokemon* pokemon = appeared_pokemon(nombre, posx, posy);
+	int posx = atoi(argv[4]);
+	int posy = atoi(argv[5]);
+
+	t_appeared_pokemon* pokemon = appeared_pokemon(argv[3], posx, posy);
 	enviar_mensaje(pokemon, conexion, APPEARED_POKEMON);
 }
 
-void enviarCatch(int conexion, char nombre[], char cuartoArg[], char quintoArg[]){
+void enviarCatch(int conexion, int argc, char *argv[]){
 
-	int posx = atoi(cuartoArg);
-	int posy = atoi(quintoArg);
+	if(argc==5){
+		printf("Te faltan argumentos\n");
+		exit(-1);
+	}
 
-	t_catch_pokemon* pokemon = catch_pokemon(nombre, posx, posy);
+	int posx = atoi(argv[4]);
+	int posy = atoi(argv[5]);
+
+	t_catch_pokemon* pokemon = catch_pokemon(argv[3], posx, posy);
 	enviar_mensaje(pokemon, conexion, CATCH_POKEMON);
 }
 
-void enviarCaught(int conexion, char tercerArg[]){
+void enviarCaught(int conexion, int argc, char *argv[]){
 
-	int resultado = atoi(tercerArg);
+	if(argc==3){
+		printf("Te faltan argumentos\n");
+		exit(-1);
+	}
+
+	int resultado = atoi(argv[3]);
 
 	t_caught_pokemon* pokemon = caught_pokemon(resultado);
 	enviar_mensaje(pokemon, conexion, CAUGHT_POKEMON);
 }
 
-void enviarGet(int conexion, char nombre[]){
+void enviarGet(int conexion, int argc, char *argv[]){
 
-	t_get_pokemon* pokemon = get_pokemon(nombre);
+	if(argc==3){
+		printf("Te faltan argumentos\n");
+		exit(-1);
+	}
+
+	t_get_pokemon* pokemon = get_pokemon(argv[3]);
 	enviar_mensaje(pokemon, conexion, CAUGHT_POKEMON);
 }
 
