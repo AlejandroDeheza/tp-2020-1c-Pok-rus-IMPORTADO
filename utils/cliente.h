@@ -13,6 +13,7 @@
 #include<commons/collections/list.h>
 #include<readline/readline.h>
 #include "estructuras.h"
+#include <commons/error.h>
 
 int crear_conexion(char* ip, char* puerto);
 void enviar_mensaje(void* mensaje, int socket_cliente, op_code codigo_operacion);

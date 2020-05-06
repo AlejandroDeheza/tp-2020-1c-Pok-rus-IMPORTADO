@@ -13,22 +13,18 @@ int main(int argc, char *argv[]) {
 	verificarEntrada(argc);
 	int conexion = configuracionInicial(ip, puerto, &logger, &config, argv);
 	despacharMensaje(conexion, &logger, argc, argv);
-	//enviarAlgoParaProbar(conexion); //PARA PROBAR A MANO
 	terminar_programa(conexion, logger, config);
 	exit(0);
 }
 
 void verificarEntrada(int argc){
 
+	printf("\n");
 	if(argc == 1 || argc == 2 || argc == 3 ){
-		printf("Debe ingresar los argumentos con el siguiente formato:\n"
+		error_show(" Debe ingresar los argumentos con el siguiente formato:\n"
 		"./gameboy [PROCESO] [TIPO_MENSAJE] [ARGUMENTOS]*\n"
 		"o\n"
-		"./gameboy SUSCRIPTOR [COLA_DE_MENSAJES] [TIEMPO]\n");
-		exit(-1);
-	}
-	if(argc > 8){
-		printf("Ingresaste demasiados argumentos\n");
+		"./gameboy SUSCRIPTOR [COLA_DE_MENSAJES] [TIEMPO]\n\n");
 		exit(-1);
 	}
 }
@@ -37,60 +33,55 @@ int configuracionInicial(char* ip, char* puerto, t_log** logger, t_config** conf
 
 	char* log_file = NULL;
 	int conexion = 0;
-
-	char *funcion = malloc(20);
 	char *ipElegida = malloc(30);
 	char *puertoElegido = malloc(30);
-	char *logConexion = malloc(40);
 
 	*config = leer_config("../game-boy.config");
 	asignar_string_property(*config, "LOG_FILE", &log_file);
 	if(!log_file){
-		printf("No se encontro LOG_FILE en el game-boy.config\n");
+		error_show(" No se encontro LOG_FILE en el game-boy.config\n\n");
 		exit(-1);
 	}
 	*logger = iniciar_logger(log_file, "game-boy");
-	printf("\nConfiguraciones:.\nLOG_FILE = %s\n", log_file);
+	printf("Configuraciones:\n"
+			"LOG_FILE = %s\n", log_file);
 
-	seleccionarFuncion(&funcion, argv[1]);
-	strcat(ipElegida,"IP_");
-	strcat(ipElegida, funcion);
-	strcat(puertoElegido,"PUERTO_");
-	strcat(puertoElegido,funcion);
+	char *funcion = seleccionarFuncion(argv[1]);
+	string_append_with_format(&ipElegida, "IP_%s", funcion);
+	string_append_with_format(&puertoElegido, "PUERTO_%s", funcion);
 	asignar_string_property(*config, ipElegida, &ip);
 	asignar_string_property(*config, puertoElegido, &puerto);
+
+	if(!ip || !puerto){
+
+		printf("\n");
+		error_show(" No se encontro %s o %s en el gameboy.config\n\n", ipElegida, puertoElegido);
+		exit(-1);
+	}
 	free(ipElegida);
 	free(puertoElegido);
 
-	if(!ip || !puerto){
-		printf("Chequear archivo de configuracion\n");
-		exit(-1);
-	}
-	printf("IP = %s.\nPUERTO = %s.\n", ip, puerto);
+	printf("IP = %s.\n"
+			"PUERTO = %s.\n", ip, puerto);
 
 	conexion = crear_conexion( ip, puerto);
-	strcat(logConexion,"Se realizo una conexion con ");
-	strcat(logConexion, funcion);
-	log_info(*logger, logConexion);
-	free(funcion);
-	free(logConexion);
+	printf("\n");
+	log_info(*logger, "Se realizo una conexion con %s", funcion);
+	printf("\n");
 	return conexion;
 }
 
-void seleccionarFuncion(char **funcion, char *primerArg){
+char* seleccionarFuncion(char *primerArg){
 
 	if(strcmp(primerArg,"SUSCRIPTOR")==0){
 		//suscribirAColaDeMensajes();			//TODO
-	}else if(strcmp(primerArg,"BROKER")==0){
-		strcpy(*funcion, "BROKER");
-	}else if(strcmp(primerArg,"TEAM")==0){
-		strcpy(*funcion, "TEAM");
-	}else if(strcmp(primerArg,"GAMECARD")==0){
-		strcpy(*funcion, "GAMECARD");
-	}else{
-		printf("El primer argumento es incorrecto\n");
+	}
+	else if(strcmp(primerArg,"BROKER")!=0 && strcmp(primerArg,"TEAM")!=0 && strcmp(primerArg,"GAMECARD")!=0){
+		printf("\n");
+		error_show(" El primer argumento es incorrecto\n\n");
 		exit(-1);
 	}
+	return primerArg;
 }
 
 void despacharMensaje(int conexion, t_log** logger, int argc, char *argv[]){
@@ -111,56 +102,25 @@ void despacharMensaje(int conexion, t_log** logger, int argc, char *argv[]){
 		enviarGet(conexion, argc, argv);
 		logearEnvio(logger, argv);
 	}else{
-		printf("El segundo argumento es incorrecto\n");
+		printf("\n");
+		error_show(" El segundo argumento es incorrecto\n\n");
 		exit(-1);
 	}
 }
 
 void logearEnvio(t_log** logger, char *argv[]){
 
-	char *logEnvioMensaje = malloc(100);
-	strcpy(logEnvioMensaje, "");
-
-	strcat(logEnvioMensaje,"Se envio el mensaje ");
-	strcat(logEnvioMensaje, argv[2]);
-	strcat(logEnvioMensaje, " a ");
-	strcat(logEnvioMensaje, argv[1]);
-	log_info(*logger, logEnvioMensaje);
-
-	free(logEnvioMensaje);
+	printf("\n");
+	log_info(*logger, "Se envio el mensaje %s a %s", argv[2], argv[1]);
+	printf("\n");
 }
-
-/*	//PARA PROBAR A MANO
-void enviarAlgoParaProbar(int conexion){
-
-	char* nombre = malloc(20);
-	int posx;
-	int posy;
-	int cantidad;
-	printf("Ingrese nombre del pokemon:\n");
-	scanf("%s", nombre);
-	printf("Ingrese posicion X:\n");
-	scanf("%d", &posx);
-	printf("Ingrese posicion Y:\n");
-	scanf("%d", &posy);
-	printf("Ingrese cantidad:\n");
-	scanf("%d", &cantidad);
-
-	t_new_pokemon* pokemon = new_pokemon(nombre, posx, posy, cantidad);
-	free(nombre);
-	enviar_mensaje(pokemon, conexion, NEW_POKEMON);
-
-	//char* response = recibir_mensaje(conexion);
-	//printf("Mensaje devuelto: %s", response);
-
-	//por ahora no recibe nada
-}
-*/
 
 void enviarNew(int conexion, int argc, char *argv[]){
 
-	if(argc==6){
-		printf("Te faltan argumentos\n");
+	if(argc!=7){
+		printf("\n");
+		error_show(" Para NEW_POKEMON debe ingresar los argumentos con el siguiente formato:\n"
+				"./gameboy [PROCESO] NEW_POKEMON [POKEMON] [POSX] [POSY] [CANTIDAD]\n\n");
 		exit(-1);
 	}
 
@@ -174,8 +134,10 @@ void enviarNew(int conexion, int argc, char *argv[]){
 
 void enviarAppeared(int conexion, int argc, char *argv[]){
 
-	if(argc==5){
-		printf("Te faltan argumentos\n");
+	if(argc!=6){
+		printf("\n");
+		error_show(" Para APPEARED_POKEMON debe ingresar los argumentos con el siguiente formato:\n"
+						"./gameboy [PROCESO] APPEARED_POKEMON [POKEMON] [POSX] [POSY]\n\n");
 		exit(-1);
 	}
 
@@ -188,8 +150,10 @@ void enviarAppeared(int conexion, int argc, char *argv[]){
 
 void enviarCatch(int conexion, int argc, char *argv[]){
 
-	if(argc==5){
-		printf("Te faltan argumentos\n");
+	if(argc!=6){
+		printf("\n");
+		error_show(" Para CATCH_POKEMON debe ingresar los argumentos con el siguiente formato:\n"
+						"./gameboy [PROCESO] CATCH_POKEMON [POKEMON] [POSX] [POSY]\n\n");
 		exit(-1);
 	}
 
@@ -202,8 +166,9 @@ void enviarCatch(int conexion, int argc, char *argv[]){
 
 void enviarCaught(int conexion, int argc, char *argv[]){
 
-	if(argc==3){
-		printf("Te faltan argumentos\n");
+	if(argc!=4){
+		error_show(" Para CAUGHT_POKEMON debe ingresar los argumentos con el siguiente formato:\n"
+						"./gameboy [PROCESO] CAUGHT_POKEMON [OK/FAIL]\n\n");
 		exit(-1);
 	}
 
@@ -215,8 +180,9 @@ void enviarCaught(int conexion, int argc, char *argv[]){
 
 void enviarGet(int conexion, int argc, char *argv[]){
 
-	if(argc==3){
-		printf("Te faltan argumentos\n");
+	if(argc!=4){
+		error_show(" Para GET_POKEMON debe ingresar los argumentos con el siguiente formato:\n"
+						"./gameboy [PROCESO] GET_POKEMON [POKEMON]\n\n");
 		exit(-1);
 	}
 
@@ -236,6 +202,5 @@ void terminar_programa(int conexion, t_log* logger, t_config* config)
 		liberar_conexion(conexion);
 	}
 
-	printf("Corrio re cheto\n");
-	printf("Finalizo programa.\n");
+	printf("El programa finalizo correctamente.\n\n");
 }

@@ -17,7 +17,8 @@ int crear_conexion(char *ip, char* puerto)
 	int socket_cliente = socket(server_info->ai_family, server_info->ai_socktype, server_info->ai_protocol);
 
 	if(connect(socket_cliente, server_info->ai_addr, server_info->ai_addrlen) == -1){
-		printf("error de conexion");
+		printf("\n");
+		error_show(" Error de conexion\n\n");
 		exit(-1);
 	}
 
@@ -83,7 +84,6 @@ void enviar_mensaje(void* mensaje, int socket_cliente, op_code codigo_operacion)
 	free(paquete->buffer->stream);
 	free(paquete->buffer);
 	free(paquete);
-	printf("\n");
 }
 
 t_new_pokemon* new_pokemon(char* nombre, int posx, int posy, int cantidad)
