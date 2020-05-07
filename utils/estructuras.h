@@ -73,3 +73,13 @@ typedef struct
 {
 	int resultado;
 } t_caught_pokemon;
+
+typedef struct
+{
+	int id_entrenador;
+	t_coordenadas coordenadas;
+	t_list* pokemones_entrenador;
+	t_list* objetivo_entrenador;
+
+} t_entrenador;
+

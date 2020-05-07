@@ -17,43 +17,6 @@
 #include "../utils/config.h"
 
 
-/*typedef struct nodo{
-	char *nombre;
-	struct nodo *sig;
-}Libro;*/
-
-typedef struct nodo
-{
-	int id_entrenador;
-	t_coordenadas coordenadas;
-	struct nodo *sig;
-} t_entrenador;
-
-
-t_entrenador *listaEntrenadores(t_entrenador *Lista){
-	Lista = NULL;
-	return Lista;
-}
-
-t_entrenador *agregarEntrenador(t_entrenador* Lista, int id_entrenador, int posx, int posy){
-	t_entrenador *nuevoEntrenador, *aux;
-	nuevoEntrenador= (t_entrenador*)malloc(sizeof(t_entrenador));
-	nuevoEntrenador->id_entrenador = id_entrenador;
-	nuevoEntrenador->coordenadas.posx = posx;
-	nuevoEntrenador->coordenadas.posy = posy;
-	nuevoEntrenador->sig = NULL;
-	if(Lista == NULL){
-		Lista = nuevoEntrenador;
-	}else{
-		aux = Lista;
-		while(aux->sig !=NULL){
-			aux = aux->sig;
-		}
-		aux->sig = nuevoEntrenador;
-	}
-	return Lista;
-}
-
 int main(void) {
 
 	int conexion;
@@ -63,6 +26,7 @@ int main(void) {
 
 	t_log* logger;
 	t_config* config;
+	t_list* lista_entrenadores;
 
 	config = leer_config("../team.config");
 
@@ -73,9 +37,9 @@ int main(void) {
 	removeChar(posicionesEntrenadores, ']');
 	printf("Entrenadores quedo asi: %s\n", posicionesEntrenadores);
 
-	t_entrenador* Lista = listaEntrenadores(Lista);
-
 	char** posiciones = string_split(posicionesEntrenadores,",");
+
+	lista_entrenadores = list_create();
 
 	int i=0;
 	while(posiciones[i]!=NULL){
@@ -84,7 +48,10 @@ int main(void) {
 		int posicionY = atoi(xy[1]);
 		printf("Elemento %d, PosicionX: %d \n", i, posicionX);
 		printf("Elemento %d, PosicionY: %d \n", i, posicionY);
-		Lista=agregarEntrenador(Lista, i, posicionX, posicionY);
+		t_entrenador* entrenador = malloc(sizeof(t_entrenador));
+		entrenador->coordenadas.posx = posicionX;
+		entrenador->coordenadas.posy = posicionY;
+		list_add(lista_entrenadores, entrenador);
 		i++;
 	}
 
