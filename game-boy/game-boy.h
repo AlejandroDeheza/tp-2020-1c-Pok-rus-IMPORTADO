@@ -9,13 +9,12 @@
 #include<readline/readline.h>
 #include <commons/error.h>
 
-#define TAMANIO_MAXIMO_ARGUMENTO 20+1
-
-void verificarEntrada(int argc);
-int configuracionInicial(char* ip, char* puerto, t_log** logger, t_config** config, char *argv[]);
-char* seleccionarFuncion(char *primerArg);
-void despacharMensaje(int conexion, t_log** logger, int argc, char *argv[]);
-void logearEnvio(t_log** logger, char *argv[]);
+void verificarEntrada(int argc, char *primerArg);
+void iniciar_logger_y_config(t_log** logger, t_config** config);
+void setear_ip_y_puerto(char** ip, char** puerto, t_config* config, char *primerArg);
+void logearConexion(t_log* logger, char *primerArg);
+void despacharMensaje(int conexion, int argc, char *argv[]);
+void logearEnvio(t_log* logger, char *argv[]);
 
 void enviarNew(int conexion, int argc, char *argv[]);
 void enviarAppeared(int conexion, int argc, char *argv[]);

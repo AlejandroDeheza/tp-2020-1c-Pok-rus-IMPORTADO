@@ -30,6 +30,7 @@ int crear_conexion(char *ip, char* puerto)
 void enviar_mensaje(void* mensaje, int socket_cliente, op_code codigo_operacion)
 {
 	int estado = 0;
+	int offset = 0;
 
 	t_paquete* paquete = malloc(sizeof(t_paquete));
 	paquete->codigo_operacion = codigo_operacion;
@@ -39,39 +40,73 @@ void enviar_mensaje(void* mensaje, int socket_cliente, op_code codigo_operacion)
 		case IDENTIFICACION:
 			printf("Creo un paquete para un identificarme\n");
 			paquete->buffer->size = sizeof(int);
+			paquete->buffer->stream = malloc(paquete->buffer->size);
+			memcpy(paquete->buffer->stream + offset, mensaje, paquete->buffer->size);
 			break;
 		case MENSAJE:
 			printf("Creo un paquete para un MENSAJE\n");
 			paquete->buffer->size = strlen(mensaje)+ 1;
+			paquete->buffer->stream = malloc(paquete->buffer->size);
+			memcpy(paquete->buffer->stream + offset, mensaje, paquete->buffer->size);
 			break;
 		case NEW_POKEMON:
 			printf("Creo un paquete para NEW_POKEMON\n");
 			t_new_pokemon* new_pokemon = mensaje;
-			paquete->buffer->size = sizeof(t_new_pokemon) +  new_pokemon->size;
+			paquete->buffer->size = sizeof(int)*4 + new_pokemon->size;
+			paquete->buffer->stream = malloc(paquete->buffer->size);
+			memcpy(paquete->buffer->stream + offset, &(new_pokemon->size), sizeof(int));
+			offset += sizeof(int);
+			memcpy(paquete->buffer->stream + offset, new_pokemon->nombre, new_pokemon->size);
+			offset += new_pokemon->size;
+			memcpy(paquete->buffer->stream + offset, &(new_pokemon->posicion.posx), sizeof(int));
+			offset += sizeof(int);
+			memcpy(paquete->buffer->stream + offset, &(new_pokemon->posicion.posy), sizeof(int));
+			offset += sizeof(int);
+			memcpy(paquete->buffer->stream + offset, &(new_pokemon->cantidad), sizeof(int));
 			break;
 		case APPEARED_POKEMON:
 			printf("Creo un paquete para APPEARED_POKEMON\n");
-			t_appeared_pokemon* appaeared_pokemon = mensaje;
-			paquete->buffer->size = sizeof(t_appeared_pokemon) +  appaeared_pokemon->size;
+			t_appeared_pokemon* appeared_pokemon = mensaje;
+			paquete->buffer->size = sizeof(int)*3 + appeared_pokemon->size;
+			paquete->buffer->stream = malloc(paquete->buffer->size);
+			memcpy(paquete->buffer->stream + offset, &(appeared_pokemon->size), sizeof(int));
+			offset += sizeof(int);
+			memcpy(paquete->buffer->stream + offset, appeared_pokemon->nombre, appeared_pokemon->size);
+			offset += appeared_pokemon->size;
+			memcpy(paquete->buffer->stream + offset, &(appeared_pokemon->coordenadas.posx), sizeof(int));
+			offset += sizeof(int);
+			memcpy(paquete->buffer->stream + offset, &(appeared_pokemon->coordenadas.posy), sizeof(int));
 			break;
 		case CATCH_POKEMON:
 			printf("Creo un paquete para CATCH_POKEMON\n");
 			t_catch_pokemon* catch_pokemon = mensaje;
-			paquete->buffer->size = sizeof(t_catch_pokemon) +  catch_pokemon->size;
+			paquete->buffer->size = sizeof(int)*3 + catch_pokemon->size;
+			paquete->buffer->stream = malloc(paquete->buffer->size);
+			memcpy(paquete->buffer->stream + offset, &(catch_pokemon->size), sizeof(int));
+			offset += sizeof(int);
+			memcpy(paquete->buffer->stream + offset, catch_pokemon->nombre, catch_pokemon->size);
+			offset += catch_pokemon->size;
+			memcpy(paquete->buffer->stream + offset, &(catch_pokemon->coordenadas.posx), sizeof(int));
+			offset += sizeof(int);
+			memcpy(paquete->buffer->stream + offset, &(catch_pokemon->coordenadas.posy), sizeof(int));
 			break;
 		case CAUGHT_POKEMON:
 			printf("Creo un paquete para CAUGHT_POKEMON\n");
-			paquete->buffer->size = sizeof(t_caught_pokemon);
+			paquete->buffer->size = sizeof(int);
+			paquete->buffer->stream = malloc(paquete->buffer->size);
+			memcpy(paquete->buffer->stream + offset, mensaje, sizeof(int));
 			break;
 		case GET_POKEMON:
 			printf("Creo un paquete para GET_POKEMON\n");
 			t_get_pokemon* get_pokemon = mensaje;
-			paquete->buffer->size = sizeof(t_get_pokemon) +  get_pokemon->size;
+			paquete->buffer->size = sizeof(int) + get_pokemon->size;
+			paquete->buffer->stream = malloc(paquete->buffer->size);
+			memcpy(paquete->buffer->stream + offset, &(get_pokemon->size), sizeof(int));
+			offset += sizeof(int);
+			memcpy(paquete->buffer->stream + offset, get_pokemon->nombre, get_pokemon->size);
 			break;
 	}
 
-	paquete->buffer->stream = malloc(paquete->buffer->size);
-	memcpy(paquete->buffer->stream, mensaje, paquete->buffer->size);
 	printf("EnviarMensaje -> Mensaje Empaquetado: \"%s\".\n", (char*)paquete->buffer->stream);
 	int bytes = 0;
 	void* aEnviar = serializar_paquete(paquete, &bytes);

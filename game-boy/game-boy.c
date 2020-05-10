@@ -5,19 +5,31 @@
 
 int main(int argc, char *argv[]) {
 
+	int conexion = 0;
 	char* ip = NULL;
 	char* puerto = NULL;
 	t_log* logger = NULL;
 	t_config* config = NULL;
 
-	verificarEntrada(argc);
-	int conexion = configuracionInicial(ip, puerto, &logger, &config, argv);
-	despacharMensaje(conexion, &logger, argc, argv);
+	verificarEntrada(argc, argv[1]);
+	iniciar_logger_y_config(&logger, &config);
+
+	if(strcmp(argv[1],"SUSCRIPTOR")==0){
+		//suscribirAColaDeMensajes();			//TODO
+	}else{
+		setear_ip_y_puerto(&ip, &puerto, config, argv[1]);
+		conexion = crear_conexion( ip, puerto);
+		logearConexion(logger, argv[1]);
+
+		despacharMensaje(conexion, argc, argv);
+		logearEnvio(logger, argv);
+	}
+
 	terminar_programa(conexion, logger, config);
-	exit(0);
+	return EXIT_SUCCESS;
 }
 
-void verificarEntrada(int argc){
+void verificarEntrada(int argc, char *primerArg){
 
 	printf("\n");
 	if(argc == 1 || argc == 2 || argc == 3 ){
@@ -27,80 +39,73 @@ void verificarEntrada(int argc){
 		"./gameboy SUSCRIPTOR [COLA_DE_MENSAJES] [TIEMPO]\n\n");
 		exit(-1);
 	}
+	if(strcmp(primerArg,"BROKER")!=0 &&
+	   strcmp(primerArg,"TEAM")!=0 &&
+	   strcmp(primerArg,"GAMECARD")!=0 &&
+	   strcmp(primerArg,"SUSCRIPTOR")!=0){
+			error_show(" El primer argumento es incorrecto\n\n");
+			exit(-1);
+	}
 }
 
-int configuracionInicial(char* ip, char* puerto, t_log** logger, t_config** config, char *argv[]){
+void iniciar_logger_y_config(t_log** logger, t_config** config){
 
 	char* log_file = NULL;
-	int conexion = 0;
-	char *ipElegida = malloc(30);
-	char *puertoElegido = malloc(30);
 
 	*config = leer_config("../game-boy.config");
 	asignar_string_property(*config, "LOG_FILE", &log_file);
+
 	if(!log_file){
 		error_show(" No se encontro LOG_FILE en el game-boy.config\n\n");
 		exit(-1);
 	}
 	*logger = iniciar_logger(log_file, "game-boy");
+
 	printf("Configuraciones:\n"
 			"LOG_FILE = %s\n", log_file);
+}
 
-	char *funcion = seleccionarFuncion(argv[1]);
-	string_append_with_format(&ipElegida, "IP_%s", funcion);
-	string_append_with_format(&puertoElegido, "PUERTO_%s", funcion);
-	asignar_string_property(*config, ipElegida, &ip);
-	asignar_string_property(*config, puertoElegido, &puerto);
+void setear_ip_y_puerto(char** ip, char** puerto, t_config* config, char *primerArg){
 
-	if(!ip || !puerto){
+	char *ipElegida = string_new();
+	char *puertoElegido = string_new();
 
+	string_append_with_format(&ipElegida, "IP_%s", primerArg);
+	string_append_with_format(&puertoElegido, "PUERTO_%s", primerArg);
+	asignar_string_property(config, ipElegida, ip);
+	asignar_string_property(config, puertoElegido, puerto);
+
+	if(!(*ip) || !(*puerto)){
 		printf("\n");
 		error_show(" No se encontro %s o %s en el gameboy.config\n\n", ipElegida, puertoElegido);
 		exit(-1);
 	}
+	printf("IP = %s.\n"
+			"PUERTO = %s.\n", *ip, *puerto);
+
 	free(ipElegida);
 	free(puertoElegido);
-
-	printf("IP = %s.\n"
-			"PUERTO = %s.\n", ip, puerto);
-
-	conexion = crear_conexion( ip, puerto);
-	printf("\n");
-	log_info(*logger, "Se realizo una conexion con %s", funcion);
-	printf("\n");
-	return conexion;
 }
 
-char* seleccionarFuncion(char *primerArg){
+void logearConexion(t_log* logger, char *primerArg){
 
-	if(strcmp(primerArg,"SUSCRIPTOR")==0){
-		//suscribirAColaDeMensajes();			//TODO
-	}
-	else if(strcmp(primerArg,"BROKER")!=0 && strcmp(primerArg,"TEAM")!=0 && strcmp(primerArg,"GAMECARD")!=0){
-		printf("\n");
-		error_show(" El primer argumento es incorrecto\n\n");
-		exit(-1);
-	}
-	return primerArg;
+	printf("\n");
+	log_info(logger, "Se realizo una conexion con %s", primerArg);
+	printf("\n");
 }
 
-void despacharMensaje(int conexion, t_log** logger, int argc, char *argv[]){
+void despacharMensaje(int conexion, int argc, char *argv[]){
 
 	if(strcmp(argv[2],"NEW_POKEMON")==0){
 		enviarNew(conexion, argc, argv);
-		logearEnvio(logger, argv);
 	}else if(strcmp(argv[2],"APPEARED_POKEMON")==0){
 		enviarAppeared(conexion, argc, argv);
-		logearEnvio(logger, argv);
 	}else if(strcmp(argv[2],"CATCH_POKEMON")==0){
 		enviarCatch(conexion, argc, argv);
-		logearEnvio(logger, argv);
 	}else if(strcmp(argv[2],"CAUGHT_POKEMON")==0){
 		enviarCaught(conexion, argc, argv);
-		logearEnvio(logger, argv);
 	}else if(strcmp(argv[2],"GET_POKEMON")==0){
 		enviarGet(conexion, argc, argv);
-		logearEnvio(logger, argv);
 	}else{
 		printf("\n");
 		error_show(" El segundo argumento es incorrecto\n\n");
@@ -108,10 +113,10 @@ void despacharMensaje(int conexion, t_log** logger, int argc, char *argv[]){
 	}
 }
 
-void logearEnvio(t_log** logger, char *argv[]){
+void logearEnvio(t_log* logger, char *argv[]){
 
 	printf("\n");
-	log_info(*logger, "Se envio el mensaje %s a %s", argv[2], argv[1]);
+	log_info(logger, "Se envio el mensaje %s a %s", argv[2], argv[1]);
 	printf("\n");
 }
 
@@ -130,6 +135,8 @@ void enviarNew(int conexion, int argc, char *argv[]){
 
 	t_new_pokemon* pokemon = new_pokemon(argv[3], posx, posy, cantidad);
 	enviar_mensaje(pokemon, conexion, NEW_POKEMON);
+	free(pokemon->nombre);
+	free(pokemon);
 }
 
 void enviarAppeared(int conexion, int argc, char *argv[]){
@@ -146,6 +153,8 @@ void enviarAppeared(int conexion, int argc, char *argv[]){
 
 	t_appeared_pokemon* pokemon = appeared_pokemon(argv[3], posx, posy);
 	enviar_mensaje(pokemon, conexion, APPEARED_POKEMON);
+	free(pokemon->nombre);
+	free(pokemon);
 }
 
 void enviarCatch(int conexion, int argc, char *argv[]){
@@ -162,6 +171,8 @@ void enviarCatch(int conexion, int argc, char *argv[]){
 
 	t_catch_pokemon* pokemon = catch_pokemon(argv[3], posx, posy);
 	enviar_mensaje(pokemon, conexion, CATCH_POKEMON);
+	free(pokemon->nombre);
+	free(pokemon);
 }
 
 void enviarCaught(int conexion, int argc, char *argv[]){
@@ -176,6 +187,7 @@ void enviarCaught(int conexion, int argc, char *argv[]){
 
 	t_caught_pokemon* pokemon = caught_pokemon(resultado);
 	enviar_mensaje(pokemon, conexion, CAUGHT_POKEMON);
+	free(pokemon);
 }
 
 void enviarGet(int conexion, int argc, char *argv[]){
@@ -188,6 +200,8 @@ void enviarGet(int conexion, int argc, char *argv[]){
 
 	t_get_pokemon* pokemon = get_pokemon(argv[3]);
 	enviar_mensaje(pokemon, conexion, CAUGHT_POKEMON);
+	free(pokemon->nombre);
+	free(pokemon);
 }
 
 void terminar_programa(int conexion, t_log* logger, t_config* config)
