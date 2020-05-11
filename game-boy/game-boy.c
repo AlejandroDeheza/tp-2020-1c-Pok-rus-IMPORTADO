@@ -11,13 +11,13 @@ int main(int argc, char *argv[]) {
 	t_log* logger = NULL;
 	t_config* config = NULL;
 
-	verificarEntrada(argc, argv[1]);
+	verificarEntrada(argc, argv);
 	iniciar_logger_y_config(&logger, &config);
 
 	if(strcmp(argv[1],"SUSCRIPTOR")==0){
 		//suscribirAColaDeMensajes();			//TODO
 	}else{
-		setear_ip_y_puerto(&ip, &puerto, config, argv[1]);
+		seleccionar_ip_y_puerto(&ip, &puerto, config, argv[1]);
 		conexion = crear_conexion( ip, puerto);
 		logearConexion(logger, argv[1]);
 
@@ -26,25 +26,49 @@ int main(int argc, char *argv[]) {
 	}
 
 	terminar_programa(conexion, logger, config);
+	printf("El programa finalizo correctamente.\n\n");
 	return EXIT_SUCCESS;
-}
+}	//cuando termine el gameboy, este main() va a quedar un poco mas ordenado
 
-void verificarEntrada(int argc, char *primerArg){
+void verificarEntrada(int argc, char *argv[]){
 
 	printf("\n");
 	if(argc == 1 || argc == 2 || argc == 3 ){
 		error_show(" Debe ingresar los argumentos con el siguiente formato:\n"
 		"./gameboy [PROCESO] [TIPO_MENSAJE] [ARGUMENTOS]*\n"
 		"o\n"
-		"./gameboy SUSCRIPTOR [COLA_DE_MENSAJES] [TIEMPO]\n\n");
+		"./gameboy SUSCRIPTOR [COLA_DE_MENSAJES] [TIEMPO](en segundos)\n\n");
 		exit(-1);
 	}
-	if(strcmp(primerArg,"BROKER")!=0 &&
-	   strcmp(primerArg,"TEAM")!=0 &&
-	   strcmp(primerArg,"GAMECARD")!=0 &&
-	   strcmp(primerArg,"SUSCRIPTOR")!=0){
+	if(strcmp(argv[1],"BROKER")!=0 &&
+	   strcmp(argv[1],"TEAM")!=0 &&
+	   strcmp(argv[1],"GAMECARD")!=0 &&
+	   strcmp(argv[1],"SUSCRIPTOR")!=0){
 			error_show(" El primer argumento es incorrecto\n\n");
 			exit(-1);
+	}
+	if(strcmp(argv[1],"SUSCRIPTOR")==0){	//verificar si las entradas posibles van a ser estas, TODO
+		//¿Vamos a dejar el nombre de la cola (ej: "NEW") o vamos a poner como en el otro modo (ej: "NEW_POKEMON")?
+		//deberiamos preguntar cual es el formato que piden en el TP (no hay ejemplos de modo SUSCRIPTOR en enunciado)
+		if(strcmp(argv[2],"NEW")!=0 &&
+		   strcmp(argv[2],"APPEARED")!=0 &&
+		   strcmp(argv[2],"CATCH")!=0 &&
+		   strcmp(argv[2],"CAUGHT")!=0 &&
+		   strcmp(argv[2],"GET")!=0){
+				error_show(" El segundo argumento es incorrecto\n\n");
+				exit(-1);
+		}
+	}else{		//segun video de planificacion falta "LOCALIZED_POKEMON" para mandarlo a team...
+				// pero en el enunciado no dice nada de eso
+				//deberiamos preguntar
+		if(strcmp(argv[2],"NEW_POKEMON")!=0 &&
+		   strcmp(argv[2],"APPEARED_POKEMON")!=0 &&
+		   strcmp(argv[2],"CATCH_POKEMON")!=0 &&
+		   strcmp(argv[2],"CAUGHT_POKEMON")!=0 &&
+		   strcmp(argv[2],"GET_POKEMON")!=0){
+				error_show(" El segundo argumento es incorrecto\n\n");
+				exit(-1);
+		}
 	}
 }
 
@@ -65,7 +89,7 @@ void iniciar_logger_y_config(t_log** logger, t_config** config){
 			"LOG_FILE = %s\n", log_file);
 }
 
-void setear_ip_y_puerto(char** ip, char** puerto, t_config* config, char *primerArg){
+void seleccionar_ip_y_puerto(char** ip, char** puerto, t_config* config, char *primerArg){
 
 	char *ipElegida = string_new();
 	char *puertoElegido = string_new();
@@ -98,18 +122,18 @@ void despacharMensaje(int conexion, int argc, char *argv[]){
 
 	if(strcmp(argv[2],"NEW_POKEMON")==0){
 		enviarNew(conexion, argc, argv);
-	}else if(strcmp(argv[2],"APPEARED_POKEMON")==0){
+	}
+	if(strcmp(argv[2],"APPEARED_POKEMON")==0){
 		enviarAppeared(conexion, argc, argv);
-	}else if(strcmp(argv[2],"CATCH_POKEMON")==0){
+	}
+	if(strcmp(argv[2],"CATCH_POKEMON")==0){
 		enviarCatch(conexion, argc, argv);
-	}else if(strcmp(argv[2],"CAUGHT_POKEMON")==0){
+	}
+	if(strcmp(argv[2],"CAUGHT_POKEMON")==0){
 		enviarCaught(conexion, argc, argv);
-	}else if(strcmp(argv[2],"GET_POKEMON")==0){
+	}
+	if(strcmp(argv[2],"GET_POKEMON")==0){
 		enviarGet(conexion, argc, argv);
-	}else{
-		printf("\n");
-		error_show(" El segundo argumento es incorrecto\n\n");
-		exit(-1);
 	}
 }
 
@@ -215,6 +239,4 @@ void terminar_programa(int conexion, t_log* logger, t_config* config)
 	if (conexion != 0) {
 		liberar_conexion(conexion);
 	}
-
-	printf("El programa finalizo correctamente.\n\n");
 }
