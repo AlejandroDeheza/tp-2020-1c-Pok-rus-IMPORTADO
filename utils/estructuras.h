@@ -1,3 +1,6 @@
+#ifndef ESTRUCTURAS_H_
+#define ESTRUCTURAS_H_
+
 #include<stdio.h>
 #include<stdlib.h>
 #include<commons/collections/list.h>
@@ -45,7 +48,7 @@ typedef struct
 {
 	int size;
 	void* nombre;
-	t_coordenadas posicion;
+	t_coordenadas coordenadas;
 	int cantidad;
 } t_new_pokemon;
 
@@ -86,3 +89,6 @@ typedef struct
 {
 	int resultado;
 } t_caught_pokemon;
+
+#endif /* ESTRUCTURAS_H_ */
+
