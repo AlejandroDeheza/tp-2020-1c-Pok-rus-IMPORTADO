@@ -93,11 +93,10 @@ void serializar_catch_pokemon(t_paquete** paquete, void* mensaje){
 
 void serializar_caught_pokemon(t_paquete** paquete, void* mensaje){
 
-	int offset = 0;
-
-	(*paquete)->buffer->size = sizeof(int);
+	t_caught_pokemon* caught_pokemon = mensaje;
+	(*paquete)->buffer->size = sizeof(caught_pokemon->resultado);
 	(*paquete)->buffer->stream = malloc((*paquete)->buffer->size);
-	memcpy((*paquete)->buffer->stream + offset, mensaje, sizeof(int));
+	memcpy((*paquete)->buffer->stream, &(caught_pokemon->resultado), (*paquete)->buffer->size);
 }
 
 void serializar_get_pokemon(t_paquete** paquete, void* mensaje){

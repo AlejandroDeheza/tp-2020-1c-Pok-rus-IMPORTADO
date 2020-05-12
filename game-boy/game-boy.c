@@ -61,6 +61,12 @@ void verificarEntrada(int argc, char *argv[]){
 		}
 	}
 
+	if(strcmp(argv[2],"CAUGHT_POKEMON")==0 && argc != 5){
+		error_show(" Para CAUGHT_POKEMON debe ingresar los argumentos con el siguiente formato:\n"
+		"./gameboy [PROCESO] CAUGHT_POKEMON [ID_MENSAJE_CORRELATIVO](obligatorio?) [OK/FAIL]\n\n");
+		exit(-1);
+	}
+
 
 
 
@@ -74,33 +80,68 @@ void verificarEntrada(int argc, char *argv[]){
 
 	if(strcmp(argv[1],"BROKER")==0)
 	{
-		if(strcmp(argv[2],"APPEARED_POKEMON")==0)
-		{
-			if(argc != 7){
-				error_show(" No escribiste el id_correlativo\n\n");
-			}
+		if(strcmp(argv[2],"APPEARED_POKEMON")==0 && argc != 7){
+			error_show(" No escribiste el id_correlativo o escribiste una cantidad erronea de argumentos\n\n");
+			error_show(" Para enviar APPEARED_POKEMON a BROKER debe ingresar los argumentos con el siguiente formato:\n"
+			"./gameboy BROKER APPEARED_POKEMON [POKEMON] [POSX] [POSY] [ID_MENSAJE_CORRELATIVO](opcional?)\n\n");
+			exit(-1);
+		}
+
+		if(strcmp(argv[2],"NEW_POKEMON")==0 && argc != 7){
+			error_show(" No es necesario el id_correlativo o escribiste una cantidad erronea de argumentos\n\n");
+			error_show(" Para enviar NEW_POKEMON a BROKER debe ingresar los argumentos con el siguiente formato:\n"
+			"./gameboy BROKER NEW_POKEMON [POKEMON] [POSX] [POSY] [CANTIDAD]\n\n");
+			exit(-1);
+		}
+
+		if(strcmp(argv[2],"GET_POKEMON")==0 && argc != 4){
+			error_show(" No es necesario el id_correlativo o escribiste una cantidad erronea de argumentos\n\n");
+			error_show(" Para enviar GET_POKEMON a BROKER debe ingresar los argumentos con el siguiente formato:\n"
+			"./gameboy BROKER GET_POKEMON [POKEMON]\n\n");
+			exit(-1);
+		}
+
+		if(strcmp(argv[2],"CATCH_POKEMON")==0 && argc != 6){
+			error_show(" No es necesario el id_correlativo o escribiste una cantidad erronea de argumentos\n\n");
+			error_show(" Para enviar CATCH_POKEMON a BROKER debe ingresar los argumentos con el siguiente formato:\n"
+			"./gameboy BROKER CATCH_POKEMON [POKEMON] [POSX] [POSY]\n\n");
+			exit(-1);
+		}
+
+		//y el localized? ..
+	}
+
+	if(strcmp(argv[1],"TEAM")==0)
+	{
+		if(strcmp(argv[2],"APPEARED_POKEMON")==0 && argc != 6){
+			error_show(" No es necesario el id_correlativo o escribiste una cantidad erronea de argumentos\n\n");
+			error_show(" Para enviar APPEARED_POKEMON a TEAM debe ingresar los argumentos con el siguiente formato:\n"
+			"./gameboy TEAM APPEARED_POKEMON [POKEMON] [POSX] [POSY]\n\n");
+			exit(-1);
 		}
 	}
 
 	if(strcmp(argv[1],"GAMECARD")==0)
 	{
-		if(strcmp(argv[2],"NEW_POKEMON")==0)
-		{
-			if(argc != 8){
-				error_show(" No escribiste el id_correlativo\n\n");
-			}
+		if(strcmp(argv[2],"NEW_POKEMON")==0 && argc != 8){
+			error_show(" No escribiste el id_correlativo o escribiste una cantidad erronea de argumentos\n\n");
+			error_show(" Para enviar NEW_POKEMON a GAMECARD debe ingresar los argumentos con el siguiente formato:\n"
+			"./gameboy GAMECARD NEW_POKEMON [POKEMON] [POSX] [POSY] [CANTIDAD] [ID_MENSAJE_CORRELATIVO](opcional?)\n\n");
+			exit(-1);
 		}
-		if(strcmp(argv[2],"GET_POKEMON")==0)
-		{
-			if(argc != 5){
-				error_show(" No escribiste el id_correlativo\n\n");
-			}
+
+		if(strcmp(argv[2],"GET_POKEMON")==0 && argc != 5){
+			error_show(" No escribiste el id_correlativo o escribiste una cantidad erronea de argumentos\n\n");
+			error_show(" Para enviar GET_POKEMON a GAMECARD debe ingresar los argumentos con el siguiente formato:\n"
+			"./gameboy GAMECARD GET_POKEMON [POKEMON] [ID_MENSAJE_CORRELATIVO](opcional?)\n\n");
+			exit(-1);
 		}
-		if(strcmp(argv[2],"CATCH_POKEMON")==0)
-		{
-			if(argc != 7){
-				error_show(" No escribiste el id_correlativo\n\n");
-			}
+
+		if(strcmp(argv[2],"CATCH_POKEMON")==0 && argc != 7){
+			error_show(" No escribiste el id_correlativo o escribiste una cantidad erronea de argumentos\n\n");
+			error_show(" Para enviar CATCH_POKEMON a GAMECARD debe ingresar los argumentos con el siguiente formato:\n"
+			"./gameboy GAMECARD CATCH_POKEMON [POKEMON] [POSX] [POSY] [ID_MENSAJE_CORRELATIVO](opcional?)\n\n");
+			exit(-1);
 		}
 	}
 }
@@ -158,100 +199,57 @@ void logearEnvio(t_log* logger, char *argv[]){
 }
 
 
-void enviarNew(int conexion, int argc, char *argv[]){
-
-	if(argc < 7 || argc > 8){
-		printf("\n");
-		error_show(" Para NEW_POKEMON debe ingresar los argumentos con el siguiente formato:\n"
-				"./gameboy [PROCESO] NEW_POKEMON [POKEMON] [POSX] [POSY] [CANTIDAD] [ID_MENSAJE_CORRELATIVO]\n\n");
-		exit(-1);
-	}
-
+void enviarNew(int conexion, int argc, char *argv[])
+{
 	int posx = atoi(argv[4]);
 	int posy = atoi(argv[5]);
 	int cantidad = atoi(argv[6]);
 	int id_correlativo = 0;
 
 	if(argc == 8)	//SE INGRESO ID CORRELATIVO
-	{
 		id_correlativo = atoi(argv[7]);
-	}
 
 	enviar_new_pokemon(conexion, id_correlativo, argv[3], posx, posy, cantidad);
 }
 
-void enviarAppeared(int conexion, int argc, char *argv[]){
-
-	if(argc < 6 || argc > 7){
-		printf("\n");
-		error_show(" Para APPEARED_POKEMON debe ingresar los argumentos con el siguiente formato:\n"
-						"./gameboy [PROCESO] APPEARED_POKEMON [POKEMON] [POSX] [POSY] [ID_MENSAJE_CORRELATIVO]\n\n");
-		exit(-1);
-	}
-
+void enviarAppeared(int conexion, int argc, char *argv[])
+{
 	int posx = atoi(argv[4]);
 	int posy = atoi(argv[5]);
 	int id_correlativo = 0;
 
 	if(argc == 7)	//SE INGRESO ID CORRELATIVO
-	{
 		id_correlativo = atoi(argv[6]);
-	}
 
 	enviar_appeared_pokemon(conexion, id_correlativo, argv[3], posx, posy);
 }
 
-void enviarCatch(int conexion, int argc, char *argv[]){
-
-	if(argc < 6 || argc > 7){
-		printf("\n");
-		error_show(" Para CATCH_POKEMON debe ingresar los argumentos con el siguiente formato:\n"
-						"./gameboy [PROCESO] CATCH_POKEMON [POKEMON] [POSX] [POSY] [ID_MENSAJE_CORRELATIVO]\n\n");
-		exit(-1);
-	}
-
+void enviarCatch(int conexion, int argc, char *argv[])
+{
 	int posx = atoi(argv[4]);
 	int posy = atoi(argv[5]);
 	int id_correlativo = 0;
 
 	if(argc == 7)	//SE INGRESO ID CORRELATIVO
-	{
 		id_correlativo = atoi(argv[6]);
-	}
 
 	enviar_catch_pokemon(conexion, id_correlativo, argv[3], posx, posy);
 }
 
-void enviarCaught(int conexion, int argc, char *argv[]){
-
-	if(argc != 5){
-		printf("\n");
-		error_show(" Para CAUGHT_POKEMON debe ingresar los argumentos con el siguiente formato:\n"
-						"./gameboy [PROCESO] CAUGHT_POKEMON [ID_MENSAJE_CORRELATIVO] [OK/FAIL]\n\n");
-		exit(-1);
-	}
-
+void enviarCaught(int conexion, int argc, char *argv[])
+{
 	int id_correlativo = atoi(argv[3]);
 	int resultado = atoi(argv[4]);
 
 	enviar_caught_pokemon(conexion, id_correlativo, resultado);
 }
 
-void enviarGet(int conexion, int argc, char *argv[]){
-
-	if(argc < 4 || argc > 5){
-		printf("\n");
-		error_show(" Para GET_POKEMON debe ingresar los argumentos con el siguiente formato:\n"
-						"./gameboy [PROCESO] GET_POKEMON [POKEMON] [ID_MENSAJE_CORRELATIVO]\n\n");
-		exit(-1);
-	}
-
+void enviarGet(int conexion, int argc, char *argv[])
+{
 	int id_correlativo = 0;
 
 	if(argc == 5)	//SE INGRESO ID CORRELATIVO
-	{
 		id_correlativo = atoi(argv[4]);
-	}
 
 	enviar_get_pokemon(conexion, id_correlativo, argv[3]);
 }
@@ -267,6 +265,7 @@ void enviarLocalized(int conexion, int argc, char *argv[])
 		printf("\n");
 		error_show(" Para GET_POKEMON debe ingresar los argumentos con el siguiente formato:\n"
 						"./gameboy [PROCESO] LOCALIZED_POKEMON [PARES DE COORDENADAS]*\n\n");
+						//y el id_correlativo?..
 		exit(-1);
 	}
 	if(argc%2 == 1){
