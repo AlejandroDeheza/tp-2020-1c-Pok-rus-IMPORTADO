@@ -122,10 +122,7 @@ void enviarNew(int conexion, int argc, char *argv[]){
 	int posy = atoi(argv[5]);
 	int cantidad = atoi(argv[6]);
 
-	t_new_pokemon* pokemon = new_pokemon(argv[3], posx, posy, cantidad);
-	enviar_mensaje(pokemon, conexion, NEW_POKEMON);
-	free(pokemon->nombre);
-	free(pokemon);
+	enviar_new_pokemon(conexion, argv[3], posx, posy, cantidad);
 }
 
 void enviarAppeared(int conexion, int argc, char *argv[]){
@@ -140,10 +137,7 @@ void enviarAppeared(int conexion, int argc, char *argv[]){
 	int posx = atoi(argv[4]);
 	int posy = atoi(argv[5]);
 
-	t_appeared_pokemon* pokemon = appeared_pokemon(argv[3], posx, posy);
-	enviar_mensaje(pokemon, conexion, APPEARED_POKEMON);
-	free(pokemon->nombre);
-	free(pokemon);
+	enviar_appeared_pokemon(conexion, argv[3], posx, posy);
 }
 
 void enviarCatch(int conexion, int argc, char *argv[]){
@@ -158,10 +152,7 @@ void enviarCatch(int conexion, int argc, char *argv[]){
 	int posx = atoi(argv[4]);
 	int posy = atoi(argv[5]);
 
-	t_catch_pokemon* pokemon = catch_pokemon(argv[3], posx, posy);
-	enviar_mensaje(pokemon, conexion, CATCH_POKEMON);
-	free(pokemon->nombre);
-	free(pokemon);
+	enviar_catch_pokemon(conexion, argv[3], posx, posy);
 }
 
 void enviarCaught(int conexion, int argc, char *argv[]){
@@ -175,9 +166,7 @@ void enviarCaught(int conexion, int argc, char *argv[]){
 
 	int resultado = atoi(argv[3]);
 
-	t_caught_pokemon* pokemon = caught_pokemon(resultado);
-	enviar_mensaje(pokemon, conexion, CAUGHT_POKEMON);
-	free(pokemon);
+	enviar_caught_pokemon(conexion, resultado);
 }
 
 void enviarGet(int conexion, int argc, char *argv[]){
@@ -189,10 +178,7 @@ void enviarGet(int conexion, int argc, char *argv[]){
 		exit(-1);
 	}
 
-	t_get_pokemon* pokemon = get_pokemon(argv[3]);
-	enviar_mensaje(pokemon, conexion, CAUGHT_POKEMON);
-	free(pokemon->nombre);
-	free(pokemon);
+	enviar_get_pokemon(conexion, argv[3]);
 }
 
 void enviarLocalized(int conexion, int argc, char *argv[])
@@ -230,13 +216,9 @@ void enviarLocalized(int conexion, int argc, char *argv[])
 		//eso creo, estoy casi seguro porque vi el codigo de list.c
 	}
 
-	t_localized_pokemon* pokemon = localized_pokemon(argv[3], lista_coordenadas);
-	enviar_mensaje(pokemon, conexion, LOCALIZED_POKEMON);
-
+	enviar_localized_pokemon(conexion, argv[3], lista_coordenadas);
 	list_destroy_and_destroy_elements(lista_coordenadas, free);
-	free(pokemon->nombre);
-	list_destroy_and_destroy_elements(pokemon->coordenadas, free);
-	free(pokemon);
+
 }
 
 void terminar_programa(int conexion, t_log* logger, t_config* config)

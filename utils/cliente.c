@@ -89,7 +89,7 @@ void enviar_mensaje(void* mensaje, int socket_cliente, op_code codigo_operacion)
 	free(paquete);
 }
 
-t_new_pokemon* new_pokemon(char* nombre, int posx, int posy, int cantidad)
+void enviar_new_pokemon(int conexion, char* nombre, int posx, int posy, int cantidad)
 {
 	t_new_pokemon* new_pokemon = malloc(sizeof(t_new_pokemon));
 	new_pokemon->size = strlen(nombre) + 1;
@@ -99,10 +99,12 @@ t_new_pokemon* new_pokemon(char* nombre, int posx, int posy, int cantidad)
 	new_pokemon->coordenadas.posy = posy;
 	new_pokemon->cantidad = cantidad;
 
-	return new_pokemon;
+	enviar_mensaje(new_pokemon, conexion, NEW_POKEMON);
+	free(new_pokemon->nombre);
+	free(new_pokemon);
 }
 
-t_appeared_pokemon* appeared_pokemon(char* nombre, int posx, int posy)
+void enviar_appeared_pokemon(int conexion, char* nombre, int posx, int posy)
 {
 	t_appeared_pokemon* appeared_pokemon = malloc(sizeof(t_appeared_pokemon));
 	appeared_pokemon->size = strlen(nombre) + 1;
@@ -111,10 +113,12 @@ t_appeared_pokemon* appeared_pokemon(char* nombre, int posx, int posy)
 	appeared_pokemon->coordenadas.posx = posx;
 	appeared_pokemon->coordenadas.posy = posy;
 
-	return appeared_pokemon;
+	enviar_mensaje(appeared_pokemon, conexion, APPEARED_POKEMON);
+	free(appeared_pokemon->nombre);
+	free(appeared_pokemon);
 }
 
-t_catch_pokemon* catch_pokemon(char* nombre, int posx, int posy)
+void enviar_catch_pokemon(int conexion, char* nombre, int posx, int posy)
 {
 	t_catch_pokemon* catch_pokemon = malloc(sizeof(t_catch_pokemon));
 	catch_pokemon->size = strlen(nombre) + 1;
@@ -123,28 +127,33 @@ t_catch_pokemon* catch_pokemon(char* nombre, int posx, int posy)
 	catch_pokemon->coordenadas.posx = posx;
 	catch_pokemon->coordenadas.posy = posy;
 
-	return catch_pokemon;
+	enviar_mensaje(catch_pokemon, conexion, CATCH_POKEMON);
+	free(catch_pokemon->nombre);
+	free(catch_pokemon);
 }
 
-t_caught_pokemon* caught_pokemon(int resultado)
+void enviar_caught_pokemon(int conexion, int resultado)
 {
 	t_caught_pokemon* caught_pokemon = malloc(sizeof(t_caught_pokemon));
 	caught_pokemon->resultado= resultado;
 
-	return caught_pokemon;
+	enviar_mensaje(caught_pokemon, conexion, CAUGHT_POKEMON);
+	free(caught_pokemon);
 }
 
-t_get_pokemon* get_pokemon(char* nombre)
+void enviar_get_pokemon(int conexion, char* nombre)
 {
 	t_get_pokemon* get_pokemon = malloc(sizeof(t_get_pokemon));
 	get_pokemon->size = strlen(nombre) + 1;
 	get_pokemon->nombre = malloc(get_pokemon->size);
 	memcpy(get_pokemon->nombre, nombre, get_pokemon->size);
 
-	return get_pokemon;
+	enviar_mensaje(get_pokemon, conexion, GET_POKEMON);
+	free(get_pokemon->nombre);
+	free(get_pokemon);
 }
 
-t_localized_pokemon* localized_pokemon(char* nombre, t_list* coordenadas)
+void enviar_localized_pokemon(int conexion, char* nombre, t_list* coordenadas)
 {
 	t_localized_pokemon* localized_pokemon = malloc(sizeof(t_localized_pokemon));
 	localized_pokemon->size = strlen(nombre) + 1;
@@ -152,7 +161,10 @@ t_localized_pokemon* localized_pokemon(char* nombre, t_list* coordenadas)
 	memcpy(localized_pokemon->nombre, nombre, localized_pokemon->size);
 	localized_pokemon->coordenadas = coordenadas;
 
-	return localized_pokemon;
+	enviar_mensaje(localized_pokemon, conexion, LOCALIZED_POKEMON);
+	free(localized_pokemon->nombre);
+	list_destroy_and_destroy_elements(localized_pokemon->coordenadas, free);
+	free(localized_pokemon);
 }
 
 void verificar_estado(int estado) {
