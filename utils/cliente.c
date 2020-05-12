@@ -68,6 +68,11 @@ void enviar_mensaje(void* mensaje, int socket_cliente, op_code codigo_operacion)
 			printf("Creo un paquete para GET_POKEMON\n");
 			serializar_get_pokemon(&paquete, mensaje);
 			break;
+
+		case LOCALIZED_POKEMON:
+			printf("Creo un paquete para LOCALIZED_POKEMON\n");
+			serializar_localized_pokemon(&paquete, mensaje);
+			break;
 	}
 	printf("EnviarMensaje -> Mensaje Empaquetado: \"%s\".\n", (char*)paquete->buffer->stream);
 
@@ -137,6 +142,17 @@ t_get_pokemon* get_pokemon(char* nombre)
 	memcpy(get_pokemon->nombre, nombre, get_pokemon->size);
 
 	return get_pokemon;
+}
+
+t_localized_pokemon* localized_pokemon(char* nombre, t_list* coordenadas)
+{
+	t_localized_pokemon* localized_pokemon = malloc(sizeof(t_localized_pokemon));
+	localized_pokemon->size = strlen(nombre) + 1;
+	localized_pokemon->nombre = malloc(localized_pokemon->size);
+	memcpy(localized_pokemon->nombre, nombre, localized_pokemon->size);
+	localized_pokemon->coordenadas = coordenadas;
+
+	return localized_pokemon;
 }
 
 void verificar_estado(int estado) {

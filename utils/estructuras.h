@@ -14,6 +14,7 @@ typedef enum
 	CATCH_POKEMON,
 	CAUGHT_POKEMON,
 	GET_POKEMON,
+	LOCALIZED_POKEMON,
 	MENSAJE
 }op_code;
 
@@ -56,7 +57,6 @@ typedef struct
 {
 	int size;
 	void* nombre;
-	int cantidad_de_posiciones;
     t_list* coordenadas;
 } t_localized_pokemon;
 

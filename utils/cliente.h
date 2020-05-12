@@ -23,6 +23,7 @@ t_appeared_pokemon* appeared_pokemon(char* nombre, int posx, int posy);
 t_catch_pokemon* catch_pokemon(char* nombre, int posx, int posy);
 t_caught_pokemon* caught_pokemon(int resultado);
 t_get_pokemon* get_pokemon(char* nombre);
+t_localized_pokemon* localized_pokemon(char* nombre, t_list* coordenadas);
 
 void* recibir_mensaje(int socket_cliente);
 void liberar_conexion(int socket_cliente);

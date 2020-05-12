@@ -202,6 +202,7 @@ void enviarCatch(int conexion, int argc, char *argv[]){
 void enviarCaught(int conexion, int argc, char *argv[]){
 
 	if(argc!=4){
+		printf("\n");
 		error_show(" Para CAUGHT_POKEMON debe ingresar los argumentos con el siguiente formato:\n"
 						"./gameboy [PROCESO] CAUGHT_POKEMON [OK/FAIL]\n\n");
 		exit(-1);
@@ -217,6 +218,7 @@ void enviarCaught(int conexion, int argc, char *argv[]){
 void enviarGet(int conexion, int argc, char *argv[]){
 
 	if(argc!=4){
+		printf("\n");
 		error_show(" Para GET_POKEMON debe ingresar los argumentos con el siguiente formato:\n"
 						"./gameboy [PROCESO] GET_POKEMON [POKEMON]\n\n");
 		exit(-1);
@@ -225,6 +227,50 @@ void enviarGet(int conexion, int argc, char *argv[]){
 	t_get_pokemon* pokemon = get_pokemon(argv[3]);
 	enviar_mensaje(pokemon, conexion, CAUGHT_POKEMON);
 	free(pokemon->nombre);
+	free(pokemon);
+}
+
+void enviarLocalized(int conexion, int argc, char *argv[])
+{
+	//capaz nunca use esta funcion desde gameboy
+	//hay que preguntar
+	//TODO
+	//tambien la tengo que agregar a despacharMensaje() y a verificarEntrada()
+
+	if(argc < 4){
+		printf("\n");
+		error_show(" Para GET_POKEMON debe ingresar los argumentos con el siguiente formato:\n"
+						"./gameboy [PROCESO] LOCALIZED_POKEMON [PARES DE COORDENADAS]*\n\n");
+		exit(-1);
+	}
+	if(argc%2 == 1){
+		printf("\n");
+		error_show(" No ingresaste bien las coordenadas. Deben ser grupos de 2 numeros\n\n");
+		exit(-1);
+	}
+
+	int cantidad_pares_de_coordenadas = (argc - 3) / 2;
+	t_list* lista_coordenadas = list_create();
+	int posicion_argc = 3;
+
+	for(int i = 0 ; i < cantidad_pares_de_coordenadas ; i++)
+	{
+		t_coordenadas* coordenadas = malloc(sizeof(t_coordenadas));
+		coordenadas->posx = atoi(argv[posicion_argc]);
+		posicion_argc++;
+		coordenadas->posy = atoi(argv[posicion_argc]);
+		posicion_argc++;
+		list_add(lista_coordenadas, coordenadas);
+		//no hago free() porque eso se hace al hacer list_destroy_and_destroy_elements()
+		//eso creo, estoy casi seguro porque vi el codigo de list.c
+	}
+
+	t_localized_pokemon* pokemon = localized_pokemon(argv[3], lista_coordenadas);
+	enviar_mensaje(pokemon, conexion, LOCALIZED_POKEMON);
+
+	list_destroy_and_destroy_elements(lista_coordenadas, free);
+	free(pokemon->nombre);
+	list_destroy_and_destroy_elements(pokemon->coordenadas, free);
 	free(pokemon);
 }
 

@@ -21,6 +21,7 @@ void enviarAppeared(int conexion, int argc, char *argv[]);
 void enviarCatch(int conexion, int argc, char *argv[]);
 void enviarCaught(int conexion, int argc, char *argv[]);
 void enviarGet(int conexion, int argc, char *argv[]);
+void enviarLocalized(int conexion, int argc, char *argv[]);
 
 void terminar_programa(int, t_log*, t_config*);
 

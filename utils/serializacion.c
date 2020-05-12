@@ -106,6 +106,32 @@ void serializar_get_pokemon(t_paquete** paquete, void* mensaje){
 	memcpy((*paquete)->buffer->stream + offset, get_pokemon->nombre, get_pokemon->size);
 }
 
+void serializar_localized_pokemon(t_paquete** paquete, void* mensaje){
+
+	int offset = 0;
+
+	t_localized_pokemon* localized_pokemon = mensaje;
+	(*paquete)->buffer->size = sizeof(int) + localized_pokemon->size + sizeof(int) +
+			sizeof(int) * 2 * (localized_pokemon->coordenadas->elements_count);
+	(*paquete)->buffer->stream = malloc((*paquete)->buffer->size);
+	memcpy((*paquete)->buffer->stream + offset, &(localized_pokemon->size), sizeof(int));
+	offset += sizeof(int);
+	memcpy((*paquete)->buffer->stream + offset, localized_pokemon->nombre, localized_pokemon->size);
+	offset += localized_pokemon->size;
+	memcpy((*paquete)->buffer->stream + offset, &(localized_pokemon->coordenadas->elements_count), sizeof(int));
+	offset += sizeof(int);
+
+	int i;
+	for(i = 0; i < localized_pokemon->coordenadas->elements_count; i++)
+	{
+		t_coordenadas* coordenadas = list_get(localized_pokemon->coordenadas, i);
+		memcpy((*paquete)->buffer->stream + offset, &(coordenadas->posx), sizeof(int));
+		offset += sizeof(int);
+		memcpy((*paquete)->buffer->stream + offset, &(coordenadas->posy), sizeof(int));
+		offset += sizeof(int);
+	}
+}
+
 
 
 
@@ -206,6 +232,40 @@ t_get_pokemon* deserializar_get_pokemon(void *stream){	//DESPUES DE USAR ESTA FU
     stream += sizeof(int);
     pokemon->nombre = malloc(pokemon->size);
     memcpy(pokemon->nombre, stream, sizeof(pokemon->size));
+
+	return pokemon;
+}
+
+t_localized_pokemon* deserializar_localized_pokemon(void *stream){ 	//DESPUES DE USAR ESTA FUNCION
+																	//NO OLVIDAR HACER FREE() PARA
+																	//POKEMON Y POKEMON->NOMBRE
+																	//Y list_destroy_and_destroy_elements()
+																	//PARA LA LISTA
+
+	t_localized_pokemon* pokemon = malloc(sizeof(t_localized_pokemon));
+	int cantidad_pares_de_coordenadas = 0;
+
+    memcpy(&(pokemon->size), stream, sizeof(int));
+    stream += sizeof(int);
+    pokemon->nombre = malloc(pokemon->size);
+    memcpy(pokemon->nombre, stream, sizeof(pokemon->size));
+    stream += sizeof(pokemon->size);
+    memcpy(&(cantidad_pares_de_coordenadas), stream, sizeof(int));
+    stream += sizeof(int);
+    pokemon->coordenadas = list_create();
+
+    int i;
+    t_coordenadas* coordenadas = malloc(sizeof(t_coordenadas));
+
+    for(i = 0; i < cantidad_pares_de_coordenadas ; i++)
+    {
+    	memcpy(&(coordenadas->posx), stream, sizeof(int));
+    	stream += sizeof(int);
+   	    memcpy(&(coordenadas->posy), stream, sizeof(int));
+   	    stream += sizeof(int);
+   	    list_add(pokemon->coordenadas, coordenadas);
+    }
+    free(coordenadas);
 
 	return pokemon;
 }
