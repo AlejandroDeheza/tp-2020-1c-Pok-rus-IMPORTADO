@@ -1,28 +1,18 @@
 #include "game-boy.h"
 
-#include <cliente.h>
-#include "../utils/config.h"
-
 int main(int argc, char *argv[]) {
 
 	int conexion = 0;
-	char* ip = NULL;
-	char* puerto = NULL;
 	t_log* logger = NULL;
 	t_config* config = NULL;
 
 	verificarEntrada(argc, argv);
-	iniciar_logger_y_config(&logger, &config);
+	iniciar_logger_y_config(&logger, &config, "../game-boy.config", "game-boy");
 
 	if(strcmp(argv[1],"SUSCRIPTOR")==0){
-		//suscribirAColaDeMensajes();			//TODO
+		//suscribir_a_cola_mensajes();			//TODO
 	}else{
-		seleccionar_ip_y_puerto(&ip, &puerto, config, argv[1]);
-		conexion = crear_conexion( ip, puerto);
-		logearConexion(logger, argv[1]);
-
-		despacharMensaje(conexion, argc, argv);
-		logearEnvio(logger, argv);
+		gestionar_envio_de_mensaje(&conexion, config, logger, argc, argv);
 	}
 
 	terminar_programa(conexion, logger, config);
@@ -72,43 +62,18 @@ void verificarEntrada(int argc, char *argv[]){
 	}
 }
 
-void iniciar_logger_y_config(t_log** logger, t_config** config){
+void gestionar_envio_de_mensaje(int* conexion, t_config* config, t_log* logger, int argc, char* argv[])
+{
+	char* ip = NULL;
+	char* puerto = NULL;
 
-	char* log_file = NULL;
+	leer_ip_y_puerto(&ip, &puerto, config, argv[1]);
 
-	*config = leer_config("../game-boy.config");
-	asignar_string_property(*config, "LOG_FILE", &log_file);
+	*conexion = crear_conexion( ip, puerto);
+	logearConexion(logger, argv[1]);
 
-	if(!log_file){
-		error_show(" No se encontro LOG_FILE en el game-boy.config\n\n");
-		exit(-1);
-	}
-	*logger = iniciar_logger(log_file, "game-boy");
-
-	printf("Configuraciones:\n"
-			"LOG_FILE = %s\n", log_file);
-}
-
-void seleccionar_ip_y_puerto(char** ip, char** puerto, t_config* config, char *primerArg){
-
-	char *ipElegida = string_new();
-	char *puertoElegido = string_new();
-
-	string_append_with_format(&ipElegida, "IP_%s", primerArg);
-	string_append_with_format(&puertoElegido, "PUERTO_%s", primerArg);
-	asignar_string_property(config, ipElegida, ip);
-	asignar_string_property(config, puertoElegido, puerto);
-
-	if(!(*ip) || !(*puerto)){
-		printf("\n");
-		error_show(" No se encontro %s o %s en el gameboy.config\n\n", ipElegida, puertoElegido);
-		exit(-1);
-	}
-	printf("IP = %s.\n"
-			"PUERTO = %s.\n", *ip, *puerto);
-
-	free(ipElegida);
-	free(puertoElegido);
+	despacharMensaje(*conexion, argc, argv);
+	logearEnvio(logger, argv);
 }
 
 void logearConexion(t_log* logger, char *primerArg){

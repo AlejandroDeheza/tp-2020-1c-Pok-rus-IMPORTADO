@@ -27,7 +27,6 @@ t_localized_pokemon* localized_pokemon(char* nombre, t_list* coordenadas);
 
 void* recibir_mensaje(int socket_cliente);
 void liberar_conexion(int socket_cliente);
-t_log* iniciar_logger(char*, char*);
 void verificar_estado(int estado);
 
 

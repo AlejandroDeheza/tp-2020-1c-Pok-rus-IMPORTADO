@@ -10,8 +10,7 @@
 
 #include "cliente.h"
 
-
-void* serializar_paquete(t_paquete*, int*);
+void* serializar_paquete(t_paquete* paquete, int *bytes);
 
 void serializar_identificacion(t_paquete** paquete, void* mensaje);
 void serializar_mensaje(t_paquete** paquete, void* mensaje);

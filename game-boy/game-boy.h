@@ -8,10 +8,13 @@
 #include<commons/config.h>
 #include<readline/readline.h>
 #include <commons/error.h>
+#include <cliente.h>
+#include "../utils/config.h"
 
 void verificarEntrada(int argc, char *argv[]);
-void iniciar_logger_y_config(t_log** logger, t_config** config);
-void seleccionar_ip_y_puerto(char** ip, char** puerto, t_config* config, char *primerArg);
+
+void gestionar_envio_de_mensaje(int* conexion, t_config* config, t_log* logger, int argc, char* argv[]);
+
 void logearConexion(t_log* logger, char *primerArg);
 void despacharMensaje(int conexion, int argc, char *argv[]);
 void logearEnvio(t_log* logger, char *argv[]);
