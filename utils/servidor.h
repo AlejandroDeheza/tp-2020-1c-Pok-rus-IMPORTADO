@@ -16,6 +16,8 @@
 int crear_socket_para_escuchar(char *ipServidor, char* puertoServidor);
 int aceptar_una_conexion(int socket_servidor);
 int tomar_cod_op_del_mensaje(int* socket);
+int tomar_id_correlativo(int* socket);
+int tomar_id_mensaje(int* socket);
 void* recibir_mensaje_desde_cliente(int socket_cliente);
 
 void iniciar_servidor(char *ip, char* puerto);

@@ -16,7 +16,7 @@ int main(int argc, char *argv[]) {
 	}
 
 	terminar_programa(conexion, logger, config);
-	printf("El programa finalizo correctamente.\n\n");
+	printf("\nEl programa finalizo correctamente.\n\n");
 	return EXIT_SUCCESS;
 }	//cuando termine el gameboy, este main() va a quedar un poco mas ordenado
 
@@ -60,6 +60,49 @@ void verificarEntrada(int argc, char *argv[]){
 				exit(-1);
 		}
 	}
+
+
+
+
+	//No se si hacen falta estas validasiones de aca abajo..
+	//
+	//el id es solo para algunos mensajes especificos que van a procesos especificos?
+	//o todos deben poder recibir algun id desde consola?
+	//
+	//en todos los casos, son ids correlativos o son ids de mensajes tambien?
+	//deberiamos preguntar (TODO)
+
+	if(strcmp(argv[1],"BROKER")==0)
+	{
+		if(strcmp(argv[2],"APPEARED_POKEMON")==0)
+		{
+			if(argc != 7){
+				error_show(" No escribiste el id_correlativo\n\n");
+			}
+		}
+	}
+
+	if(strcmp(argv[1],"GAMECARD")==0)
+	{
+		if(strcmp(argv[2],"NEW_POKEMON")==0)
+		{
+			if(argc != 8){
+				error_show(" No escribiste el id_correlativo\n\n");
+			}
+		}
+		if(strcmp(argv[2],"GET_POKEMON")==0)
+		{
+			if(argc != 5){
+				error_show(" No escribiste el id_correlativo\n\n");
+			}
+		}
+		if(strcmp(argv[2],"CATCH_POKEMON")==0)
+		{
+			if(argc != 7){
+				error_show(" No escribiste el id_correlativo\n\n");
+			}
+		}
+	}
 }
 
 void gestionar_envio_de_mensaje(int* conexion, t_config* config, t_log* logger, int argc, char* argv[])
@@ -73,7 +116,11 @@ void gestionar_envio_de_mensaje(int* conexion, t_config* config, t_log* logger, 
 	logearConexion(logger, argv[1]);
 
 	despacharMensaje(*conexion, argc, argv);
-	logearEnvio(logger, argv);
+	//logearEnvio(logger, argv);	// parece que sacaron este log del enunciado
+									// yo no lo sacaria todavia por las dudas..
+									// pareciera que ahora los logs obligatorios son mas confusos
+									// habria que consultar (TODO)
+
 }
 
 void logearConexion(t_log* logger, char *primerArg){
@@ -102,6 +149,7 @@ void despacharMensaje(int conexion, int argc, char *argv[]){
 	}
 }
 
+
 void logearEnvio(t_log* logger, char *argv[]){
 
 	printf("\n");
@@ -109,76 +157,103 @@ void logearEnvio(t_log* logger, char *argv[]){
 	printf("\n");
 }
 
+
 void enviarNew(int conexion, int argc, char *argv[]){
 
-	if(argc!=7){
+	if(argc < 7 || argc > 8){
 		printf("\n");
 		error_show(" Para NEW_POKEMON debe ingresar los argumentos con el siguiente formato:\n"
-				"./gameboy [PROCESO] NEW_POKEMON [POKEMON] [POSX] [POSY] [CANTIDAD]\n\n");
+				"./gameboy [PROCESO] NEW_POKEMON [POKEMON] [POSX] [POSY] [CANTIDAD] [ID_MENSAJE_CORRELATIVO]\n\n");
 		exit(-1);
 	}
 
 	int posx = atoi(argv[4]);
 	int posy = atoi(argv[5]);
 	int cantidad = atoi(argv[6]);
+	int id_correlativo = 0;
 
-	enviar_new_pokemon(conexion, argv[3], posx, posy, cantidad);
+	if(argc == 8)	//SE INGRESO ID CORRELATIVO
+	{
+		id_correlativo = atoi(argv[7]);
+	}
+
+	enviar_new_pokemon(conexion, id_correlativo, argv[3], posx, posy, cantidad);
 }
 
 void enviarAppeared(int conexion, int argc, char *argv[]){
 
-	if(argc!=6){
+	if(argc < 6 || argc > 7){
 		printf("\n");
 		error_show(" Para APPEARED_POKEMON debe ingresar los argumentos con el siguiente formato:\n"
-						"./gameboy [PROCESO] APPEARED_POKEMON [POKEMON] [POSX] [POSY]\n\n");
+						"./gameboy [PROCESO] APPEARED_POKEMON [POKEMON] [POSX] [POSY] [ID_MENSAJE_CORRELATIVO]\n\n");
 		exit(-1);
 	}
 
 	int posx = atoi(argv[4]);
 	int posy = atoi(argv[5]);
+	int id_correlativo = 0;
 
-	enviar_appeared_pokemon(conexion, argv[3], posx, posy);
+	if(argc == 7)	//SE INGRESO ID CORRELATIVO
+	{
+		id_correlativo = atoi(argv[6]);
+	}
+
+	enviar_appeared_pokemon(conexion, id_correlativo, argv[3], posx, posy);
 }
 
 void enviarCatch(int conexion, int argc, char *argv[]){
 
-	if(argc!=6){
+	if(argc < 6 || argc > 7){
 		printf("\n");
 		error_show(" Para CATCH_POKEMON debe ingresar los argumentos con el siguiente formato:\n"
-						"./gameboy [PROCESO] CATCH_POKEMON [POKEMON] [POSX] [POSY]\n\n");
+						"./gameboy [PROCESO] CATCH_POKEMON [POKEMON] [POSX] [POSY] [ID_MENSAJE_CORRELATIVO]\n\n");
 		exit(-1);
 	}
 
 	int posx = atoi(argv[4]);
 	int posy = atoi(argv[5]);
+	int id_correlativo = 0;
 
-	enviar_catch_pokemon(conexion, argv[3], posx, posy);
+	if(argc == 7)	//SE INGRESO ID CORRELATIVO
+	{
+		id_correlativo = atoi(argv[6]);
+	}
+
+	enviar_catch_pokemon(conexion, id_correlativo, argv[3], posx, posy);
 }
 
 void enviarCaught(int conexion, int argc, char *argv[]){
 
-	if(argc!=4){
+	if(argc != 5){
 		printf("\n");
 		error_show(" Para CAUGHT_POKEMON debe ingresar los argumentos con el siguiente formato:\n"
-						"./gameboy [PROCESO] CAUGHT_POKEMON [OK/FAIL]\n\n");
+						"./gameboy [PROCESO] CAUGHT_POKEMON [ID_MENSAJE_CORRELATIVO] [OK/FAIL]\n\n");
 		exit(-1);
 	}
 
-	int resultado = atoi(argv[3]);
+	int id_correlativo = atoi(argv[3]);
+	int resultado = atoi(argv[4]);
 
-	enviar_caught_pokemon(conexion, resultado);
+	enviar_caught_pokemon(conexion, id_correlativo, resultado);
 }
 
 void enviarGet(int conexion, int argc, char *argv[]){
 
-	if(argc!=4){
+	if(argc < 4 || argc > 5){
 		printf("\n");
 		error_show(" Para GET_POKEMON debe ingresar los argumentos con el siguiente formato:\n"
-						"./gameboy [PROCESO] GET_POKEMON [POKEMON]\n\n");
+						"./gameboy [PROCESO] GET_POKEMON [POKEMON] [ID_MENSAJE_CORRELATIVO]\n\n");
 		exit(-1);
 	}
 
-	enviar_get_pokemon(conexion, argv[3]);
+	int id_correlativo = 0;
+
+	if(argc == 5)	//SE INGRESO ID CORRELATIVO
+	{
+		id_correlativo = atoi(argv[4]);
+	}
+
+	enviar_get_pokemon(conexion, id_correlativo, argv[3]);
 }
 
 void enviarLocalized(int conexion, int argc, char *argv[])
@@ -216,7 +291,9 @@ void enviarLocalized(int conexion, int argc, char *argv[])
 		//eso creo, estoy casi seguro porque vi el codigo de list.c
 	}
 
-	enviar_localized_pokemon(conexion, argv[3], lista_coordenadas);
+	int id_correlativo = 0;
+
+	enviar_localized_pokemon(conexion, id_correlativo, argv[3], lista_coordenadas);
 	list_destroy_and_destroy_elements(lista_coordenadas, free);
 
 }

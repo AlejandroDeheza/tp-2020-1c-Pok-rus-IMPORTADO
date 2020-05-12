@@ -60,6 +60,22 @@ int tomar_cod_op_del_mensaje(int* socket)
 	return cod_op;
 }
 
+int tomar_id_correlativo(int* socket)
+{
+	int id_correlativo;
+	if(recv(*socket, &id_correlativo, sizeof(int), MSG_WAITALL) == -1)
+		id_correlativo = -1;
+	return id_correlativo;
+}
+
+int tomar_id_mensaje(int* socket)
+{
+	int id_mensaje;
+	if(recv(*socket, &id_mensaje, sizeof(int), MSG_WAITALL) == -1)
+		id_mensaje = -1;
+	return id_mensaje;
+}
+
 void* recibir_mensaje_desde_cliente(int socket_cliente){
 	//esta funcion se puede llamar desde un proceso (ej: TEAM)
 	//para recibir el "stream" del t_buffer del t_paquete enviado
@@ -139,6 +155,8 @@ void serve_client(int* socket)
 	int cod_op;
 	if(recv(*socket, &cod_op, sizeof(int), MSG_WAITALL) == -1)
 		cod_op = -1;
+	tomar_id_correlativo(socket);	//agregado para que no rompa
+	tomar_id_mensaje(socket);		//agregado para que no rompa
 	process_request(cod_op, *socket);
 }
 
@@ -178,6 +196,8 @@ void devolver_mensaje(void* payload, int size, int socket_cliente)
 	t_paquete* paquete = malloc(sizeof(t_paquete));
 
 	paquete->codigo_operacion = 1;
+	paquete->id_correlativo = 0;	//agregado para que no rompa
+	paquete->id_mensaje = 0;		//agregado para que no rompa
 	paquete->buffer = malloc(sizeof(t_buffer));
 	paquete->buffer->size = size;
 	paquete->buffer->stream = malloc(paquete->buffer->size);

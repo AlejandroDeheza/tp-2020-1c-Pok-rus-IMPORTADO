@@ -36,6 +36,8 @@ typedef struct
 typedef struct
 {
 	op_code codigo_operacion;
+	int id_correlativo;	// puede que este seteado en 0 por defecto para indicar que no se usa
+	int id_mensaje;		// puede que este seteado en 0 por defecto para indicar que no se usa
 	t_buffer* buffer;
 } t_paquete;
 
