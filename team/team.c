@@ -12,10 +12,6 @@
 #include <stdlib.h>
 #include "team.h"
 
-#include <cliente.h>
-#include "../utils/cliente.h"
-#include "../utils/config.h"
-
 
 int main(void) {
 
@@ -30,41 +26,22 @@ int main(void) {
 
 	config = leer_config("../team.config");
 
-	/*****************Leo del config y cargo los entrenadores a una lista*****************/
-	char* posicionesEntrenadores;
-	asignar_string_property(config, "POSICIONES_ENTRENADORES", &posicionesEntrenadores);
-	removeChar(posicionesEntrenadores, '[');
-	removeChar(posicionesEntrenadores, ']');
-	printf("Entrenadores quedo asi: %s\n", posicionesEntrenadores);
-
-	char** posiciones = string_split(posicionesEntrenadores,",");
-
-	lista_entrenadores = list_create();
-
-	int i=0;
-	while(posiciones[i]!=NULL){
-		char** xy = string_split(posiciones[i],"|");
-		int posicionX = atoi(xy[0]);
-		int posicionY = atoi(xy[1]);
-		printf("Elemento %d, PosicionX: %d \n", i, posicionX);
-		printf("Elemento %d, PosicionY: %d \n", i, posicionY);
-		t_entrenador* entrenador = malloc(sizeof(t_entrenador));
-		entrenador->coordenadas.posx = posicionX;
-		entrenador->coordenadas.posy = posicionY;
-		list_add(lista_entrenadores, entrenador);
-		i++;
-	}
-
-	/*****************Leo del config y cargo los entrenadores a una lista*****************/
-
-	asignar_string_property(config, "IP_BROKER", &ip);
-	asignar_string_property(config, "PUERTO_BROKER", &puerto);
 	asignar_string_property(config, "LOG_FILE", &log_file);
-
-	logger = log_create(log_file, "team" , true, LOG_LEVEL_INFO);
 	if(!log_file){
 		log_file = "team.log";
 	}
+
+	logger = log_create(log_file, "team" , true, LOG_LEVEL_INFO);
+	lista_entrenadores = list_create();
+
+
+	/*****************Leo del config y cargo los entrenadores a una lista*****************/
+	planificarEntrenadores(lista_entrenadores, config, logger);
+
+
+	/*****************Leo del config y cargo los entrenadores a una lista*****************/
+	asignar_string_property(config, "IP_BROKER", &ip);
+	asignar_string_property(config, "PUERTO_BROKER", &puerto);
 
 	if(!ip || !puerto){
 		log_info(logger, "Chequear archivo de configuracion");
@@ -99,6 +76,89 @@ void removeChar(char *str, char garbage) {
         if (*dst != garbage) dst++;
     }
     *dst = '\0';
+}
+
+void planificarEntrenadores(t_list* lista_entrenadores, t_config* config, t_log* logger){
+	char* posicionesEntrenadores;
+	char* pokemonesEntrenadores;
+	char* objetivosEntrenadores;
+	asignar_string_property(config, "POSICIONES_ENTRENADORES", &posicionesEntrenadores);
+	asignar_string_property(config, "POKEMON_ENTRENADORES", &pokemonesEntrenadores);
+	asignar_string_property(config, "OBJETIVOS_ENTRENADORES", &objetivosEntrenadores);
+
+	if((posicionesEntrenadores != NULL) && (pokemonesEntrenadores != NULL) && (objetivosEntrenadores != NULL)){
+		cargarEntrenadores(posicionesEntrenadores, pokemonesEntrenadores, objetivosEntrenadores, lista_entrenadores);
+	}
+
+	//aca planificaria
+
+}
+
+void cargarEntrenadores(char *posicionesEntrenadores, char* pokemonesEntrenadores, char* objetivosEntrenadores, t_list* lista_entrenadores){
+
+	// elimino corchetes del "vector"
+	removeChar(posicionesEntrenadores, '[');
+	removeChar(posicionesEntrenadores, ']');
+	removeChar(pokemonesEntrenadores, '[');
+	removeChar(pokemonesEntrenadores, ']');
+	removeChar(objetivosEntrenadores, '[');
+	removeChar(objetivosEntrenadores, ']');
+
+	printf("Entrenadores quedo asi: %s\n", posicionesEntrenadores);
+
+	// separa las posiciones de cada entrenados
+	char** coodenadasEntrenador = string_split(posicionesEntrenadores,",");
+	char** pokemonEntrenador = string_split(pokemonesEntrenadores, ",");
+	char** objetivoEntrenador = string_split(objetivosEntrenadores, ",");
+
+	int i = 0;
+	while(coodenadasEntrenador[i]!= NULL){
+		t_entrenador* entrenador = crearEntrenador(coodenadasEntrenador[i], pokemonEntrenador[i], objetivoEntrenador[i]);
+		list_add(lista_entrenadores, entrenador);
+		i++;
+	}
+}
+
+t_entrenador* crearEntrenador(char* coordenadas, char* objetivos, char* pokemones){
+	t_entrenador* entrenador = malloc(sizeof(t_entrenador));
+
+	char** xy = string_split(coordenadas,"|");
+
+	entrenador->coordenadas.posx = atoi(xy[0]);
+	entrenador->coordenadas.posy = atoi(xy[1]);
+
+	printf("******************\n");
+	printf("Coordenada x: %d\n", atoi(xy[0]));
+	printf("Coordenada y: %d\n", atoi(xy[1]));
+	printf("-------------------\n");
+
+	printf("Objetivos: \n");
+	t_list* lista_objetivos = armarLista(objetivos);
+	printf("-------------------\n");
+	printf("Pokemones: \n");
+	t_list* lista_pokemones = armarLista(pokemones);
+	printf("******************\n");
+
+	entrenador->objetivo_entrenador = lista_objetivos;
+	entrenador->pokemones_entrenador = lista_pokemones;
+
+	return entrenador;
+}
+
+t_list* armarLista(char* objetos){
+	t_list* lista;
+	lista = list_create();
+	char** vector_objetos = string_split(objetos,"|");
+	int i = 0;
+	while(vector_objetos[i] != NULL){
+
+		char* objeto = malloc(strlen(vector_objetos[i]) + 1);
+		memcpy(objeto, vector_objetos[i], strlen(vector_objetos[i]) + 1);
+		printf("%s\n", objeto);
+		list_add(lista, objeto);
+		i++;
+	}
+	return lista;
 }
 
 void terminar_programa(int conexion, t_log* logger, t_config* config)
