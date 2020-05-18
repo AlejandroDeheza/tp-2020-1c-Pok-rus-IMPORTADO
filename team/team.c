@@ -34,12 +34,20 @@ int main(void) {
 	logger = log_create(log_file, "team" , true, LOG_LEVEL_INFO);
 	lista_entrenadores = list_create();
 
+	/*****************Leo del config y cargo los entrenadores a una lista*****************/
+	obtenerEntrenadores(lista_entrenadores, config, logger);
+
+	t_link_element* elemento = lista_entrenadores->head;
+
+	while(elemento != NULL) {
+		printf("Id %lu\n", ((t_entrenador_tcb*) elemento->data)->id_hilo_entrenador);
+		printf("Status %d\n", ((t_entrenador_tcb*) elemento->data)->status);
+		elemento = elemento->next;
+	}
+
 
 	/*****************Leo del config y cargo los entrenadores a una lista*****************/
-	planificarEntrenadores(lista_entrenadores, config, logger);
 
-
-	/*****************Leo del config y cargo los entrenadores a una lista*****************/
 	asignar_string_property(config, "IP_BROKER", &ip);
 	asignar_string_property(config, "PUERTO_BROKER", &puerto);
 
@@ -78,7 +86,8 @@ void removeChar(char *str, char garbage) {
     *dst = '\0';
 }
 
-void planificarEntrenadores(t_list* lista_entrenadores, t_config* config, t_log* logger){
+void obtenerEntrenadores(t_list* lista_entrenadores, t_config* config, t_log* logger){
+
 	char* posicionesEntrenadores;
 	char* pokemonesEntrenadores;
 	char* objetivosEntrenadores;
@@ -89,9 +98,6 @@ void planificarEntrenadores(t_list* lista_entrenadores, t_config* config, t_log*
 	if((posicionesEntrenadores != NULL) && (pokemonesEntrenadores != NULL) && (objetivosEntrenadores != NULL)){
 		cargarEntrenadores(posicionesEntrenadores, pokemonesEntrenadores, objetivosEntrenadores, lista_entrenadores);
 	}
-
-	//aca planificaria
-
 }
 
 void cargarEntrenadores(char *posicionesEntrenadores, char* pokemonesEntrenadores, char* objetivosEntrenadores, t_list* lista_entrenadores){
@@ -104,8 +110,6 @@ void cargarEntrenadores(char *posicionesEntrenadores, char* pokemonesEntrenadore
 	removeChar(objetivosEntrenadores, '[');
 	removeChar(objetivosEntrenadores, ']');
 
-	printf("Entrenadores quedo asi: %s\n", posicionesEntrenadores);
-
 	// separa las posiciones de cada entrenados
 	char** coodenadasEntrenador = string_split(posicionesEntrenadores,",");
 	char** pokemonEntrenador = string_split(pokemonesEntrenadores, ",");
@@ -114,7 +118,13 @@ void cargarEntrenadores(char *posicionesEntrenadores, char* pokemonesEntrenadore
 	int i = 0;
 	while(coodenadasEntrenador[i]!= NULL){
 		t_entrenador* entrenador = crearEntrenador(coodenadasEntrenador[i], pokemonEntrenador[i], objetivoEntrenador[i]);
-		list_add(lista_entrenadores, entrenador);
+		pthread_t thread;
+		pthread_create(&thread,NULL,(void*)hilo_entrenador,NULL);
+		pthread_detach(thread);
+		t_entrenador_tcb* tcb_entrenador = malloc(sizeof(t_entrenador_tcb));
+		tcb_entrenador->id_hilo_entrenador = thread;
+		tcb_entrenador->status = NEW;
+		list_add(lista_entrenadores, tcb_entrenador);
 		i++;
 	}
 }
@@ -127,17 +137,8 @@ t_entrenador* crearEntrenador(char* coordenadas, char* objetivos, char* pokemone
 	entrenador->coordenadas.posx = atoi(xy[0]);
 	entrenador->coordenadas.posy = atoi(xy[1]);
 
-	printf("******************\n");
-	printf("Coordenada x: %d\n", atoi(xy[0]));
-	printf("Coordenada y: %d\n", atoi(xy[1]));
-	printf("-------------------\n");
-
-	printf("Objetivos: \n");
 	t_list* lista_objetivos = armarLista(objetivos);
-	printf("-------------------\n");
-	printf("Pokemones: \n");
 	t_list* lista_pokemones = armarLista(pokemones);
-	printf("******************\n");
 
 	entrenador->objetivo_entrenador = lista_objetivos;
 	entrenador->pokemones_entrenador = lista_pokemones;
@@ -154,11 +155,15 @@ t_list* armarLista(char* objetos){
 
 		char* objeto = malloc(strlen(vector_objetos[i]) + 1);
 		memcpy(objeto, vector_objetos[i], strlen(vector_objetos[i]) + 1);
-		printf("%s\n", objeto);
 		list_add(lista, objeto);
 		i++;
 	}
 	return lista;
+}
+
+void hilo_entrenador(){
+
+	printf("Soy un entrenador en un hilo\n");
 }
 
 void terminar_programa(int conexion, t_log* logger, t_config* config)

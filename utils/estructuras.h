@@ -92,3 +92,18 @@ typedef struct
 
 } t_entrenador;
 
+typedef enum
+{
+	NEW = 0,
+	READY = 1,
+	EXEC = 2,
+	BLOCK = 3,
+	EXIT = 4
+} process_status;
+
+typedef struct
+{
+	unsigned long int id_hilo_entrenador;
+	process_status status;
+
+} t_entrenador_tcb;
