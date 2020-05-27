@@ -286,8 +286,8 @@ void enviarLocalized(int conexion, int argc, char *argv[])
 		coordenadas->posy = atoi(argv[posicion_argc]);
 		posicion_argc++;
 		list_add(lista_coordenadas, coordenadas);
-		//no hago free() porque eso se hace al hacer list_destroy_and_destroy_elements()
-		//eso creo, estoy casi seguro porque vi el codigo de list.c
+		//no hago free() porque eso lo hace list_destroy_and_destroy_elements()
+		//eso estendi segun el codigo de list.c
 	}
 
 	int id_correlativo = 0;

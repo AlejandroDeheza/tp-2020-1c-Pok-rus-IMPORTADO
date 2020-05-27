@@ -16,7 +16,6 @@ int crear_socket_para_escuchar(char *ipServidor, char* puertoServidor){
     getaddrinfo(ipServidor, puertoServidor, &hints, &servinfo);
 
     for (p=servinfo; p != NULL; p = p->ai_next){
-    	//ni idea que hace este for... pero ademas de crear el socket y hacer el bind(), parece importante
 
         if ((socket_servidor = socket(p->ai_family, p->ai_socktype, p->ai_protocol)) == -1)
             continue;
@@ -77,7 +76,7 @@ int tomar_id_mensaje(int* socket)
 }
 
 void* recibir_mensaje_desde_cliente(int socket_cliente){
-	//esta funcion se puede llamar desde un proceso (ej: TEAM)
+	//esta funcion se puede llamar desde algun proceso (ej: TEAM)
 	//para recibir el "stream" del t_buffer del t_paquete enviado
 
 	void *stream;
@@ -130,10 +129,6 @@ void iniciar_servidor(char *ip, char* puerto)
 
     while(1)
     	esperar_cliente(socket_servidor);
-    //supongo que este while(1) es una espera activa
-    //¿No deberiamos evitar las esperas activas?
-    //¿Deberiamos usar select()?
-    //TODO
 }
 
 void esperar_cliente(int socket_servidor)

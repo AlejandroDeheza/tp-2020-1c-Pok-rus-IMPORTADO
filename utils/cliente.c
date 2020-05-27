@@ -34,6 +34,7 @@ void enviar_mensaje(void* mensaje, int socket_cliente, op_code codigo_operacion,
 	paquete->id_correlativo = id_correlativo;	//este id lo puede settear el proceso que manda el mensaje
 												//tambien lo puede dejar en 0 si no conoce el id
 	paquete->id_mensaje = 0;	//EL ID_MENSAJE SIEMPRE LO SETEA EL BROKER
+								//aca lo inicializo en 0 para que no contenga basura
 	paquete->buffer = malloc(sizeof(t_buffer));
 
 	switch (codigo_operacion){
