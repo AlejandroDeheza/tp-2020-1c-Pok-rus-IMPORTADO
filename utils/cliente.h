@@ -17,14 +17,14 @@
 #include "serializacion.h"
 
 int crear_conexion(char* ip, char* puerto);
-void enviar_mensaje(void* mensaje, int socket_cliente, op_code codigo_operacion, int id_correlativo);
+void enviar_mensaje(void* mensaje, int socket_cliente, op_code codigo_operacion, int id_mensaje, int id_correlativo);
 
-void enviar_new_pokemon(int conexion, int id_correlativo, char* nombre, int posx, int posy, int cantidad);
-void enviar_appeared_pokemon(int conexion, int id_correlativo, char* nombre, int posx, int posy);
-void enviar_catch_pokemon(int conexion, int id_correlativo, char* nombre, int posx, int posy);
-void enviar_caught_pokemon(int conexion, int id_correlativo, int resultado);
-void enviar_get_pokemon(int conexion, int id_correlativo, char* nombre);
-void enviar_localized_pokemon(int conexion, int id_correlativo, char* nombre, t_list* coordenadas);
+void enviar_new_pokemon(int conexion, int id_mensaje, int id_correlativo, char* nombre, int posx, int posy, int cantidad);
+void enviar_appeared_pokemon(int conexion, int id_mensaje, int id_correlativo, char* nombre, int posx, int posy);
+void enviar_catch_pokemon(int conexion, int id_mensaje, int id_correlativo, char* nombre, int posx, int posy);
+void enviar_caught_pokemon(int conexion, int id_mensaje, int id_correlativo, int resultado);
+void enviar_get_pokemon(int conexion, int id_mensaje, int id_correlativo, char* nombre);
+void enviar_localized_pokemon(int conexion, int id_mensaje, int id_correlativo, char* nombre, t_list* coordenadas);
 
 void* recibir_mensaje(int socket_cliente);
 void liberar_conexion(int socket_cliente);

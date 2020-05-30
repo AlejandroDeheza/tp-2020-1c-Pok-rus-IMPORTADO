@@ -25,7 +25,7 @@ int crear_conexion(char *ip, char* puerto)
 	return socket_cliente;
 }
 
-void enviar_mensaje(void* mensaje, int socket_cliente, op_code codigo_operacion, int id_correlativo)
+void enviar_mensaje(void* mensaje, int socket_cliente, op_code codigo_operacion, int id_mensaje, int id_correlativo)
 {
 	int estado = 0;
 
@@ -33,8 +33,9 @@ void enviar_mensaje(void* mensaje, int socket_cliente, op_code codigo_operacion,
 	paquete->codigo_operacion = codigo_operacion;
 	paquete->id_correlativo = id_correlativo;	//este id lo puede settear el proceso que manda el mensaje
 												//tambien lo puede dejar en 0 si no conoce el id
-	paquete->id_mensaje = 0;	//EL ID_MENSAJE SIEMPRE LO SETEA EL BROKER
-								//aca lo inicializo en 0 para que no contenga basura
+	paquete->id_mensaje = id_mensaje;	//EL ID_MENSAJE SIEMPRE LO SETEA EL BROKER
+								//a menos que el gameboy envie un mensaje a gamecard
+								//en ese caso lo seteamos nosotros desde consola
 	paquete->buffer = malloc(sizeof(t_buffer));
 
 	switch (codigo_operacion){
@@ -93,7 +94,7 @@ void enviar_mensaje(void* mensaje, int socket_cliente, op_code codigo_operacion,
 	free(paquete);
 }
 
-void enviar_new_pokemon(int conexion, int id_correlativo, char* nombre, int posx, int posy, int cantidad)
+void enviar_new_pokemon(int conexion, int id_mensaje, int id_correlativo, char* nombre, int posx, int posy, int cantidad)
 {
 	t_new_pokemon* new_pokemon = malloc(sizeof(t_new_pokemon));
 	new_pokemon->size = strlen(nombre) + 1;
@@ -103,12 +104,12 @@ void enviar_new_pokemon(int conexion, int id_correlativo, char* nombre, int posx
 	new_pokemon->coordenadas.posy = posy;
 	new_pokemon->cantidad = cantidad;
 
-	enviar_mensaje(new_pokemon, conexion, NEW_POKEMON, id_correlativo);
+	enviar_mensaje(new_pokemon, conexion, NEW_POKEMON, id_mensaje, id_correlativo);
 	free(new_pokemon->nombre);
 	free(new_pokemon);
 }
 
-void enviar_appeared_pokemon(int conexion, int id_correlativo, char* nombre, int posx, int posy)
+void enviar_appeared_pokemon(int conexion, int id_mensaje, int id_correlativo, char* nombre, int posx, int posy)
 {
 	t_appeared_pokemon* appeared_pokemon = malloc(sizeof(t_appeared_pokemon));
 	appeared_pokemon->size = strlen(nombre) + 1;
@@ -117,12 +118,12 @@ void enviar_appeared_pokemon(int conexion, int id_correlativo, char* nombre, int
 	appeared_pokemon->coordenadas.posx = posx;
 	appeared_pokemon->coordenadas.posy = posy;
 
-	enviar_mensaje(appeared_pokemon, conexion, APPEARED_POKEMON, id_correlativo);
+	enviar_mensaje(appeared_pokemon, conexion, APPEARED_POKEMON, id_mensaje, id_correlativo);
 	free(appeared_pokemon->nombre);
 	free(appeared_pokemon);
 }
 
-void enviar_catch_pokemon(int conexion, int id_correlativo, char* nombre, int posx, int posy)
+void enviar_catch_pokemon(int conexion, int id_mensaje, int id_correlativo, char* nombre, int posx, int posy)
 {
 	t_catch_pokemon* catch_pokemon = malloc(sizeof(t_catch_pokemon));
 	catch_pokemon->size = strlen(nombre) + 1;
@@ -131,33 +132,33 @@ void enviar_catch_pokemon(int conexion, int id_correlativo, char* nombre, int po
 	catch_pokemon->coordenadas.posx = posx;
 	catch_pokemon->coordenadas.posy = posy;
 
-	enviar_mensaje(catch_pokemon, conexion, CATCH_POKEMON, id_correlativo);
+	enviar_mensaje(catch_pokemon, conexion, CATCH_POKEMON, id_mensaje, id_correlativo);
 	free(catch_pokemon->nombre);
 	free(catch_pokemon);
 }
 
-void enviar_caught_pokemon(int conexion, int id_correlativo, int resultado)
+void enviar_caught_pokemon(int conexion, int id_mensaje, int id_correlativo, int resultado)
 {
 	t_caught_pokemon* caught_pokemon = malloc(sizeof(t_caught_pokemon));
 	caught_pokemon->resultado= resultado;
 
-	enviar_mensaje(caught_pokemon, conexion, CAUGHT_POKEMON, id_correlativo);
+	enviar_mensaje(caught_pokemon, conexion, CAUGHT_POKEMON, id_mensaje, id_correlativo);
 	free(caught_pokemon);
 }
 
-void enviar_get_pokemon(int conexion, int id_correlativo, char* nombre)
+void enviar_get_pokemon(int conexion, int id_mensaje, int id_correlativo, char* nombre)
 {
 	t_get_pokemon* get_pokemon = malloc(sizeof(t_get_pokemon));
 	get_pokemon->size = strlen(nombre) + 1;
 	get_pokemon->nombre = malloc(get_pokemon->size);
 	memcpy(get_pokemon->nombre, nombre, get_pokemon->size);
 
-	enviar_mensaje(get_pokemon, conexion, GET_POKEMON, id_correlativo);
+	enviar_mensaje(get_pokemon, conexion, GET_POKEMON, id_mensaje, id_correlativo);
 	free(get_pokemon->nombre);
 	free(get_pokemon);
 }
 
-void enviar_localized_pokemon(int conexion, int id_correlativo, char* nombre, t_list* coordenadas)
+void enviar_localized_pokemon(int conexion, int id_mensaje, int id_correlativo, char* nombre, t_list* coordenadas)
 {
 	t_localized_pokemon* localized_pokemon = malloc(sizeof(t_localized_pokemon));
 	localized_pokemon->size = strlen(nombre) + 1;
@@ -165,7 +166,7 @@ void enviar_localized_pokemon(int conexion, int id_correlativo, char* nombre, t_
 	memcpy(localized_pokemon->nombre, nombre, localized_pokemon->size);
 	localized_pokemon->coordenadas = coordenadas;
 
-	enviar_mensaje(localized_pokemon, conexion, LOCALIZED_POKEMON, id_correlativo);
+	enviar_mensaje(localized_pokemon, conexion, LOCALIZED_POKEMON, id_mensaje, id_correlativo);
 	free(localized_pokemon->nombre);
 	list_destroy_and_destroy_elements(localized_pokemon->coordenadas, free);
 	free(localized_pokemon);
