@@ -63,3 +63,9 @@ dkms.conf
 /game-boy/.settings
 /game-card/.settings
 /utils/.settings
+
+*.swn
+*.swo
+core
+makefile
+*.mk
