@@ -6,16 +6,27 @@
 #include<commons/log.h>
 #include<commons/string.h>
 #include<commons/config.h>
+#include<commons/collections/queue.h>
 #include<readline/readline.h>
 #include<pthread.h>
 #include "../utils/cliente.h"
 #include "../utils/config.h"
+#include <limits.h>
+
+t_list* objetivo_global;
+t_queue* entrenadores_new;
+t_queue* entrenadores_ready;
+t_queue* entrenadores_blocked;
+
 
 void terminar_programa(int, t_log*, t_config*);
-void cargarEntrenadores(char *posicionesEntrenadores, char* pokemonesEntrenadores, char* objetivosEntrenadores, t_list* lista_entrenadores);
-void obtenerEntrenadores(t_list* lista_entrenadores, t_config* config, t_log* logger);
+void cargarEntrenadores(char *posicionesEntrenadores, char* pokemonesEntrenadores, char* objetivosEntrenadores);
+void obtenerEntrenadores(t_config* config, t_log* logger);
 t_entrenador* crearEntrenador(char* coordenadas, char* objetivos, char* pokemones);
 t_list* armarLista(char* objetos);
 void hilo_entrenador();
+t_log* asignarLogger(t_config* config, char* log_file);
+double distanciaEntreCoordenadas(t_coordenadas coordenada_A, t_coordenadas coordenada_B);
+t_entrenador_tcb* obtenerMasCercano(t_coordenadas* coordenadas_pokemon);
 
 #endif

@@ -13,6 +13,13 @@
 #include "team.h"
 
 
+void inicializarGlobales(){
+	objetivo_global = list_create();
+	entrenadores_new = queue_create();
+	entrenadores_ready = queue_create();
+	entrenadores_blocked = queue_create();
+}
+
 int main(void) {
 
 	int conexion;
@@ -22,32 +29,17 @@ int main(void) {
 
 	t_log* logger;
 	t_config* config;
-	t_list* lista_entrenadores;
 
+	// obtiene la configuracion desde el archivo team.config
 	config = leer_config("../team.config");
 
-	asignar_string_property(config, "LOG_FILE", &log_file);
-	if(!log_file){
-		log_file = "team.log";
-	}
+	// crea listas y queues globales
+	inicializarGlobales();
 
-	logger = log_create(log_file, "team" , true, LOG_LEVEL_INFO);
-	lista_entrenadores = list_create();
+	// asigna el logger al archivo team.log
+	logger = asignarLogger(config, &log_file);
 
-	/*****************Leo del config y cargo los entrenadores a una lista*****************/
-	obtenerEntrenadores(lista_entrenadores, config, logger);
-
-	t_link_element* elemento = lista_entrenadores->head;
-
-	while(elemento != NULL) {
-		printf("Id %lu\n", ((t_entrenador_tcb*) elemento->data)->id_hilo_entrenador);
-		printf("Status %d\n", ((t_entrenador_tcb*) elemento->data)->status);
-		elemento = elemento->next;
-	}
-
-
-	/*****************Leo del config y cargo los entrenadores a una lista*****************/
-
+	// asigna propiedades de conexion
 	asignar_string_property(config, "IP_BROKER", &ip);
 	asignar_string_property(config, "PUERTO_BROKER", &puerto);
 
@@ -58,16 +50,33 @@ int main(void) {
 
 	printf("\nConfiguraciones:.\nIP = %s.\nPUERTO = %s\nLOG_FILE = %s.\n",ip, puerto, log_file);
 
+	/*****************Leo del config y cargo los entrenadores a una lista*****************/
+	obtenerEntrenadores(config, logger);
+
+	// muestra info de los entrenadores
+	t_link_element* elemento = entrenadores_new->elements->head;
+
+	while(elemento != NULL) {
+		printf("Id %lu\n", ((t_entrenador_tcb*) elemento->data)->id_hilo_entrenador);
+		printf("Pokemon %s\n", ((t_entrenador_tcb*) elemento->data)->entrenador->pokemones_entrenador->head->data);
+		printf("Status %d\n", ((t_entrenador_tcb*) elemento->data)->status);
+		elemento = elemento->next;
+	}
+
+	/*****************Leo del config y cargo los entrenadores a una lista*****************/
+
+/*
 	conexion = crear_conexion( ip, puerto);
 
 	proyecto nombre_proyecto = TEAM;
+
 	enviar_mensaje(&nombre_proyecto, conexion, IDENTIFICACION);
 
 	proyecto *respuesta = (proyecto*) recibir_mensaje(conexion);
 
 	printf("la respuesta es %d\n", *respuesta);
 	printf("Return\n");
-
+*/
     //log_info(logger, "Saliendo");
 
 	terminar_programa(conexion, logger, config);
@@ -86,7 +95,7 @@ void removeChar(char *str, char garbage) {
     *dst = '\0';
 }
 
-void obtenerEntrenadores(t_list* lista_entrenadores, t_config* config, t_log* logger){
+void obtenerEntrenadores(t_config* config, t_log* logger){
 
 	char* posicionesEntrenadores;
 	char* pokemonesEntrenadores;
@@ -96,12 +105,11 @@ void obtenerEntrenadores(t_list* lista_entrenadores, t_config* config, t_log* lo
 	asignar_string_property(config, "OBJETIVOS_ENTRENADORES", &objetivosEntrenadores);
 
 	if((posicionesEntrenadores != NULL) && (pokemonesEntrenadores != NULL) && (objetivosEntrenadores != NULL)){
-		cargarEntrenadores(posicionesEntrenadores, pokemonesEntrenadores, objetivosEntrenadores, lista_entrenadores);
+		cargarEntrenadores(posicionesEntrenadores, pokemonesEntrenadores, objetivosEntrenadores);
 	}
 }
 
-void cargarEntrenadores(char *posicionesEntrenadores, char* pokemonesEntrenadores, char* objetivosEntrenadores, t_list* lista_entrenadores){
-
+void cargarEntrenadores(char *posicionesEntrenadores, char* pokemonesEntrenadores, char* objetivosEntrenadores) {
 	// elimino corchetes del "vector"
 	removeChar(posicionesEntrenadores, '[');
 	removeChar(posicionesEntrenadores, ']');
@@ -123,13 +131,14 @@ void cargarEntrenadores(char *posicionesEntrenadores, char* pokemonesEntrenadore
 		pthread_detach(thread);
 		t_entrenador_tcb* tcb_entrenador = malloc(sizeof(t_entrenador_tcb));
 		tcb_entrenador->id_hilo_entrenador = thread;
+		tcb_entrenador->entrenador = entrenador;
 		tcb_entrenador->status = NEW;
-		list_add(lista_entrenadores, tcb_entrenador);
+		queue_push(entrenadores_new, tcb_entrenador);
 		i++;
 	}
 }
 
-t_entrenador* crearEntrenador(char* coordenadas, char* objetivos, char* pokemones){
+	t_entrenador* crearEntrenador(char* coordenadas, char* objetivos, char* pokemones){
 	t_entrenador* entrenador = malloc(sizeof(t_entrenador));
 
 	char** xy = string_split(coordenadas,"|");
@@ -147,8 +156,7 @@ t_entrenador* crearEntrenador(char* coordenadas, char* objetivos, char* pokemone
 }
 
 t_list* armarLista(char* objetos){
-	t_list* lista;
-	lista = list_create();
+	t_list* lista = list_create();
 	char** vector_objetos = string_split(objetos,"|");
 	int i = 0;
 	while(vector_objetos[i] != NULL){
@@ -162,8 +170,10 @@ t_list* armarLista(char* objetos){
 }
 
 void hilo_entrenador(){
+	sleep(10);
+	while(1){
 
-	printf("Soy un entrenador en un hilo\n");
+	}
 }
 
 void terminar_programa(int conexion, t_log* logger, t_config* config)
@@ -178,4 +188,38 @@ void terminar_programa(int conexion, t_log* logger, t_config* config)
 		liberar_conexion(conexion);
 	}
 	printf("Finalizo programa.\n");
+}
+
+t_log* asignarLogger(t_config* config, char* log_file) {
+	asignar_string_property(config, "LOG_FILE", &log_file);
+	if(!log_file){
+		log_file = "team.log";
+	}
+
+	return log_create(log_file, "team" , true, LOG_LEVEL_INFO);
+}
+
+double distanciaEntreCoordenadas(t_coordenadas coordenada_A, t_coordenadas coordenada_B){
+	return fabs(coordenada_B.posx - coordenada_A.posx) + fabs(coordenada_B.posy - coordenada_A.posy);
+}
+
+t_entrenador_tcb* obtenerMasCercano(t_list* entrenadores, t_coordenadas* coordenadas_pokemon){
+
+	int distancia = INT_MAX;
+
+	t_entrenador_tcb* tcb_entrenador = NULL;
+	t_link_element* elemento = entrenadores->head;
+
+	while(elemento != NULL) {
+		t_entrenador_tcb* tcb_actual = (t_entrenador_tcb*) elemento->data;
+		int distancia_actual = distanciaEntreCoordenadas(tcb_actual->entrenador->coordenadas, coordenadas_pokemon);
+		if(distancia_actual < distancia){
+			tcb_entrenador = tcb_actual;
+			distancia = distancia_actual;
+		}
+		elemento = elemento->next;
+	}
+
+	return tcb_entrenador;
+
 }

@@ -113,6 +113,7 @@ typedef enum
 typedef struct
 {
 	unsigned long int id_hilo_entrenador;
+	t_entrenador* entrenador;
 	process_status status;
 
 } t_entrenador_tcb;
