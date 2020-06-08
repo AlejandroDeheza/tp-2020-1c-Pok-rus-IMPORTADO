@@ -8,24 +8,34 @@
 typedef enum
 {
 	IDENTIFICACION = 1,
-	NEW_POKEMON,
-	NEW_POKEMON_RESPONSE,
-	APPEARED_POKEMON,
-	CATCH_POKEMON,
-	CAUGHT_POKEMON,
-	GET_POKEMON,
-	LOCALIZED_POKEMON,
-	MENSAJE
+	NEW_POKEMON = 11,
+	APPEARED_POKEMON = 12,
+	CATCH_POKEMON = 13,
+	CAUGHT_POKEMON = 14,
+	GET_POKEMON = 15,
+	LOCALIZED_POKEMON = 16,
+	MENSAJE = 2,
+	NEW_POKEMON_RESPONSE = 3,
+	SUBSCRIBE_NEW_POKEMON = 21,
+	SUBSCRIBE_APPEARED_POKEMON = 22,
+	SUBSCRIBE_CATCH_POKEMON = 23,
+	SUBSCRIBE_CAUGHT_POKEMON = 24,
+	SUBSCRIBE_GET_POKEMON = 25,
+	SUBSCRIBE_LOCALIZED_POKEMON = 26
 }op_code;
 
 
 typedef enum
 {
-	TEAM = 1,
-	GAMEBOY = 2,
-	GAMECARD = 3,
-	BROKER = 4
+	TEAM = 10,
+	GAMEBOY = 11,
+	GAMECARD = 12,
+	BROKER = 13
 } proyecto;
+
+//mensjae de suscripcion -> TEAM(process_code) SUBSCRIBE_NEW_POKEMON(subscribe_code)    -> asociar el socket a la lista
+
+// NEW_POKEMON PIKACHU ASDADADAD
 
 typedef struct
 {
@@ -91,6 +101,15 @@ typedef struct
 {
 	int resultado;
 } t_caught_pokemon;
+
+typedef struct
+{
+	int id_mensaje;
+	op_code code;
+	t_list* suscriptores;
+	t_list* ack_suscriptores;
+} t_cache;
+
 
 #endif /* ESTRUCTURAS_H_ */
 
