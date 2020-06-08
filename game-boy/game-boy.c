@@ -4,15 +4,18 @@ int main(int argc, char *argv[]) {
 
 	int conexion = 0;
 	t_log* logger = NULL;
-	t_config* config = NULL;
+
+	t_config* config = leer_config("../game-boy.config");
 
 	verificarEntrada(argc, argv);
-	iniciar_logger_y_config(&logger, &config, "../game-boy.config", "game-boy");
+
+	iniciar_logger(&logger, config, "game-boy");
 
 	if(strcmp(argv[1],"SUSCRIPTOR")==0){
 		//suscribir_a_cola_mensajes();			//TODO
 	}else{
-		gestionar_envio_de_mensaje(&conexion, config, logger, argc, argv);
+		iniciar_conexion(&conexion, config, logger, argv[1]);
+		despacharMensaje(conexion, argv);
 	}
 
 	terminar_programa(conexion, logger, config);
@@ -145,59 +148,27 @@ void verificarEntrada(int argc, char *argv[]){
 	}
 }
 
-void gestionar_envio_de_mensaje(int* conexion, t_config* config, t_log* logger, int argc, char* argv[])
-{
-	char* ip = NULL;
-	char* puerto = NULL;
 
-	leer_ip_y_puerto(&ip, &puerto, config, argv[1]);
-
-	*conexion = crear_conexion( ip, puerto);
-	logearConexion(logger, argv[1]);
-
-	despacharMensaje(*conexion, argc, argv);
-	//logearEnvio(logger, argv);	// lo sacaron del enuncado. Ya no es necesario
-
-}
-
-/*
-void logearEnvio(t_log* logger, char *argv[]){
-
-	printf("\n");
-	log_info(logger, "Se envio el mensaje %s a %s", argv[2], argv[1]);
-	printf("\n");
-}
-*/
-
-void logearConexion(t_log* logger, char *primerArg){
-
-	printf("\n");
-	log_info(logger, "Se realizo una conexion con %s", primerArg);
-	printf("\n");
-}		// tambien podemos mencionar en el log que mensaje se va a enviar. Hace falta? preguntar TODO
-		// a esta funcion habria que pasarle por parametro el "argv" pa usar "argv[2]"
-		// como esta arriba en "loguearEnvio()"
-
-void despacharMensaje(int conexion, int argc, char *argv[]){
+void despacharMensaje(int conexion, char *argv[]){
 
 	if(strcmp(argv[2],"NEW_POKEMON")==0){
-		enviarNew(conexion, argc, argv);
+		enviarNew(conexion, argv);
 	}
 	if(strcmp(argv[2],"APPEARED_POKEMON")==0){
-		enviarAppeared(conexion, argc, argv);
+		enviarAppeared(conexion, argv);
 	}
 	if(strcmp(argv[2],"CATCH_POKEMON")==0){
-		enviarCatch(conexion, argc, argv);
+		enviarCatch(conexion, argv);
 	}
 	if(strcmp(argv[2],"CAUGHT_POKEMON")==0){
-		enviarCaught(conexion, argc, argv);
+		enviarCaught(conexion, argv);
 	}
 	if(strcmp(argv[2],"GET_POKEMON")==0){
-		enviarGet(conexion, argc, argv);
+		enviarGet(conexion, argv);
 	}
 }
 
-void enviarNew(int conexion, int argc, char *argv[])
+void enviarNew(int conexion, char *argv[])
 {
 	int posx = atoi(argv[4]);
 	int posy = atoi(argv[5]);
@@ -211,20 +182,21 @@ void enviarNew(int conexion, int argc, char *argv[])
 	enviar_new_pokemon(conexion, id_mensaje, id_correlativo, argv[3], posx, posy, cantidad);
 }
 
-void enviarAppeared(int conexion, int argc, char *argv[])
+void enviarAppeared(int conexion, char *argv[])
 {
 	int posx = atoi(argv[4]);
 	int posy = atoi(argv[5]);
 	int id_mensaje = 0;
 	int id_correlativo = 0;
+	char* nombre11 = argv[3];
 
 	if(strcmp(argv[1],"BROKER")==0)	 	//SE ENVIO EL MENSAJE PARA BROKER
 		id_correlativo = atoi(argv[6]);
 
-	enviar_appeared_pokemon(conexion, id_mensaje, id_correlativo, argv[3], posx, posy);
+	enviar_appeared_pokemon(conexion, id_mensaje, id_correlativo, nombre11, posx, posy);
 }
 
-void enviarCatch(int conexion, int argc, char *argv[])
+void enviarCatch(int conexion, char *argv[])
 {
 	int posx = atoi(argv[4]);
 	int posy = atoi(argv[5]);
@@ -237,7 +209,7 @@ void enviarCatch(int conexion, int argc, char *argv[])
 	enviar_catch_pokemon(conexion, id_mensaje, id_correlativo, argv[3], posx, posy);
 }
 
-void enviarCaught(int conexion, int argc, char *argv[])
+void enviarCaught(int conexion, char *argv[])
 {
 	int id_mensaje = 0;
 	int id_correlativo = atoi(argv[3]);
@@ -246,7 +218,7 @@ void enviarCaught(int conexion, int argc, char *argv[])
 	enviar_caught_pokemon(conexion, id_mensaje, id_correlativo, resultado);
 }
 
-void enviarGet(int conexion, int argc, char *argv[])
+void enviarGet(int conexion, char *argv[])
 {
 	int id_mensaje = 0;
 	int id_correlativo = 0;
@@ -302,15 +274,3 @@ void enviarLocalized(int conexion, int argc, char *argv[])
 
 }
 
-void terminar_programa(int conexion, t_log* logger, t_config* config)
-{
-	if (logger != NULL){
-		log_destroy(logger);
-	}
-	if (config != NULL) {
-		config_destroy(config);
-	}
-	if (conexion != 0) {
-		liberar_conexion(conexion);
-	}
-}

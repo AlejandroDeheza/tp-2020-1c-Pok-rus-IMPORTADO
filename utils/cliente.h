@@ -15,8 +15,11 @@
 #include "estructuras.h"
 #include <commons/error.h>
 #include "serializacion.h"
+#include "config.h"
 
 int crear_conexion(char* ip, char* puerto);
+void iniciar_conexion(int* conexion, t_config* config, t_log* logger, char *nombre_proceso);
+void logearConexion(t_log* logger, char *primerArg);
 void enviar_mensaje(void* mensaje, int socket_cliente, op_code codigo_operacion, int id_mensaje, int id_correlativo);
 
 void enviar_new_pokemon(int conexion, int id_mensaje, int id_correlativo, char* nombre, int posx, int posy, int cantidad);

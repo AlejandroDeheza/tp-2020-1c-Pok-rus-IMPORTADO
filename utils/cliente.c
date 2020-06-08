@@ -25,6 +25,26 @@ int crear_conexion(char *ip, char* puerto)
 	return socket_cliente;
 }
 
+void iniciar_conexion(int* conexion, t_config* config, t_log* logger, char *nombre_proceso){
+	char* ip = NULL;
+	char* puerto = NULL;
+
+	leer_ip_y_puerto(&ip, &puerto, config, nombre_proceso);
+
+	*conexion = crear_conexion( ip, puerto);
+	logearConexion(logger, nombre_proceso);
+}
+
+void logearConexion(t_log* logger, char *primerArg){
+
+	printf("\n");
+	log_info(logger, "Se realizo una conexion con %s", primerArg);
+	printf("\n");
+}		// tambien podemos mencionar en el log que mensaje se va a enviar. Hace falta? preguntar TODO
+		// a esta funcion habria que pasarle por parametro el "argv" pa usar "argv[2]"
+		// como esta arriba en "loguearEnvio()"
+
+
 void enviar_mensaje(void* mensaje, int socket_cliente, op_code codigo_operacion, int id_mensaje, int id_correlativo)
 {
 	int estado = 0;
@@ -42,7 +62,6 @@ void enviar_mensaje(void* mensaje, int socket_cliente, op_code codigo_operacion,
 		case IDENTIFICACION:
 			printf("Creo un paquete para un identificarme\n");
 			serializar_identificacion(&paquete, mensaje);
-
 			break;
 		case MENSAJE:
 			printf("Creo un paquete para un MENSAJE\n");
@@ -193,7 +212,10 @@ void* recibir_mensaje(int socket_cliente) {
 	void* stream;
 	char* string;
 	switch (codigo_operacion) {
-		case IDENTIFICACION:
+		/*case IDENTIFICACION:
+			prinft("Creo un paquete para identificarme\n");
+			serializar_identificacion(&paquete, mensaje);*/
+			break;
 		case MENSAJE:
 			printf("RecibirMensaje -> Operación: %d (1 = MENSAJE).\n", codigo_operacion);
 			recv(socket_cliente,&size, sizeof(int), 0);

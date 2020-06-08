@@ -1,4 +1,5 @@
 #include "servidor.h"
+<<<<<<< Updated upstream
 
 int crear_socket_para_escuchar(char *ipServidor, char* puertoServidor){
 	//esta funcion es equivalente a iniciar_servidor()
@@ -49,6 +50,31 @@ int aceptar_una_conexion(int socket_servidor){
 	return socket_cliente;
 }
 
+int tomar_cod_op_del_mensaje(int* socket)
+{	//esta funcion es equivalente a serve_client()
+	//pero esta retorna el codigo de operacion del mensaje que se esta recibiendo
+
+	int cod_op;
+	if(recv(*socket, &cod_op, sizeof(int), MSG_WAITALL) == -1)
+		cod_op = -1;
+	return cod_op;
+}
+
+int tomar_id_correlativo(int* socket)
+{
+	int id_correlativo;
+	if(recv(*socket, &id_correlativo, sizeof(int), MSG_WAITALL) == -1)
+		id_correlativo = -1;
+	return id_correlativo;
+}
+
+int tomar_id_mensaje(int* socket)
+{
+	int id_mensaje;
+	if(recv(*socket, &id_mensaje, sizeof(int), MSG_WAITALL) == -1)
+		id_mensaje = -1;
+	return id_mensaje;
+}
 
 void* recibir_mensaje_desde_cliente(int socket_cliente){
 	//esta funcion se puede llamar desde algun proceso (ej: TEAM)
@@ -72,6 +98,84 @@ void* recibir_mensaje_desde_cliente(int socket_cliente){
 
 
 /**************vv funciones anteriores vv*****************/
+
+void iniciar_servidor(char *ip, char* puerto)
+{
+	int socket_servidor;
+
+    struct addrinfo hints, *servinfo, *p;
+
+    memset(&hints, 0, sizeof(hints));
+    hints.ai_family = AF_UNSPEC;
+    hints.ai_socktype = SOCK_STREAM;
+    hints.ai_flags = AI_PASSIVE;
+
+    getaddrinfo(ip, puerto, &hints, &servinfo);
+
+    for (p=servinfo; p != NULL; p = p->ai_next)
+    {
+        if ((socket_servidor = socket(p->ai_family, p->ai_socktype, p->ai_protocol)) == -1)
+            continue;
+
+        if (bind(socket_servidor, p->ai_addr, p->ai_addrlen) == -1) {
+            close(socket_servidor);
+            continue;
+        }
+        break;
+    }
+
+	listen(socket_servidor, SOMAXCONN);
+
+    freeaddrinfo(servinfo);
+
+    while(1)
+    	esperar_cliente(socket_servidor);
+}
+
+void esperar_cliente(int socket_servidor)
+{
+	struct sockaddr_in dir_cliente;
+	pthread_t thread;
+
+	int tam_direccion = sizeof(struct sockaddr_in);
+
+	int socket_cliente = accept(socket_servidor, (void*) &dir_cliente,(void*) &tam_direccion);
+
+	pthread_create(&thread,NULL,(void*)serve_client,&socket_cliente);
+	pthread_detach(thread);
+
+}
+
+void serve_client(int* socket)
+{
+	int cod_op;
+	if(recv(*socket, &cod_op, sizeof(int), MSG_WAITALL) == -1)
+		cod_op = -1;
+	tomar_id_correlativo(socket);	//agregado para que no rompa
+	tomar_id_mensaje(socket);		//agregado para que no rompa
+	process_request(cod_op, *socket);
+}
+
+void process_request(int cod_op, int cliente_fd) {
+	int size;
+	void* msg;
+		switch (cod_op) {
+		case MENSAJE:
+			msg = recibir_mensaje_servidor(cliente_fd, &size);
+			devolver_mensaje(msg, size, cliente_fd);
+			free(msg);
+			break;
+		case 0:
+			pthread_exit(NULL);
+			//este caso se deberia tratar. si es 0, es porque recv() en serve_client() retorna 0
+			//eso significa que hubo una desconexion o que simplemente termino la conexion...
+			//si hubo una desconexion, se debe intentar reconectar segun el proceso
+			//TODO
+		case -1:
+			pthread_exit(NULL);
+		}
+}
+
 void* recibir_mensaje_servidor(int socket_cliente, int* size)
 {
 	void * buffer;
@@ -106,4 +210,5 @@ void devolver_mensaje(void* payload, int size, int socket_cliente)
 	free(paquete->buffer);
 	free(paquete);
 }
-
+=======
+>>>>>>> Stashed changes

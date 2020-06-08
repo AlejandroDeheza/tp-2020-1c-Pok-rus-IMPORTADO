@@ -1,17 +1,17 @@
 #include "config.h"
 
-void iniciar_logger_y_config(t_log** logger, t_config** config, char* direccion_archivo, char* nombre_proceso){
+void iniciar_logger(t_log** logger, t_config* config, char* nombre_proceso){
 
 	char* log_file = NULL;
 
-	*config = leer_config(direccion_archivo);
-	asignar_string_property(*config, "LOG_FILE", &log_file);
+
+	asignar_string_property(config, "LOG_FILE", &log_file);
 
 	if(!log_file){
 		error_show(" No se encontro LOG_FILE en el archivo de configuracion\n\n");
 		exit(-1);
 	}
-	*logger = iniciar_logger(log_file, nombre_proceso);
+	*logger = log_create(log_file, nombre_proceso , true, LOG_LEVEL_INFO);
 
 	printf("Configuraciones:\n"
 			"LOG_FILE = %s\n", log_file);
@@ -44,16 +44,25 @@ t_config* leer_config(char* file)
 	return config_create(file);
 }
 
-t_log* iniciar_logger(char* log_file, char* project)
-{
-	return log_create(log_file, project , true, LOG_LEVEL_INFO);
-}
-
 void asignar_string_property(t_config* config, char* property, char** variable){
 
 	if(config_has_property(config, property)){
 		*variable = config_get_string_value(config, property);
 	} else {
 		*variable =	NULL;
+	}
+}
+
+
+void terminar_programa(int conexion, t_log* logger, t_config* config)
+{
+	if (logger != NULL){
+		log_destroy(logger);
+	}
+	if (config != NULL) {
+		config_destroy(config);
+	}
+	if (conexion != 0) {
+		liberar_conexion(conexion);
 	}
 }
