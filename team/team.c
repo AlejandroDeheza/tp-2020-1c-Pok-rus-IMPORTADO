@@ -199,11 +199,11 @@ t_log* asignarLogger(t_config* config, char* log_file) {
 	return log_create(log_file, "team" , true, LOG_LEVEL_INFO);
 }
 
-double distanciaEntreCoordenadas(t_coordenadas coordenada_A, t_coordenadas coordenada_B){
+int distanciaEntreCoordenadas(t_coordenadas coordenada_A, t_coordenadas coordenada_B){
 	return fabs(coordenada_B.posx - coordenada_A.posx) + fabs(coordenada_B.posy - coordenada_A.posy);
 }
 
-t_entrenador_tcb* obtenerMasCercano(t_list* entrenadores, t_coordenadas* coordenadas_pokemon){
+t_entrenador_tcb* obtenerMasCercano(t_list* entrenadores, t_coordenadas coordenadas_pokemon){
 
 	int distancia = INT_MAX;
 

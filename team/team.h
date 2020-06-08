@@ -26,7 +26,7 @@ t_entrenador* crearEntrenador(char* coordenadas, char* objetivos, char* pokemone
 t_list* armarLista(char* objetos);
 void hilo_entrenador();
 t_log* asignarLogger(t_config* config, char* log_file);
-double distanciaEntreCoordenadas(t_coordenadas coordenada_A, t_coordenadas coordenada_B);
-t_entrenador_tcb* obtenerMasCercano(t_coordenadas* coordenadas_pokemon);
+int distanciaEntreCoordenadas(t_coordenadas coordenada_A, t_coordenadas coordenada_B);
+t_entrenador_tcb* obtenerMasCercano(t_list* entrenadores, t_coordenadas coordenadas_pokemon);
 
 #endif
