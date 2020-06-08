@@ -188,12 +188,11 @@ void enviarAppeared(int conexion, char *argv[])
 	int posy = atoi(argv[5]);
 	int id_mensaje = 0;
 	int id_correlativo = 0;
-	char* nombre11 = argv[3];
 
 	if(strcmp(argv[1],"BROKER")==0)	 	//SE ENVIO EL MENSAJE PARA BROKER
 		id_correlativo = atoi(argv[6]);
 
-	enviar_appeared_pokemon(conexion, id_mensaje, id_correlativo, nombre11, posx, posy);
+	enviar_appeared_pokemon(conexion, id_mensaje, id_correlativo, argv[3], posx, posy);
 }
 
 void enviarCatch(int conexion, char *argv[])
