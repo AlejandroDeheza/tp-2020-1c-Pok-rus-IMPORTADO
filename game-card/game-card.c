@@ -7,71 +7,28 @@
 
 int main(void) {
 
-	int conexion;
-	char* ip;
-	char* puerto;
-	char* log_file;
-
+	int conexion = 0;
 	t_log* logger;
-	t_config* config;
+	t_config* config = leer_config("../game-card.config");
 
-	config = leer_config("../game-card.config");
+	iniciar_logger(&logger, config, "game-card");
 
-	asignar_string_property(config, "IP_BROKER", &ip);
-	asignar_string_property(config, "PUERTO_BROKER", &puerto);
-	asignar_string_property(config, "LOG_FILE", &log_file);
+	suscribirse_a(&conexion, config, logger, "BROKER", SUBSCRIBE_NEW_POKEMON);
+	suscribirse_a(&conexion, config, logger, "BROKER", SUBSCRIBE_CATCH_POKEMON);
+	suscribirse_a(&conexion, config, logger, "BROKER", SUBSCRIBE_GET_POKEMON);
 
-	logger = log_create(log_file, "game-card" , true, LOG_LEVEL_INFO);
-	if(!log_file){
-		log_file = "game-card.log";
-	}
-
-	if(!ip || !puerto){
-		log_info(logger, "Chequear archivo de configuracion");
-		exit(-1);
-	}
-
-	printf("\nConfiguraciones:.\nIP = %s.\nPUERTO = %s\nLOG_FILE = %s.\n",ip, puerto, log_file);
-
-	conexion = crear_conexion( ip, puerto);
-
-
-
-	char* nombre;
-	int posx;
-	int posy;
-	int cantidad;
-	printf("Ingrese nombre del pokemon:\n");
-	scanf("%s", nombre);
-	printf("Ingrese posicion X:\n");
-	scanf("%d", &posx);
-	printf("Ingrese posicion Y:\n");
-	scanf("%d", &posy);
-	printf("Ingrese cantidad:\n");
-	scanf("%d", &cantidad);
-
-	t_new_pokemon* pokemon = new_pokemon(nombre, posx, posy, cantidad);
-	enviar_mensaje(pokemon, conexion, NEW_POKEMON);
-
-	char* response = recibir_mensaje(conexion);
-	printf("Menaje devuelto: %s", response);
 
 	terminar_programa(conexion, logger, config);
 
-	exit(0);
+	return EXIT_SUCCESS;
 
 }
 
-void terminar_programa(int conexion, t_log* logger, t_config* config)
-{
-	if (logger != NULL){
-		log_destroy(logger);
+void suscribirse_a(int* conexion, t_config* config, t_log* logger, char *nombre_proceso, op_code nombre_cola){
+	iniciar_conexion(&conexion, config, logger, nombre_proceso);
+
+	while(1){
+		pthread_t thread;
+		pthread_create(&thread,NULL,(void*)recibir_mensaje,&conexion);
 	}
-	if (config != NULL) {
-		config_destroy(config);
-	}
-	if (conexion != 0) {
-		liberar_conexion(conexion);
-	}
-	printf("Finalizo programa.\n");
-}
+};
