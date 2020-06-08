@@ -14,9 +14,9 @@
 #include <limits.h>
 
 t_list* objetivo_global;
-t_queue* entrenadores_new;
-t_queue* entrenadores_ready;
-t_queue* entrenadores_blocked;
+t_list* entrenadores_new;
+t_list* entrenadores_ready;
+t_list* entrenadores_blocked;
 
 
 void terminar_programa(int, t_log*, t_config*);

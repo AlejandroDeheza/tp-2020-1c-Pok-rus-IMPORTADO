@@ -15,9 +15,9 @@
 
 void inicializarGlobales(){
 	objetivo_global = list_create();
-	entrenadores_new = queue_create();
-	entrenadores_ready = queue_create();
-	entrenadores_blocked = queue_create();
+	entrenadores_new = list_create();
+	entrenadores_ready = list_create();
+	entrenadores_blocked = list_create();
 }
 
 int main(void) {
@@ -54,7 +54,7 @@ int main(void) {
 	obtenerEntrenadores(config, logger);
 
 	// muestra info de los entrenadores
-	t_link_element* elemento = entrenadores_new->elements->head;
+	t_link_element* elemento = entrenadores_new->head;
 
 	while(elemento != NULL) {
 		printf("Id %lu\n", ((t_entrenador_tcb*) elemento->data)->id_hilo_entrenador);
@@ -133,7 +133,7 @@ void cargarEntrenadores(char *posicionesEntrenadores, char* pokemonesEntrenadore
 		tcb_entrenador->id_hilo_entrenador = thread;
 		tcb_entrenador->entrenador = entrenador;
 		tcb_entrenador->status = NEW;
-		queue_push(entrenadores_new, tcb_entrenador);
+		list_add(entrenadores_new, tcb_entrenador);
 		i++;
 	}
 }
