@@ -104,6 +104,8 @@ void obtenerEntrenadores(t_config* config, t_log* logger){
 	asignar_string_property(config, "POKEMON_ENTRENADORES", &pokemonesEntrenadores);
 	asignar_string_property(config, "OBJETIVOS_ENTRENADORES", &objetivosEntrenadores);
 
+	calcularObjetivoGlobal(config, objetivosEntrenadores);
+
 	if((posicionesEntrenadores != NULL) && (pokemonesEntrenadores != NULL) && (objetivosEntrenadores != NULL)){
 		cargarEntrenadores(posicionesEntrenadores, pokemonesEntrenadores, objetivosEntrenadores);
 	}
@@ -138,7 +140,7 @@ void cargarEntrenadores(char *posicionesEntrenadores, char* pokemonesEntrenadore
 	}
 }
 
-	t_entrenador* crearEntrenador(char* coordenadas, char* objetivos, char* pokemones){
+t_entrenador* crearEntrenador(char* coordenadas, char* objetivos, char* pokemones){
 	t_entrenador* entrenador = malloc(sizeof(t_entrenador));
 
 	char** xy = string_split(coordenadas,"|");
@@ -222,4 +224,18 @@ t_entrenador_tcb* obtenerMasCercano(t_list* entrenadores, t_coordenadas coordena
 
 	return tcb_entrenador;
 
+}
+
+void calcularObjetivoGlobal(t_config* config, char* objetivosEntrenadores){
+	removeChar(objetivosEntrenadores, '[');
+	removeChar(objetivosEntrenadores, ']');
+	char** objetivoEntrenador = string_split(objetivosEntrenadores, ",");
+
+
+	int i = 0;
+	while(objetivoEntrenador[i]!= NULL){
+		t_list* listaParcial = armarLista(objetivoEntrenador[i]);
+		list_add(objetivo_global, listaParcial);
+		i++;
+	}
 }
