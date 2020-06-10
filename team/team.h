@@ -14,6 +14,7 @@
 #include <limits.h>
 
 t_list* objetivo_global;
+t_list* objetivo_pokemones_pendientes;
 t_list* entrenadores_new;
 t_list* entrenadores_ready;
 t_list* entrenadores_blocked;

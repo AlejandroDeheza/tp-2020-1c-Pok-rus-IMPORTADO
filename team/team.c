@@ -106,24 +106,25 @@ void obtenerEntrenadores(t_config* config, t_log* logger){
 
 	calcularObjetivoGlobal(config, objetivosEntrenadores);
 
-	if((posicionesEntrenadores != NULL) && (pokemonesEntrenadores != NULL) && (objetivosEntrenadores != NULL)){
-		cargarEntrenadores(posicionesEntrenadores, pokemonesEntrenadores, objetivosEntrenadores);
-	}
+	objetivo_pokemones_pendientes = list_duplicate(objetivo_global);
+
+	cargarEntrenadores(posicionesEntrenadores, pokemonesEntrenadores, objetivosEntrenadores);
+
+}
+
+char** formatearPropiedadDelConfig(char* propiedad){
+	removeChar(propiedad, '[');
+	removeChar(propiedad, ']');
+
+	return string_split(propiedad,",");
 }
 
 void cargarEntrenadores(char *posicionesEntrenadores, char* pokemonesEntrenadores, char* objetivosEntrenadores) {
-	// elimino corchetes del "vector"
-	removeChar(posicionesEntrenadores, '[');
-	removeChar(posicionesEntrenadores, ']');
-	removeChar(pokemonesEntrenadores, '[');
-	removeChar(pokemonesEntrenadores, ']');
-	removeChar(objetivosEntrenadores, '[');
-	removeChar(objetivosEntrenadores, ']');
 
 	// separa las posiciones de cada entrenados
-	char** coodenadasEntrenador = string_split(posicionesEntrenadores,",");
-	char** pokemonEntrenador = string_split(pokemonesEntrenadores, ",");
-	char** objetivoEntrenador = string_split(objetivosEntrenadores, ",");
+	char** coodenadasEntrenador = formatearPropiedadDelConfig(posicionesEntrenadores);
+	char** pokemonEntrenador = formatearPropiedadDelConfig(pokemonesEntrenadores);
+	char** objetivoEntrenador = formatearPropiedadDelConfig(objetivosEntrenadores);
 
 	int i = 0;
 	while(coodenadasEntrenador[i]!= NULL){
@@ -235,7 +236,33 @@ void calcularObjetivoGlobal(t_config* config, char* objetivosEntrenadores){
 	int i = 0;
 	while(objetivoEntrenador[i]!= NULL){
 		t_list* listaParcial = armarLista(objetivoEntrenador[i]);
-		list_add(objetivo_global, listaParcial);
+		list_add_all(objetivo_global, listaParcial);
 		i++;
 	}
 }
+
+void atenderSolicitud(char* pokemon, t_coordenadas coordenadas){
+	bool esIgualAPokemon(void* elemento){
+		return strcmp(pokemon, elemento);
+	}
+
+	if(list_any_satisfy(objetivo_pokemones_pendientes, esIgualAPokemon)){
+		buscarEntrenadorQueAplique(coordenadas);
+	}
+}
+
+t_entrenador_tcb* buscarEntrenadorQueAplique(t_coordenadas coordenadas){
+	//Obtener mi lista de entrenadores para planificar
+	//Los que estan en new + Los que estan bloqueados en espera activa
+
+	t_list* listaDisponibles;
+
+	return obtenerMasCercano(listaDisponibles, coordenadas);
+
+}
+
+void cambiarEstadoEntrenador(t_entrenador_tcb* entrenador, char* nuevoEstado){
+	entrenador->status = nuevoEstado;
+}
+
+
