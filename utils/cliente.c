@@ -15,9 +15,12 @@ int crear_conexion(char *ip, char* puerto)
 	int socket_cliente = socket(server_info->ai_family, server_info->ai_socktype, server_info->ai_protocol);
 
 	if(connect(socket_cliente, server_info->ai_addr, server_info->ai_addrlen) == -1){
+		/*
 		printf("\n");
 		error_show(" Error de conexion\n\n");
 		exit(-1);
+		*/
+		return -1;
 	}
 
 	freeaddrinfo(server_info);
@@ -32,7 +35,10 @@ void iniciar_conexion(int* conexion, t_config* config, t_log* logger, char *nomb
 	leer_ip_y_puerto(&ip, &puerto, config, nombre_proceso);
 
 	*conexion = crear_conexion( ip, puerto);
-	logearConexion(logger, nombre_proceso);
+
+	if(*conexion > 0){
+		logearConexion(logger, nombre_proceso);
+	}
 }
 
 void logearConexion(t_log* logger, char *primerArg){
@@ -247,4 +253,19 @@ void* recibir_mensaje(int socket_cliente) {
 void liberar_conexion(int socket_cliente)
 {
 	close(socket_cliente);
+}
+
+void reintentar_conexion(int* conexion, t_config* config, t_log* logger, char* proceso){
+	int tiempo_reconexion;
+	asignar_int_property(config, "TIEMPO_RECONEXION", &tiempo_reconexion);
+
+	if(tiempo_reconexion == NULL){
+		log_error(logger, "No existe la propiedad TIEMPO_RECONEXION");
+		exit(-1);
+	}
+	while(*conexion < 0){
+		sleep(tiempo_reconexion);
+		log_info(logger, "Reintentando conexion con proceso %s", proceso);
+		iniciar_conexion(&(*conexion), config, logger, proceso);
+	}
 }

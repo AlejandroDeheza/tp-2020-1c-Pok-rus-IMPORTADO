@@ -13,22 +13,29 @@
 #include "../utils/config.h"
 #include <limits.h>
 
+// estructuras globales;
 t_list* objetivo_global;
 t_list* objetivo_pokemones_pendientes;
 t_list* entrenadores_new;
 t_list* entrenadores_ready;
 t_list* entrenadores_blocked;
 
-
-void terminar_programa(int, t_log*, t_config*);
-void cargarEntrenadores(char *posicionesEntrenadores, char* pokemonesEntrenadores, char* objetivosEntrenadores);
+// metodos para iniciar proceso
+t_log* asignarLogger(t_config* config);
 void obtenerEntrenadores(t_config* config, t_log* logger);
 t_entrenador* crearEntrenador(char* coordenadas, char* objetivos, char* pokemones);
-t_list* armarLista(char* objetos);
+void cargarObjetivoGlobal();
+
+// metodos "utils"
+char** formatearPropiedadDelConfig(char* propiedad);
+t_list* armarLista(char** objetos);
+
+// metodos funcionales
 void hilo_entrenador();
-t_log* asignarLogger(t_config* config, char* log_file);
 int distanciaEntreCoordenadas(t_coordenadas coordenada_A, t_coordenadas coordenada_B);
 t_entrenador_tcb* obtenerMasCercano(t_list* entrenadores, t_coordenadas coordenadas_pokemon);
-void calcularObjetivoGlobal(t_config* config, char *objetivosEntrenadores);
+t_entrenador_tcb* buscarEntrenadorQueAplique(t_coordenadas coordenadas);
+void terminar_programa(int, t_log*, t_config*);
+
 
 #endif

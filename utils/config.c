@@ -53,6 +53,15 @@ void asignar_string_property(t_config* config, char* property, char** variable){
 	}
 }
 
+void asignar_int_property(t_config* config, char* property, int* variable){
+
+	if(config_has_property(config, property)){
+		*variable = config_get_int_value(config, property);
+	} else {
+		*variable =	NULL;
+	}
+}
+
 
 void terminar_programa(int conexion, t_log* logger, t_config* config)
 {
