@@ -29,7 +29,7 @@ int main(void) {
 void suscribirse_a(t_config* config, t_log* logger, char *nombre_proceso, op_code nombre_cola){
 	int conexion;
 
-	conexion = iniciar_conexion(config, logger, nombre_proceso);
+	iniciar_conexion(&conexion, config, logger, nombre_proceso);
 
 	pthread_t thread;
 

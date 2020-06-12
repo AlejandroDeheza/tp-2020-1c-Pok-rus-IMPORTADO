@@ -15,9 +15,12 @@ int crear_conexion(char *ip, char* puerto)
 	int socket_cliente = socket(server_info->ai_family, server_info->ai_socktype, server_info->ai_protocol);
 
 	if(connect(socket_cliente, server_info->ai_addr, server_info->ai_addrlen) == -1){
+		/*
 		printf("\n");
 		error_show(" Error de conexion\n\n");
 		exit(-1);
+		*/
+		return -1;
 	}
 
 	freeaddrinfo(server_info);
@@ -25,17 +28,17 @@ int crear_conexion(char *ip, char* puerto)
 	return socket_cliente;
 }
 
-int iniciar_conexion(t_config* config, t_log* logger, char *nombre_proceso){
+void iniciar_conexion(int* conexion, t_config* config, t_log* logger, char *nombre_proceso){
 	char* ip = NULL;
 	char* puerto = NULL;
-	int conexion;
+
 	leer_ip_y_puerto(&ip, &puerto, config, nombre_proceso);
 
-	conexion = crear_conexion( ip, puerto);
+	*conexion = crear_conexion( ip, puerto);
 
-	log_info(logger, "Se realizo una conexion con %s", nombre_proceso);
-
-	return conexion;
+	if(*conexion > 0){
+		logearConexion(logger, nombre_proceso);
+	}
 }
 
 
@@ -55,7 +58,7 @@ void enviar_mensaje(void* mensaje, int socket_cliente, op_code codigo_operacion,
 	switch (codigo_operacion){
 		case IDENTIFICACION:
 			printf("Creo un paquete para un identificarme\n");
-			serializar_identificacion(&paquete, mensaje);
+			paquete->buffer->size = sizeof(int);
 			break;
 		case MENSAJE:
 			printf("Creo un paquete para un MENSAJE\n");
@@ -100,11 +103,11 @@ void enviar_mensaje(void* mensaje, int socket_cliente, op_code codigo_operacion,
 
 	estado = send(socket_cliente, aEnviar, bytes, 0);
 	verificar_estado(estado);
-
 	free(aEnviar);
 	free(paquete->buffer->stream);
 	free(paquete->buffer);
 	free(paquete);
+	printf("\n");
 }
 
 
@@ -232,16 +235,46 @@ void verificar_estado(int estado) {
 	}
 }
 
-void suscribirse_a_cola(int socket_cliente, op_code codigo_operacion)
-{   int estado = 0;
-	estado = send(socket_cliente, &codigo_operacion, sizeof(op_code), 0);
-	verificar_estado(estado);
+void* recibir_mensaje(int socket_cliente) {
+	int codigo_operacion = 0;
+	recv(socket_cliente, &codigo_operacion, sizeof(op_code), 0);
+	int size;
+	void* stream;
+	char* string;
+	switch (codigo_operacion) {
+		/*case IDENTIFICACION:
+			prinft("Creo un paquete para identificarme\n");
+			serializar_identificacion(&paquete, mensaje);*/
+			break;
+		case MENSAJE:
+			printf("RecibirMensaje -> Operación: %d (1 = MENSAJE).\n", codigo_operacion);
+			recv(socket_cliente,&size, sizeof(int), 0);
+			printf("RecibirMensaje -> Size: %d Bytes.\n", size);
+			stream = malloc(size);
+		//	string = malloc(size);
+			recv(socket_cliente,stream, size, 0);
+		//	memcpy(string, stream, size);
+		//	printf("RecibirMensaje -> Mensaje: \"%s\" - Longitud: %d.\n", string, strlen(string));
+			break;
+		case NEW_POKEMON_RESPONSE:
+			printf("Recibir Respuesta -> Operación: %s .\n", codigo_operacion);
+			recv(socket_cliente,&size, sizeof(int), 0);
+			printf("RecibirMensaje -> Size: %d Bytes.\n", size);
+			stream = malloc(size);
+			string = malloc(size);
+			recv(socket_cliente,stream, size, 0);
+			memcpy(string, stream, size);
+			break;
+		default:
+			printf("RecibirMensaje -> Error OpCode: %d.\n", codigo_operacion);
+			break;
+	}
+		printf("\n");
+		return stream;
 }
 
-
 void recibir_mensaje(int socket_cliente) {
-	int codigo_operacion;
-	codigo_operacion = 0;
+	int codigo_operacion = 0;
 	if(recv(socket_cliente, &codigo_operacion, sizeof(op_code), 0) == -1) {
 		//pthread_exit(NULL);
 		return;
@@ -307,4 +340,19 @@ void recibir_mensaje(int socket_cliente) {
 void liberar_conexion(int socket_cliente)
 {
 	close(socket_cliente);
+}
+
+void reintentar_conexion(int* conexion, t_config* config, t_log* logger, char* proceso){
+	int tiempo_reconexion;
+	asignar_int_property(config, "TIEMPO_RECONEXION", &tiempo_reconexion);
+
+	if(tiempo_reconexion == NULL){
+		log_error(logger, "No existe la propiedad TIEMPO_RECONEXION");
+		exit(-1);
+	}
+	while(*conexion < 0){
+		sleep(tiempo_reconexion);
+		log_info(logger, "Reintentando conexion con proceso %s", proceso);
+		iniciar_conexion(&(*conexion), config, logger, proceso);
+	}
 }

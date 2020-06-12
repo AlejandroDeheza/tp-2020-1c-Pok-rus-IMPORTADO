@@ -83,11 +83,11 @@ void* recibir_mensaje_servidor(int socket_cliente, int* size)
 	return buffer;
 }
 
-void devolver_mensaje(void* payload, int size, int socket_cliente)
+void devolver_mensaje(void* payload, int size, int socket_cliente, op_code operacion)
 {
 	t_paquete* paquete = malloc(sizeof(t_paquete));
 
-	paquete->codigo_operacion = 1;
+	paquete->codigo_operacion = operacion;
 	paquete->id_correlativo = 0;	//agregado para que no rompa
 	paquete->id_mensaje = 0;		//agregado para que no rompa
 	paquete->buffer = malloc(sizeof(t_buffer));
