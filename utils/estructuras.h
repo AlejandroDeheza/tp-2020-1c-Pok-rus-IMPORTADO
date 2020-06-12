@@ -110,6 +110,33 @@ typedef struct
 	t_list* ack_suscriptores;
 } t_cache;
 
+typedef struct
+{
+	int id_entrenador;
+	t_coordenadas coordenadas;
+	t_list* pokemones_entrenador;
+	t_list* objetivo_entrenador;
+
+} t_entrenador;
+
+typedef enum
+{
+	NEW = 0,
+	READY = 1,
+	EXEC = 2,
+	BLOCK = 3,
+	EXIT = 4
+} process_status;
+
+typedef struct
+{
+	unsigned long int id_hilo_entrenador;
+	t_entrenador* entrenador;
+	process_status status;
+
+} t_entrenador_tcb;
+
+
 
 #endif /* ESTRUCTURAS_H_ */
 
