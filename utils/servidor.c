@@ -50,29 +50,8 @@ int aceptar_una_conexion(int socket_servidor){
 }
 
 
-void* recibir_mensaje_desde_cliente(int socket_cliente){
-	//esta funcion se puede llamar desde algun proceso (ej: TEAM)
-	//para recibir el "stream" del t_buffer del t_paquete enviado
-
-	void *stream;
-	int size = 0;
-
-	recv(socket_cliente, &size, sizeof(int), MSG_WAITALL);
-	stream = malloc(size);
-	recv(socket_cliente, stream, size, MSG_WAITALL);
-
-	return stream;
-}
-	//despues de usar esta funcion, se puede usar un switch (como en process_request(), ver mas abajo)
-	//para que segun el codigo de operacion, se llame a la funcion que deserializa el stream
-	//(ej: deserializar_appeared_pokemon()) que esta en serializacion.c
-	//para luego trabajar con el mensaje de la manera correspondiente segun el proceso
-
-
-
-
 /**************vv funciones anteriores vv*****************/
-void* recibir_mensaje_servidor(int socket_cliente, int* size)
+void* recibir_buffer(int socket_cliente, int* size)
 {
 	void * buffer;
 

@@ -124,7 +124,7 @@ void enviar_mensaje2(void* mensaje, int size_mensaje, int socket_cliente, op_cod
 								//en ese caso lo seteamos nosotros desde consola
 	paquete->buffer = malloc(sizeof(t_buffer));
 
-	paquete->buffer->size = sizeof(mensaje);
+	paquete->buffer->size = size_mensaje;
 	paquete->buffer->stream = malloc(paquete->buffer->size);
 	memcpy(paquete->buffer->stream, mensaje, paquete->buffer->size);
 
@@ -241,53 +241,17 @@ void suscribirse_a_cola(int socket_cliente, op_code codigo_operacion) {
 	verificar_estado(estado);
 }
 
-/*
-void* recibir_mensaje(int socket_cliente) {
-	int codigo_operacion = 0;
-	recv(socket_cliente, &codigo_operacion, sizeof(op_code), 0);
-	int size;
-	void* stream;
-	char* string;
-	switch (codigo_operacion) {
-		case IDENTIFICACION:
-			prinft("Creo un paquete para identificarme\n");
-			serializar_identificacion(&paquete, mensaje)
-			break;
-		case MENSAJE:
-			printf("RecibirMensaje -> Operación: %d (1 = MENSAJE).\n", codigo_operacion);
-			recv(socket_cliente,&size, sizeof(int), 0);
-			printf("RecibirMensaje -> Size: %d Bytes.\n", size);
-			stream = malloc(size);
-		//	string = malloc(size);
-			recv(socket_cliente,stream, size, 0);
-		//	memcpy(string, stream, size);
-		//	printf("RecibirMensaje -> Mensaje: \"%s\" - Longitud: %d.\n", string, strlen(string));
-			break;
-		case NEW_POKEMON_RESPONSE:
-			printf("Recibir Respuesta -> Operación: %s .\n", codigo_operacion);
-			recv(socket_cliente,&size, sizeof(int), 0);
-			printf("RecibirMensaje -> Size: %d Bytes.\n", size);
-			stream = malloc(size);
-			string = malloc(size);
-			recv(socket_cliente,stream, size, 0);
-			memcpy(string, stream, size);
-			break;
-		default:
-			printf("RecibirMensaje -> Error OpCode: %d.\n", codigo_operacion);
-			break;
-	}
-		printf("\n");
-		return stream;
-}
-*/
-
 void* recibir_mensaje(int socket_cliente) {
 	int codigo_operacion = 0;
 	if(recv(socket_cliente, &codigo_operacion, sizeof(op_code), 0) == -1) {
 		//pthread_exit(NULL);
 		return 1;
 	}
-	printf("Recibiendo mensaje");
+	int id_mensaje = 0;
+	recv(socket_cliente, &id_mensaje, sizeof(op_code), 0);
+	int id_correlativo = 0;
+	recv(socket_cliente, &id_correlativo, sizeof(op_code), 0);
+
 	int size; //Aca hay que liberar?
 	void* mensaje; //Aca hay que liberar?
 	//printf("Recibir Respuesta -> Operación: %s .\n", codigo_operacion);

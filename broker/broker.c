@@ -134,12 +134,14 @@ void dar_aviso(int cliente_fd, t_list *listaDeSuscriptores, int op_code){
 	int id_correlativo = 0;
 	recv(cliente_fd, &id_correlativo, sizeof(int), 0);
 
+	int size_buffer = 0;
+
 	//Aca ya le comi un int
-	void* mensaje = recibir_mensaje_desde_cliente(cliente_fd);
+	void* mensaje = recibir_buffer(cliente_fd, &size_buffer);
 
     printf("op code %d", op_code);
 	void avisarle(int client){
-		return enviar_mensaje2(mensaje, client, op_code, id_mensaje, id_correlativo);
+		enviar_mensaje2(mensaje, size_buffer, client, op_code, id_mensaje, id_correlativo);
 	}
    //Aca se me hace que es al pedo el deserializar, ya que no le interesa la data que tenga adentro, solo hace un pasamanos.
 	list_iterate(listaDeSuscriptores, avisarle);
