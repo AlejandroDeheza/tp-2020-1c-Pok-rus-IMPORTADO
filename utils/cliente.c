@@ -41,15 +41,6 @@ void iniciar_conexion(int* conexion, t_config* config, t_log* logger, char *nomb
 	}
 }
 
-void logearConexion(t_log* logger, char *primerArg){
-
-	printf("\n");
-	log_info(logger, "Se realizo una conexion con %s", primerArg);
-	printf("\n");
-}		// tambien podemos mencionar en el log que mensaje se va a enviar. Hace falta? preguntar TODO
-		// a esta funcion habria que pasarle por parametro el "argv" pa usar "argv[2]"
-		// como esta arriba en "loguearEnvio()"
-
 
 void enviar_mensaje(void* mensaje, int socket_cliente, op_code codigo_operacion, int id_mensaje, int id_correlativo)
 {
@@ -117,6 +108,39 @@ void enviar_mensaje(void* mensaje, int socket_cliente, op_code codigo_operacion,
 	free(paquete->buffer);
 	free(paquete);
 	printf("\n");
+}
+
+
+void enviar_mensaje2(void* mensaje, int size_mensaje, int socket_cliente, op_code codigo_operacion, int id_mensaje, int id_correlativo)
+{
+	int estado = 0;
+
+	t_paquete* paquete = malloc(sizeof(t_paquete));
+	paquete->codigo_operacion = codigo_operacion;
+	paquete->id_correlativo = id_correlativo;	//este id lo puede settear el proceso que manda el mensaje
+												//tambien lo puede dejar en 0 si no conoce el id
+	paquete->id_mensaje = id_mensaje;	//EL ID_MENSAJE SIEMPRE LO SETEA EL BROKER
+								//a menos que el gameboy envie un mensaje a gamecard
+								//en ese caso lo seteamos nosotros desde consola
+	paquete->buffer = malloc(sizeof(t_buffer));
+
+	paquete->buffer->size = sizeof(mensaje);
+	paquete->buffer->stream = malloc(paquete->buffer->size);
+	memcpy(paquete->buffer->stream, mensaje, paquete->buffer->size);
+
+	printf("EnviarMensaje -> Mensaje Empaquetado: \"%s\".\n", (char*)paquete->buffer->stream);
+
+	int bytes = 0;
+	void* aEnviar = serializar_paquete(paquete, &bytes);
+	printf("EnviarMensaje -> Paquete Serializado - Tamaño Total: %d Bytes.\n", bytes);
+
+	estado = send(socket_cliente, aEnviar, bytes, 0);
+	verificar_estado(estado);
+
+	free(aEnviar);
+	free(paquete->buffer->stream);
+	free(paquete->buffer);
+	free(paquete);
 }
 
 void enviar_new_pokemon(int conexion, int id_mensaje, int id_correlativo, char* nombre, int posx, int posy, int cantidad)
@@ -246,8 +270,71 @@ void* recibir_mensaje(int socket_cliente) {
 			break;
 	}
 		printf("\n");
-
 		return stream;
+}
+
+void recibir_mensaje(int socket_cliente) {
+	int codigo_operacion = 0;
+	if(recv(socket_cliente, &codigo_operacion, sizeof(op_code), 0) == -1) {
+		//pthread_exit(NULL);
+		return;
+	}
+	printf("Recibiendo mensaje");
+	int size; //Aca hay que liberar?
+	void* mensaje; //Aca hay que liberar?
+	//printf("Recibir Respuesta -> Operación: %s .\n", codigo_operacion);
+	recv(socket_cliente,&size, sizeof(int), 0);
+	printf("RecibirMensaje -> Size: %d Bytes.\n", size);
+	mensaje = malloc(size);
+	//string = malloc(size);
+	recv(socket_cliente,mensaje, size, 0);
+
+
+	switch (codigo_operacion){
+				//case MENSAJE:
+				//	printf("RecibirMensaje -> Operación: %d (1 = MENSAJE).\n", codigo_operacion);
+				//	recv(socket_cliente,&size, sizeof(int), 0);
+				//	printf("RecibirMensaje -> Size: %d Bytes.\n", size);
+				//	stream = malloc(size);
+				//	string = malloc(size);
+				//	recv(socket_cliente,stream, size, 0);
+				//	memcpy(string, stream, size);
+				//	printf("RecibirMensaje -> Mensaje: \"%s\" - Longitud: %d.\n", string, strlen(string));
+				//	break;
+				case IDENTIFICACION:
+					printf("Leo un paquete para un identificarme\n");
+					deserializar_identificacion(mensaje);
+					break;
+				case NEW_POKEMON:
+					printf("Leo un NEW_POKEMON\n");
+					deserializar_new_pokemon(mensaje);
+					break;
+
+				case APPEARED_POKEMON:
+					printf("Leo un APPEARED_POKEMON\n");
+					deserializar_appeared_pokemon(mensaje);
+					break;
+
+				case CATCH_POKEMON:
+					printf("Leo un CATCH_POKEMON\n");
+					deserializar_catch_pokemon(mensaje);
+
+					break;
+				case CAUGHT_POKEMON:
+					printf("Leo un CAUGHT_POKEMON\n");
+					deserializar_caught_pokemon(mensaje);
+
+					break;
+				case GET_POKEMON:
+					printf("Leo un GET_POKEMON\n");
+					deserializar_get_pokemon(mensaje);
+					break;
+
+				case LOCALIZED_POKEMON:
+					printf("Leo un LOCALIZED_POKEMON\n");
+					deserializar_localized_pokemon(mensaje);
+					break;
+			}
 }
 
 void liberar_conexion(int socket_cliente)

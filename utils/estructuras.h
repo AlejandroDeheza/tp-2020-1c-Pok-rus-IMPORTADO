@@ -15,7 +15,6 @@ typedef enum
 	GET_POKEMON = 15,
 	LOCALIZED_POKEMON = 16,
 	MENSAJE = 2,
-	NEW_POKEMON_RESPONSE = 3,
 	SUBSCRIBE_NEW_POKEMON = 21,
 	SUBSCRIBE_APPEARED_POKEMON = 22,
 	SUBSCRIBE_CATCH_POKEMON = 23,
@@ -72,14 +71,11 @@ typedef struct
     t_list* coordenadas;
 } t_localized_pokemon;
 
-
 typedef struct
 {
 	int size;
 	void* nombre;
 } t_get_pokemon;
-
-
 
 typedef struct
 {
@@ -88,14 +84,12 @@ typedef struct
 	t_coordenadas coordenadas;
 } t_appeared_pokemon;
 
-
 typedef struct
 {
 	int size;
 	void* nombre;
 	t_coordenadas coordenadas;
 } t_catch_pokemon;
-
 
 typedef struct
 {
