@@ -29,15 +29,15 @@ void* serializar_paquete(t_paquete* paquete, int *bytes)
 
 void serializar_identificacion(t_paquete** paquete, void* mensaje){
 
-	(*paquete)->buffer->size = sizeof(int);
-	(*paquete)->buffer->stream = malloc((*paquete)->buffer->size);
-	memcpy((*paquete)->buffer->stream, mensaje, (*paquete)->buffer->size);
+		memcpy((*paquete)->buffer->size, mensaje, sizeof(int));
+		memcpy((*paquete)->buffer->stream, mensaje, (*paquete)->buffer->size);
 }
 
 void serializar_mensaje(t_paquete** paquete, void* mensaje){
 
 	(*paquete)->buffer->size = strlen(mensaje)+ 1;
 	(*paquete)->buffer->stream = malloc((*paquete)->buffer->size);
+	//TODO aca falta hacer el memcpy del size?
 	memcpy((*paquete)->buffer->stream, mensaje, (*paquete)->buffer->size);
 }
 

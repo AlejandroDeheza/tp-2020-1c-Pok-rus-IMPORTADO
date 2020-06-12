@@ -19,6 +19,12 @@ int main(void)
 	char* puerto;
 
 	t_config* config;
+	list_clean(&suscribers_new_pokemon);
+	list_clean(&suscribers_appeared_pokemon);
+	list_clean(&suscribers_catch_pokemon);
+	list_clean(&suscribers_caught_pokemon);
+	list_clean(&suscribers_get_pokemon);
+	list_clean(&suscribers_localized_pokemon);
 
 	config = leer_config("../broker.config");
 
@@ -37,6 +43,12 @@ int main(void)
 
     }
 
+    /*list_destroy(suscribers_new_pokemon);
+    list_destroy(suscribers_appeared_pokemon);
+    list_destroy(suscribers_catch_pokemon);
+    list_destroy(suscribers_caught_pokemon);
+    list_destroy(suscribers_get_pokemon);
+    list_destroy(suscribers_localized_pokemon);*/
 
 	return EXIT_SUCCESS;
 }
@@ -80,22 +92,22 @@ void process_request(int cod_op, int cliente_fd) {
 			suscribir(cliente_fd, &suscribers_localized_pokemon);
 			break;
 		case NEW_POKEMON:
-			dar_aviso(cliente_fd,&suscribers_new_pokemon);
+			dar_aviso(cliente_fd,&suscribers_new_pokemon, NEW_POKEMON);
 			break;
 		case APPEARED_POKEMON:
-			dar_aviso(cliente_fd,&suscribers_appeared_pokemon);
+			dar_aviso(cliente_fd,&suscribers_appeared_pokemon, APPEARED_POKEMON);
 			break;
 		case CATCH_POKEMON:
-			dar_aviso(cliente_fd,&suscribers_catch_pokemon);
+			dar_aviso(cliente_fd,&suscribers_catch_pokemon, CATCH_POKEMON);
 			break;
 		case CAUGHT_POKEMON:
-			dar_aviso(cliente_fd,&suscribers_caught_pokemon);
+			dar_aviso(cliente_fd,&suscribers_caught_pokemon, CAUGHT_POKEMON);
 			break;
 		case GET_POKEMON:
-			dar_aviso(cliente_fd,&suscribers_get_pokemon);
+			dar_aviso(cliente_fd,&suscribers_get_pokemon, GET_POKEMON);
 			break;
 		case LOCALIZED_POKEMON:
-			dar_aviso(cliente_fd,&suscribers_localized_pokemon);
+			dar_aviso(cliente_fd,&suscribers_localized_pokemon, LOCALIZED_POKEMON);
 			break;
 		case 0:
 			//este caso se deberia tratar. si es 0, es porque recv() en serve_client() retorna 0
@@ -113,14 +125,8 @@ void suscribir(int cliente_fd, t_list *lista){
 	list_add(lista, cliente_fd);
 }
 
-void avisarle_a_cada_suscriptor(int client, void* mensaje){
-
-	printf("por mandar mensaje locura \n");
-	send(client, mensaje, 33, 0);
-}
-
 //Avisarle a los que estan suscriptos que llego un mensaje de este estilo//
-void dar_aviso(int cliente_fd, t_list *listaDeSuscriptores){
+void dar_aviso(int cliente_fd, t_list *listaDeSuscriptores, int op_code){
 
 	int id_mensaje = 0;
 	recv(cliente_fd, &id_mensaje, sizeof(int), 0);
@@ -128,13 +134,12 @@ void dar_aviso(int cliente_fd, t_list *listaDeSuscriptores){
 	int id_correlativo = 0;
 	recv(cliente_fd, &id_correlativo, sizeof(int), 0);
 
+	//Aca ya le comi un int
 	void* mensaje = recibir_mensaje_desde_cliente(cliente_fd);
 
-	t_appeared_pokemon* appeared_pokemon = deserializar_appeared_pokemon(mensaje);
-	printf("nomres por docquier %s \n", (*appeared_pokemon).nombre);
-
+    printf("op code %d", op_code);
 	void avisarle(int client){
-		return avisarle_a_cada_suscriptor(client, mensaje);
+		return enviar_mensaje2(mensaje, client, op_code, id_mensaje, id_correlativo);
 	}
    //Aca se me hace que es al pedo el deserializar, ya que no le interesa la data que tenga adentro, solo hace un pasamanos.
 	list_iterate(listaDeSuscriptores, avisarle);
