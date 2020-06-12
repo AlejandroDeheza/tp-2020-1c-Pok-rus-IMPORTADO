@@ -20,6 +20,7 @@
 int crear_conexion(char* ip, char* puerto);
 void iniciar_conexion(int* conexion, t_config* config, t_log* logger, char *nombre_proceso);
 void enviar_mensaje(void* mensaje, int socket_cliente, op_code codigo_operacion, int id_mensaje, int id_correlativo);
+void enviar_mensaje_a_suscriptores(void* mensaje, int size_mensaje, int socket_cliente, op_code codigo_operacion, int id_mensaje, int id_correlativo);
 void suscribirse_a_cola(int socket_cliente, op_code codigo_operacion);
 void enviar_new_pokemon(int conexion, int id_mensaje, int id_correlativo, char* nombre, int posx, int posy, int cantidad);
 void enviar_appeared_pokemon(int conexion, int id_mensaje, int id_correlativo, char* nombre, int posx, int posy);
@@ -31,6 +32,7 @@ void enviar_localized_pokemon(int conexion, int id_mensaje, int id_correlativo, 
 void* recibir_mensaje(int socket_cliente);
 void liberar_conexion(int socket_cliente);
 void verificar_estado(int estado);
+
 
 
 #endif /* TEAM_UTILS_H_ */

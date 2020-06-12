@@ -65,14 +65,7 @@ void tomar_parte_del_mensaje(int* socket)
 }
 
 void process_request(int cod_op, int cliente_fd) {
-	//int size;
-	//void* msg;
 		switch (cod_op) {
-		/*case MENSAJE:
-			msg = recibir_mensaje_servidor(cliente_fd, &size);
-			devolver_mensaje(msg, size, cliente_fd);
-			free(msg);
-			break;*/
 		case SUBSCRIBE_NEW_POKEMON:
 			suscribir(cliente_fd, &suscribers_new_pokemon);
 			break;
@@ -122,10 +115,9 @@ void process_request(int cod_op, int cliente_fd) {
 
 
 void suscribir(int cliente_fd, t_list *lista){
-	list_add(lista, cliente_fd);
+	list_add(lista, (int *)cliente_fd);
 }
 
-//Avisarle a los que estan suscriptos que llego un mensaje de este estilo//
 void dar_aviso(int cliente_fd, t_list *listaDeSuscriptores, int op_code){
 
 	int id_mensaje = 0;
@@ -136,15 +128,14 @@ void dar_aviso(int cliente_fd, t_list *listaDeSuscriptores, int op_code){
 
 	int size_buffer = 0;
 
-	//Aca ya le comi un int
 	void* mensaje = recibir_buffer(cliente_fd, &size_buffer);
 
     printf("op code %d", op_code);
 	void avisarle(int client){
-		enviar_mensaje2(mensaje, size_buffer, client, op_code, id_mensaje, id_correlativo);
+		enviar_mensaje_a_suscriptores(mensaje, size_buffer, client, op_code, id_mensaje, id_correlativo);
 	}
-   //Aca se me hace que es al pedo el deserializar, ya que no le interesa la data que tenga adentro, solo hace un pasamanos.
-	list_iterate(listaDeSuscriptores, avisarle);
+
+	list_iterate(listaDeSuscriptores, (void *)avisarle);
 }
 
 

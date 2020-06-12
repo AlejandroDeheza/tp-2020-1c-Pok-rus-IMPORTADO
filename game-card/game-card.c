@@ -16,8 +16,8 @@ int main(void) {
 	log_info(logger, "Suscribiendo a las colas de mensajes");
 
 	suscribirse_a(config, logger, "BROKER", SUBSCRIBE_APPEARED_POKEMON);
-	//suscribirse_a(&conexionCHP, config, logger, "BROKER", SUBSCRIBE_CATCH_POKEMON);
-	//suscribirse_a(&conexionGP, config, logger, "BROKER", SUBSCRIBE_GET_POKEMON);
+	suscribirse_a(config, logger, "BROKER", SUBSCRIBE_CATCH_POKEMON);
+	suscribirse_a(config, logger, "BROKER", SUBSCRIBE_GET_POKEMON);
 
 
 //	terminar_programa(conexion, logger, config);
@@ -38,8 +38,8 @@ void suscribirse_a(t_config* config, t_log* logger, char *nombre_proceso, op_cod
 	suscribirse_a_cola(conexion, nombre_cola);
 
 	while(1){
-//	pthread_create(&thread,NULL,(void*)recibir_mensaje,&conexion);
-//	pthread_detach(thread);
+	//pthread_create(&thread,NULL,(void*)recibir_mensaje,conexion);
+	//pthread_detach(thread);
 		recibir_mensaje(conexion);
 	}
 };

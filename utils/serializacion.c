@@ -26,21 +26,6 @@ void* serializar_paquete(t_paquete* paquete, int *bytes)
 
 
 /********** serializaciones mas especificas ************/
-
-void serializar_identificacion(t_paquete** paquete, void* mensaje){
-
-		memcpy((*paquete)->buffer->size, mensaje, sizeof(int));
-		memcpy((*paquete)->buffer->stream, mensaje, (*paquete)->buffer->size);
-}
-
-void serializar_mensaje(t_paquete** paquete, void* mensaje){
-
-	(*paquete)->buffer->size = strlen(mensaje)+ 1;
-	(*paquete)->buffer->stream = malloc((*paquete)->buffer->size);
-	//TODO aca falta hacer el memcpy del size?
-	memcpy((*paquete)->buffer->stream, mensaje, (*paquete)->buffer->size);
-}
-
 void serializar_new_pokemon(t_paquete** paquete, void* mensaje){
 
 	int offset = 0;

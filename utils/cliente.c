@@ -56,15 +56,6 @@ void enviar_mensaje(void* mensaje, int socket_cliente, op_code codigo_operacion,
 	paquete->buffer = malloc(sizeof(t_buffer));
 
 	switch (codigo_operacion){
-		case IDENTIFICACION:
-			printf("Creo un paquete para un identificarme\n");
-			paquete->buffer->size = sizeof(int);
-			break;
-		case MENSAJE:
-			printf("Creo un paquete para un MENSAJE\n");
-			serializar_mensaje(&paquete, mensaje);
-
-			break;
 		case NEW_POKEMON:
 			printf("Creo un paquete para NEW_POKEMON\n");
 			serializar_new_pokemon(&paquete, mensaje);
@@ -110,8 +101,9 @@ void enviar_mensaje(void* mensaje, int socket_cliente, op_code codigo_operacion,
 	printf("\n");
 }
 
-
-void enviar_mensaje2(void* mensaje, int size_mensaje, int socket_cliente, op_code codigo_operacion, int id_mensaje, int id_correlativo)
+//Es bastante parecido a enviar_mensaje, pero este no serializa, ya que el broker al enterarse de que recibio un mensaje,
+// lo redistribuye y no pierde tiempo deserializando y serializando
+void enviar_mensaje_a_suscriptores(void* mensaje, int size_mensaje, int socket_cliente, op_code codigo_operacion, int id_mensaje, int id_correlativo)
 {
 	int estado = 0;
 
@@ -244,8 +236,7 @@ void suscribirse_a_cola(int socket_cliente, op_code codigo_operacion) {
 void* recibir_mensaje(int socket_cliente) {
 	int codigo_operacion = 0;
 	if(recv(socket_cliente, &codigo_operacion, sizeof(op_code), 0) == -1) {
-		//pthread_exit(NULL);
-		return 1;
+		pthread_exit(NULL);
 	}
 	int id_mensaje = 0;
 	recv(socket_cliente, &id_mensaje, sizeof(op_code), 0);
@@ -254,29 +245,12 @@ void* recibir_mensaje(int socket_cliente) {
 
 	int size; //Aca hay que liberar?
 	void* mensaje; //Aca hay que liberar?
-	//printf("Recibir Respuesta -> Operación: %s .\n", codigo_operacion);
 	recv(socket_cliente,&size, sizeof(int), 0);
 	printf("RecibirMensaje -> Size: %d Bytes.\n", size);
 	mensaje = malloc(size);
-	//string = malloc(size);
 	recv(socket_cliente,mensaje, size, 0);
 
-
 	switch (codigo_operacion){
-				//case MENSAJE:
-				//	printf("RecibirMensaje -> Operación: %d (1 = MENSAJE).\n", codigo_operacion);
-				//	recv(socket_cliente,&size, sizeof(int), 0);
-				//	printf("RecibirMensaje -> Size: %d Bytes.\n", size);
-				//	stream = malloc(size);
-				//	string = malloc(size);
-				//	recv(socket_cliente,stream, size, 0);
-				//	memcpy(string, stream, size);
-				//	printf("RecibirMensaje -> Mensaje: \"%s\" - Longitud: %d.\n", string, strlen(string));
-				//	break;
-				case IDENTIFICACION:
-					printf("Leo un paquete para un identificarme\n");
-					deserializar_identificacion(mensaje);
-					break;
 				case NEW_POKEMON:
 					printf("Leo un NEW_POKEMON\n");
 					deserializar_new_pokemon(mensaje);

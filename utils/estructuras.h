@@ -7,14 +7,13 @@
 
 typedef enum
 {
-	IDENTIFICACION = 1,
-	NEW_POKEMON = 11,
-	APPEARED_POKEMON = 12,
-	CATCH_POKEMON = 13,
-	CAUGHT_POKEMON = 14,
-	GET_POKEMON = 15,
-	LOCALIZED_POKEMON = 16,
-	MENSAJE = 2,
+	NEW_POKEMON = 1,
+	APPEARED_POKEMON = 2,
+	CATCH_POKEMON = 3,
+	CAUGHT_POKEMON = 4,
+	GET_POKEMON = 5,
+	LOCALIZED_POKEMON = 6,
+	MENSAJE_A_COLA = 7,
 	SUBSCRIBE_NEW_POKEMON = 21,
 	SUBSCRIBE_APPEARED_POKEMON = 22,
 	SUBSCRIBE_CATCH_POKEMON = 23,
@@ -31,10 +30,6 @@ typedef enum
 	GAMECARD = 12,
 	BROKER = 13
 } proyecto;
-
-//mensjae de suscripcion -> TEAM(process_code) SUBSCRIBE_NEW_POKEMON(subscribe_code)    -> asociar el socket a la lista
-
-// NEW_POKEMON PIKACHU ASDADADAD
 
 typedef struct
 {
