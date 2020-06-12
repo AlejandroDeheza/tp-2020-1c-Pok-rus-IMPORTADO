@@ -37,7 +37,7 @@ void iniciar_conexion(int* conexion, t_config* config, t_log* logger, char *nomb
 	*conexion = crear_conexion( ip, puerto);
 
 	if(*conexion > 0){
-		logearConexion(logger, nombre_proceso);
+		log_info(logger, "Se realizo una conexion con %s", nombre_proceso);
 	}
 }
 
@@ -235,6 +235,13 @@ void verificar_estado(int estado) {
 	}
 }
 
+void suscribirse_a_cola(int socket_cliente, op_code codigo_operacion) {
+	int estado = 0;
+	estado = send(socket_cliente, &codigo_operacion, sizeof(op_code), 0);
+	verificar_estado(estado);
+}
+
+/*
 void* recibir_mensaje(int socket_cliente) {
 	int codigo_operacion = 0;
 	recv(socket_cliente, &codigo_operacion, sizeof(op_code), 0);
@@ -242,9 +249,9 @@ void* recibir_mensaje(int socket_cliente) {
 	void* stream;
 	char* string;
 	switch (codigo_operacion) {
-		/*case IDENTIFICACION:
+		case IDENTIFICACION:
 			prinft("Creo un paquete para identificarme\n");
-			serializar_identificacion(&paquete, mensaje);*/
+			serializar_identificacion(&paquete, mensaje)
 			break;
 		case MENSAJE:
 			printf("RecibirMensaje -> Operación: %d (1 = MENSAJE).\n", codigo_operacion);
@@ -272,12 +279,13 @@ void* recibir_mensaje(int socket_cliente) {
 		printf("\n");
 		return stream;
 }
+*/
 
-void recibir_mensaje(int socket_cliente) {
+void* recibir_mensaje(int socket_cliente) {
 	int codigo_operacion = 0;
 	if(recv(socket_cliente, &codigo_operacion, sizeof(op_code), 0) == -1) {
 		//pthread_exit(NULL);
-		return;
+		return 1;
 	}
 	printf("Recibiendo mensaje");
 	int size; //Aca hay que liberar?
@@ -335,6 +343,8 @@ void recibir_mensaje(int socket_cliente) {
 					deserializar_localized_pokemon(mensaje);
 					break;
 			}
+
+	return 1;
 }
 
 void liberar_conexion(int socket_cliente)

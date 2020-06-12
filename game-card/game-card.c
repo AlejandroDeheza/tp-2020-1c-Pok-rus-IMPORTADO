@@ -26,6 +26,8 @@ int main(void) {
 
 }
 
+
+
 void suscribirse_a(t_config* config, t_log* logger, char *nombre_proceso, op_code nombre_cola){
 	int conexion;
 

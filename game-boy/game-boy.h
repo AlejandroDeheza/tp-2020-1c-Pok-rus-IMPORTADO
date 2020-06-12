@@ -13,7 +13,6 @@
 
 void verificarEntrada(int argc, char *argv[]);
 
-void logearConexion(t_log* logger, char *primerArg);
 void despacharMensaje(int conexion, char *argv[]);
 void logearEnvio(t_log* logger, char *argv[]);
 
