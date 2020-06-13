@@ -24,14 +24,11 @@ endif
 # All Target
 all: team
 
-dependents:
-	-cd /home/utnso/workspace/tp-2020-1c-Pok-rus/utils/Debug && $(MAKE) clean all
-
 # Tool invocations
-team: $(OBJS) $(USER_OBJS) /home/utnso/workspace/tp-2020-1c-Pok-rus/utils/Debug/libutils.so
+team: $(OBJS) $(USER_OBJS)
 	@echo 'Building target: $@'
 	@echo 'Invoking: GCC C Linker'
-	gcc -L"/home/utnso/workspace/tp-2020-1c-Pok-rus/utils/Debug" -o "team" $(OBJS) $(USER_OBJS) $(LIBS)
+	gcc  -o "team" $(OBJS) $(USER_OBJS) $(LIBS)
 	@echo 'Finished building target: $@'
 	@echo ' '
 
@@ -41,6 +38,5 @@ clean:
 	-@echo ' '
 
 .PHONY: all clean dependents
-/home/utnso/workspace/tp-2020-1c-Pok-rus/utils/Debug/libutils.so:
 
 -include ../makefile.targets
