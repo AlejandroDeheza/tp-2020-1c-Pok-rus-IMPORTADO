@@ -74,10 +74,13 @@ void obtenerEntrenadores(t_config* config, t_log* logger){
 		pthread_detach(thread);
 
 		t_entrenador_tcb* tcb_entrenador = malloc(sizeof(t_entrenador_tcb));
+		pthread_mutex_t mutex;
+		pthread_mutex_init(&mutex, NULL)
+		pthread_mutex_lock(&mutex);
 
 		tcb_entrenador->id_hilo_entrenador = thread;
 		tcb_entrenador->entrenador = entrenador;
-		tcb_entrenador->status = NEW;
+		tcb_entrenador->mutex = mutex;
 
 		list_add(entrenadores_new, tcb_entrenador);
 
@@ -271,6 +274,10 @@ void asociarseACola(op_code op_code, t_config* config, t_log* logger){
 	}
 
 	while(1) {
-		void* mensaje = recibir_mensaje_desde_cliente(socket);
+		void* mensaje = recibir_mensaje(socket);
+
+		//Aca planificamos y
 	}
 }
+
+void moverPosisionArriba(t_coordena)

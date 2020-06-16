@@ -121,7 +121,9 @@ typedef struct
 {
 	unsigned long int id_hilo_entrenador;
 	t_entrenador* entrenador;
-	process_status status;
+	pthread_mutex_t mutex;
+	t_coordenadas coordenadas_del_pokemon;
+	char* nombre_pokemon;
 
 } t_entrenador_tcb;
 
