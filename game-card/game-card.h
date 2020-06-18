@@ -7,7 +7,11 @@
 #include<commons/string.h>
 #include<commons/config.h>
 #include<readline/readline.h>
+#include<semaphore.h>
 
-void terminar_programa(int, t_log*, t_config*);
+#include "../utils/serializacion.h"
+
+void terminar_programa(int conexion, t_log* log, t_config* config);
+int suscribirse_a(t_config* config, t_log* logger, char *nombre_proceso, op_code nombre_cola);
 
 #endif

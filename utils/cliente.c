@@ -233,9 +233,10 @@ void suscribirse_a_cola(int socket_cliente, op_code codigo_operacion) {
 	verificar_estado(estado);
 }
 
-void* recibir_mensaje(int socket_cliente) {
+void* recibir_mensaje(int socket_cliente, pthread_mutex_t* mutex) {
 	int codigo_operacion = 0;
 	if(recv(socket_cliente, &codigo_operacion, sizeof(op_code), 0) == -1) {
+		pthread_mutex_unlock(mutex);
 		pthread_exit(NULL);
 	}
 	int id_mensaje = 0;
@@ -246,43 +247,45 @@ void* recibir_mensaje(int socket_cliente) {
 	int size; //Aca hay que liberar?
 	void* mensaje; //Aca hay que liberar?
 	recv(socket_cliente,&size, sizeof(int), 0);
+	printf("Socket %d", socket_cliente);
 	printf("RecibirMensaje -> Size: %d Bytes.\n", size);
 	mensaje = malloc(size);
 	recv(socket_cliente,mensaje, size, 0);
 
+	void* response;
+
 	switch (codigo_operacion){
 				case NEW_POKEMON:
 					printf("Leo un NEW_POKEMON\n");
-					deserializar_new_pokemon(mensaje);
+					response = deserializar_new_pokemon(mensaje);
 					break;
 
 				case APPEARED_POKEMON:
 					printf("Leo un APPEARED_POKEMON\n");
-					deserializar_appeared_pokemon(mensaje);
+					response = deserializar_appeared_pokemon(mensaje);
 					break;
 
 				case CATCH_POKEMON:
 					printf("Leo un CATCH_POKEMON\n");
-					deserializar_catch_pokemon(mensaje);
-
+					response = deserializar_catch_pokemon(mensaje);
 					break;
+
 				case CAUGHT_POKEMON:
 					printf("Leo un CAUGHT_POKEMON\n");
-					deserializar_caught_pokemon(mensaje);
-
+					response = deserializar_caught_pokemon(mensaje);
 					break;
+
 				case GET_POKEMON:
 					printf("Leo un GET_POKEMON\n");
-					deserializar_get_pokemon(mensaje);
+					response = deserializar_get_pokemon(mensaje);
 					break;
 
 				case LOCALIZED_POKEMON:
 					printf("Leo un LOCALIZED_POKEMON\n");
-					deserializar_localized_pokemon(mensaje);
+					response = deserializar_localized_pokemon(mensaje);
 					break;
 			}
-
-	return 1;
+	return response;
 }
 
 void liberar_conexion(int socket_cliente)
