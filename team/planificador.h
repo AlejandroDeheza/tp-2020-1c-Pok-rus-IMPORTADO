@@ -8,5 +8,14 @@
 #ifndef PLANIFICADOR_H_
 #define PLANIFICADOR_H_
 
+#include "team.h"
+
+int RETARDO_CICLO_CPU;
+char* ALGORITMO;
+
+void planifico_FIFO(t_log* logger);
+void planifico_RR(t_config* config, t_log* logger);
+void planifico_SJF_CD(t_config* config, t_log* logger);
+void planifico_SJF_SD(t_config* config, t_log* logger);
 
 #endif /* PLANIFICADOR_H_ */

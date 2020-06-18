@@ -124,6 +124,7 @@ typedef struct
 	pthread_mutex_t mutex;
 	t_coordenadas coordenadas_del_pokemon;
 	char* nombre_pokemon;
+	int rafagas;
 
 } t_entrenador_tcb;
 

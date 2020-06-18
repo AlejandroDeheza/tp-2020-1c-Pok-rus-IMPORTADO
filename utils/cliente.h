@@ -29,7 +29,7 @@ void enviar_caught_pokemon(int conexion, int id_mensaje, int id_correlativo, int
 void enviar_get_pokemon(int conexion, int id_mensaje, int id_correlativo, char* nombre);
 void enviar_localized_pokemon(int conexion, int id_mensaje, int id_correlativo, char* nombre, t_list* coordenadas);
 
-void* recibir_mensaje(int socket_cliente);
+void* recibir_mensaje(int socket_cliente, pthread_mutex_t* mutex);
 void liberar_conexion(int socket_cliente);
 void verificar_estado(int estado);
 
