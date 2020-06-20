@@ -56,7 +56,28 @@ void planifico_FIFO(t_log* logger) {
 }
 
 void planifico_RR(t_config* config, t_log* logger){
+	int quantum;
+	asignar_int_property(config, "QUANTUM", &quantum);
+	if(quantum == NULL){
+			log_error(logger, "No existe la propiedad QUANTUM");
+			exit(-1);
+	}
 
+	while(1){
+		if(!list_is_empty(entrenadores_ready)){
+			t_entrenador_tcb* tcb_entrenador = list_get(entrenadores_ready,0);
+
+			while(tcb_entrenador->rafagas <= quantum && tcb_entrenador->rafagas > 0){
+				pthread_mutex_unlock(&(tcb_entrenador->mutex));
+				pthread_mutex_lock(&(tcb_entrenador->mutex));
+				tcb_entrenador->rafagas -= 1;
+				sleep(RETARDO_CICLO_CPU);
+			}
+
+			list_add(entrenadores_blocked_espera, tcb_entrenador);
+			list_remove(entrenadores_ready, 0);
+		}
+	}
 }
 
 void planifico_SJF_CD(t_config* config, t_log* logger){
