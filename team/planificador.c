@@ -5,6 +5,8 @@
  *      Author: utnso
  */
 
+#include <stdio.h>
+#include <stdlib.h>
 #include "planificador.h"
 
 //----------------------------------------------------------------------------------------------------------
@@ -55,23 +57,37 @@ void planifico_FIFO(t_log* logger) {
 	}
 }
 
+//----------------------------------------------------------------------------------------------------------
+// Planificacion con algoritmo Round Robin
+// Obtengo el quantum del config
+// Si existen entrenadores en la lista de ready:
+//     1. Obtengo el primero (indice 0)
+//     2. Itero hasta que las rafagas ejecutadas no superen el quantum
+//			  y hasta que no tenga mas rafagas para ejecutar
+//     3. Muevo el tcb a la lista de bloqueados en espera
+//     4. Elimino proceso de lista de ready
+//----------------------------------------------------------------------------------------------------------
 void planifico_RR(t_config* config, t_log* logger){
 	int quantum;
 	asignar_int_property(config, "QUANTUM", &quantum);
 	if(quantum == NULL){
-			log_error(logger, "No existe la propiedad QUANTUM");
-			exit(-1);
+		log_error(logger, "No existe la propiedad QUANTUM");
+		exit(-1);
 	}
 
 	while(1){
 		if(!list_is_empty(entrenadores_ready)){
 			t_entrenador_tcb* tcb_entrenador = list_get(entrenadores_ready,0);
+			int rafagasEjecutadas = 0;
 
-			while(tcb_entrenador->rafagas <= quantum && tcb_entrenador->rafagas > 0){
+			while(rafagasEjecutadas < quantum && tcb_entrenador->rafagas > 0){
 				pthread_mutex_unlock(&(tcb_entrenador->mutex));
 				pthread_mutex_lock(&(tcb_entrenador->mutex));
 				tcb_entrenador->rafagas -= 1;
 				sleep(RETARDO_CICLO_CPU);
+
+				rafagasEjecutadas++;
+				tcb_entrenador->rafagas--;
 			}
 
 			list_add(entrenadores_blocked_espera, tcb_entrenador);
