@@ -19,6 +19,8 @@ void planificar(argumentos_planificador* argumentos){
 
 	configuracion_inicial_planificador(argumentos->config, &RETARDO_CICLO_CPU, &ALGORITMO);
 
+	log_info(argumentos->logger, "Se va a planificar con algoritomo %s", ALGORITMO);
+
 	if (strcmp(ALGORITMO, "FIFO") == 0) {
 		planifico_FIFO(argumentos->logger);
 	} else if (strcmp(ALGORITMO, "RR") == 0) {
