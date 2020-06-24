@@ -32,8 +32,8 @@ void leer_ip_y_puerto(char** ip, char** puerto, t_config* config, char* nombre_p
 		error_show(" No se encontro %s o %s en el archivo de configuracion\n\n", ipElegida, puertoElegido);
 		exit(-1);
 	}
-	printf("IP = %s.\n"
-		   "PUERTO = %s.\n", *ip, *puerto);
+//	printf("IP = %s.\n"
+//		   "PUERTO = %s.\n", *ip, *puerto);
 
 	free(ipElegida);
 	free(puertoElegido);

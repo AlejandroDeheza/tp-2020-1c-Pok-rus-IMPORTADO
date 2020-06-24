@@ -12,17 +12,13 @@
 #include <stdlib.h>
 #include "team.h"
 
-typedef struct
-{
-	t_config* config;
-	t_log* logger;
-} argumentos_planificador;
-
+t_config* CONFIG;
+t_log* LOGGER;
 
 int RETARDO_CICLO_CPU;
 char* ALGORITMO;
 
-void planificar(argumentos_planificador* argumentos);
+void planificar();
 void planifico_FIFO(t_log* logger);
 void planifico_RR(t_config* config, t_log* logger);
 void planifico_SJF_CD(t_config* config, t_log* logger);
