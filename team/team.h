@@ -21,6 +21,8 @@
 int socket_appeared;
 int socket_localized;
 int socket_caught;
+int socket_servidor_gameboy;
+int socket_cliente_gameboy;
 
 //--------------------------------------------------------------------------
 // Estados de la conexion con el Broker
@@ -32,6 +34,7 @@ typedef enum {
 } estado_conexion;
 
 estado_conexion conexion_con_broker;
+estado_conexion conexion_con_gameboy;
 
 //--------------------------------------------------------------------------
 // Semaforos
@@ -57,6 +60,7 @@ t_list* pokemones_recibidos;
 // Metodos para iniciar proceso
 //--------------------------------------------------------------------------
 void inicializarGlobales();
+void conexion_inicial();
 void obtenerEntrenadores();
 t_entrenador* crearEntrenador(char* coordenadas, char* objetivos, char* pokemones);
 void cargarObjetivoGlobal();
@@ -87,6 +91,7 @@ void reintentar_conexion(int* conexion, char* proceso);
 void suscribirse_a_colas();
 void suscribirse_a(char *nombre_proceso, op_code nombre_cola);
 void recibir_con_semaforo(int socket_cliente, pthread_mutex_t mutex, op_code op_code);
+void escuchar_conexion();
 void terminar_proceso();
 
 #endif

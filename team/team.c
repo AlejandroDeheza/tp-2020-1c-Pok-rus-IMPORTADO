@@ -49,6 +49,13 @@ int main(void) {
 	conexion_inicial();
 
 	//---------------------------------------------------------------------------------------
+	// Escucho conexion con Gameboy para proceso default (en caso de ser necesario)
+	//---------------------------------------------------------------------------------------
+	pthread_t conexion_con_gameboy;
+	pthread_create(&conexion_con_gameboy, NULL, (void*)escuchar_conexion, NULL);
+	pthread_detach(conexion_con_gameboy);
+
+	//---------------------------------------------------------------------------------------
 	// Envia los mensajes GET al broker (1 por especie)
 	//---------------------------------------------------------------------------------------
 	enviar_get_pokemones_requeridos();
@@ -58,14 +65,12 @@ int main(void) {
 	//---------------------------------------------------------------------------------------
 	suscribirse_a_colas();
 
-
 	//---------------------------------------------------------------------------------------
 	// Proceso hasta que se cumple el objetivo
 	//---------------------------------------------------------------------------------------
 	while(objetivo_pokemones_pendientes->elements_count > 0){
 
 	}
-
 	terminar_proceso();
 
 
@@ -86,6 +91,7 @@ void inicializarGlobales(){
 	entrenadores_exec = list_create();
 
 	conexion_con_broker = NULO;
+	conexion_con_gameboy = DESCONECTADO;
 
 	pthread_mutex_init(&mutex_entrenadores_ready, NULL);
 	//pthread_mutex_init(&mutex_hilos, NULL);
@@ -524,9 +530,9 @@ int conectarse_a(char* proceso) {
 // Obtiene la cantidad de segundos para volver a intentar desde el config
 //----------------------------------------------------------------------------------------------------------
 void reintentar_conexion(int* conexion, char* proceso){
-	int tiempo_reconexion;
+	int *tiempo_reconexion;
 
-	asignar_int_property(CONFIG, "TIEMPO_RECONEXION", &tiempo_reconexion);
+	asignar_int_property(CONFIG, "TIEMPO_RECONEXION", tiempo_reconexion);
 
 	if(tiempo_reconexion == NULL){
 		log_error(LOGGER, "No existe la propiedad TIEMPO_RECONEXION");
@@ -534,7 +540,7 @@ void reintentar_conexion(int* conexion, char* proceso){
 	}
 
 	while(*conexion < 0){
-		sleep(tiempo_reconexion);
+		sleep(*tiempo_reconexion);
 		log_info(LOGGER, "Reintentando conexion con proceso %s", proceso);
 		iniciar_conexion(&(*conexion), CONFIG, LOGGER, proceso);
 	}
@@ -654,4 +660,28 @@ void liberar_tcb(t_entrenador_tcb* tcb_entrenador){
 	list_destroy_and_destroy_elements(tcb_entrenador->entrenador->pokemones_entrenador, free);
 	free(tcb_entrenador->entrenador);
 	free(tcb_entrenador);
+}
+
+//----------------------------------------------------------------------------------------------------------
+// Escucho puerto e ip para recibir conexion del GAME-BOY
+// Cuando se conecta, actualizo el estado en la variable global
+//----------------------------------------------------------------------------------------------------------
+void escuchar_conexion(){
+	char* ip;
+	char* puerto;
+
+	asignar_string_property(CONFIG, "IP_GAMEBOY", &ip);
+    asignar_string_property(CONFIG, "PUERTO_GAMEBOY", &puerto);
+
+    if(ip == NULL || puerto == NULL){
+    	log_error(LOGGER, "No existe config para conexion con GAMEBOY");
+    	exit(-1);
+    }
+
+    log_info(LOGGER, "Comienzo a escuchar IP:%s y PUERTO:%s para recibir conexion de GAME-BOY", ip, puerto);
+    socket_servidor_gameboy = crear_socket_para_escuchar(ip, puerto);
+    socket_cliente_gameboy = aceptar_una_conexion(socket_servidor_gameboy);
+    log_info(LOGGER, "Se recibio una conexion desde GAME-BOY");
+    conexion_con_gameboy = CONECTADO;
+
 }
