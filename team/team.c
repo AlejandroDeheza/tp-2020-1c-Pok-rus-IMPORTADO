@@ -62,15 +62,6 @@ int main(void) {
 	//---------------------------------------------------------------------------------------
 	enviar_get_pokemones_requeridos();
 
-	// prueba
-
-
-	char *nombre_pokemon = "Pikachu";
-	t_coordenadas coordenadas_pokemon;
-	coordenadas_pokemon.posx = 3;
-	coordenadas_pokemon.posy = 8;
-	atender_solicitud_appeared(nombre_pokemon, coordenadas_pokemon);
-
 	//---------------------------------------------------------------------------------------
 	// Suscripcion a las colas de mensajeria del broker
 	//---------------------------------------------------------------------------------------
@@ -566,8 +557,6 @@ void reintentar_conexion(int* conexion, char* proceso){
 //----------------------------------------------------------------------------------------------------------
 void recibir_con_semaforo(int socket_cliente, pthread_mutex_t mutex, op_code tipo_mensaje){
 
-	pthread_mutex_lock(&mutex);
-
 	void* response = recibir_mensaje(socket_cliente, &mutex);
 
 	if(response != NULL){
@@ -585,7 +574,6 @@ void recibir_con_semaforo(int socket_cliente, pthread_mutex_t mutex, op_code tip
 				break;
 		}
 	}
-	pthread_mutex_unlock(&mutex);
 }
 
 //----------------------------------------------------------------------------------------------------------
@@ -616,6 +604,9 @@ void atender_solicitud_appeared(char* pokemon, t_coordenadas coordenadas){
 			bool es_el_tcb_buscado(t_entrenador_tcb* elemento){
 				return elemento->id_hilo_entrenador == tcb_entrenador->id_hilo_entrenador;
 			}
+
+			tcb_entrenador->nombre_pokemon = pokemon;
+			tcb_entrenador->coordenadas_del_pokemon = coordenadas;
 
 			pthread_mutex_lock(&mutex_entrenadores_ready);
 			list_add(entrenadores_ready, tcb_entrenador);
