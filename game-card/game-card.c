@@ -40,23 +40,22 @@ int main(void) {
 	sleep(1);
 	conex_get = suscribirse_a(config, logger, "BROKER", SUBSCRIBE_GET_POKEMON);
 
-	void* recibir_con_semaforo(int socket_cliente){
-		pthread_mutex_lock(&mutex);
+	void* recibir_y_dar_ack(int socket_cliente){
 		void* response = recibir_mensaje(socket_cliente, &mutex);
 		log_info(logger, "recibio mensaje");
-		pthread_mutex_unlock(&mutex);
+		dar_ack(socket_cliente,&logger, &op_code);
 		return response;
 	}
 
 	while(1){
 
-		pthread_create(&thread_appeared,NULL,(void*)recibir_con_semaforo,conex_appeared);
+		pthread_create(&thread_appeared,NULL,(void*)recibir_y_dar_ack,conex_appeared);
 		pthread_detach(thread_appeared);
 
-		pthread_create(&thread_get,NULL,(void*)recibir_con_semaforo,conex_get);
+		pthread_create(&thread_get,NULL,(void*)recibir_y_dar_ack,conex_get);
 		pthread_detach(thread_get);
 
-		pthread_create(&thread_catch,NULL,(void*)recibir_con_semaforo,conex_catch);
+		pthread_create(&thread_catch,NULL,(void*)recibir_y_dar_ack,conex_catch);
 		pthread_detach(thread_catch);
 
 	}
@@ -68,6 +67,10 @@ int main(void) {
 	return EXIT_SUCCESS;
 }
 
+void dar_ack(int socket_cliente,t_log* logger, int* op_code){
+	send(socket_cliente, *op_code, sizeof(op_code), 0);
+	log_info(logger, "envio Ack");
+}
 
 
 int suscribirse_a(t_config* config, t_log* logger, char *nombre_proceso, op_code nombre_cola){

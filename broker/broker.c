@@ -88,21 +88,27 @@ void process_request(int cod_op, int cliente_fd) {
 			break;
 		case NEW_POKEMON:
 			dar_aviso(cliente_fd,&suscribers_new_pokemon, NEW_POKEMON);
+			esperar_ack(&suscribers_new_pokemon);
 			break;
 		case APPEARED_POKEMON:
 			dar_aviso(cliente_fd,&suscribers_appeared_pokemon, APPEARED_POKEMON);
+			esperar_ack(&suscribers_appeared_pokemon);
 			break;
 		case CATCH_POKEMON:
 			dar_aviso(cliente_fd,&suscribers_catch_pokemon, CATCH_POKEMON);
+			esperar_ack(&suscribers_catch_pokemon);
 			break;
 		case CAUGHT_POKEMON:
 			dar_aviso(cliente_fd,&suscribers_caught_pokemon, CAUGHT_POKEMON);
+			esperar_ack(&suscribers_caught_pokemon);
 			break;
 		case GET_POKEMON:
 			dar_aviso(cliente_fd,&suscribers_get_pokemon, GET_POKEMON);
+			esperar_ack(&suscribers_get_pokemon);
 			break;
 		case LOCALIZED_POKEMON:
 			dar_aviso(cliente_fd,&suscribers_localized_pokemon, LOCALIZED_POKEMON);
+			esperar_ack(&suscribers_localized_pokemon);
 			break;
 		case 0:
 			//este caso se deberia tratar. si es 0, es porque recv() en serve_client() retorna 0
@@ -135,13 +141,33 @@ void dar_aviso(int cliente_fd, t_list *listaDeSuscriptores, int op_code){
 	void* mensaje = recibir_buffer(cliente_fd, &size_buffer);
 
     printf("op code %d", op_code);
-	/*void avisarle(int client){
+	void avisarle(int client){
 		enviar_mensaje_a_suscriptores(mensaje, size_buffer, client, op_code, id_mensaje, id_correlativo);
 	}
 
-	list_iterate(listaDeSuscriptores, (void *)avisarle);*/
+	list_iterate(listaDeSuscriptores, (void *)avisarle);
 }
 
+void esperar_ack(t_list *listaDeSuscriptores)
+{
+	int cantidadDeAckRecibidos = 0;
+	t_list *duplicada =  list_duplicate(listaDeSuscriptores);
+
+	while(cantidadDeAckRecibidos < list_size(listaDeSuscriptores)){
+	bool ack(int cliente){
+		int cod_op;
+		if(recv(cliente, &cod_op, sizeof(int), MSG_WAITALL) > -1) {
+			printf("Codigo de operacion del ack %d", cod_op);
+			cantidadDeAckRecibidos =+ 1;
+			return 0;
+		} else {
+			return 1;
+		}
+	}
+		list_remove_by_condition(duplicada, ack);
+	}
+	pthread_exit(NULL);
+}
 
 
 

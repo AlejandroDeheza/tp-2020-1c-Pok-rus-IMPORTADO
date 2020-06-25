@@ -234,6 +234,7 @@ void suscribirse_a_cola(int socket_cliente, op_code codigo_operacion) {
 }
 
 void* recibir_mensaje(int socket_cliente, pthread_mutex_t* mutex) {
+	pthread_mutex_lock(mutex);
 	int codigo_operacion = 0;
 	if(recv(socket_cliente, &codigo_operacion, sizeof(op_code), 0) == -1) {
 		pthread_mutex_unlock(mutex);
@@ -285,6 +286,7 @@ void* recibir_mensaje(int socket_cliente, pthread_mutex_t* mutex) {
 					response = deserializar_localized_pokemon(mensaje);
 					break;
 			}
+	pthread_mutex_unlock(mutex);
 	return response;
 }
 
