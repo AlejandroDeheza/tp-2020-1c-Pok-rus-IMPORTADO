@@ -13,10 +13,13 @@ t_list suscribers_get_pokemon;
 t_queue queue_localized_pokemon;
 t_list suscribers_localized_pokemon;
 
+pthread_mutex_t mutex;
+
 int main(void)
 {
 	char* ip;
 	char* puerto;
+	pthread_mutex_init(&mutex, NULL);
 
 	t_config* config;
 	list_clean(&suscribers_new_pokemon);
@@ -36,28 +39,27 @@ int main(void)
     while(1){
     	pthread_t thread;
 
+    	//pthread_mutex_lock(&mutex_conexion);
     	int socket_cliente = aceptar_una_conexion(socket_servidor);
 
-    	pthread_create(&thread,NULL,(void*)tomar_parte_del_mensaje,&socket_cliente);
+    	pthread_create(&thread,NULL,(void*)leer_mensaje,&socket_cliente);
     	pthread_detach(thread);
+    	//pthread_mutex_unlock(&mutex_conexion);
 
     }
 
-    /*list_destroy(suscribers_new_pokemon);
-    list_destroy(suscribers_appeared_pokemon);
-    list_destroy(suscribers_catch_pokemon);
-    list_destroy(suscribers_caught_pokemon);
-    list_destroy(suscribers_get_pokemon);
-    list_destroy(suscribers_localized_pokemon);*/
+    list_destroy(&suscribers_new_pokemon);
+    list_destroy(&suscribers_appeared_pokemon);
+    list_destroy(&suscribers_catch_pokemon);
+    list_destroy(&suscribers_caught_pokemon);
+    list_destroy(&suscribers_get_pokemon);
+    list_destroy(&suscribers_localized_pokemon);
 
 	return EXIT_SUCCESS;
 }
 
-void tomar_parte_del_mensaje(int* socket)
-{	//esta funcion es equivalente a serve_client()
-	//pero esta retorna el codigo de operacion del mensaje que se esta recibiendo
-	// Las otras dos hacian exactamente lo mismo, pero con nombre de variables diferentes
-	// Habria que ver de reutilizar codigo.
+void leer_mensaje(int* socket)
+{
 	int cod_op;
 	if(recv(*socket, &cod_op, sizeof(int), MSG_WAITALL) == -1)
 		cod_op = -1;
@@ -86,21 +88,27 @@ void process_request(int cod_op, int cliente_fd) {
 			break;
 		case NEW_POKEMON:
 			dar_aviso(cliente_fd,&suscribers_new_pokemon, NEW_POKEMON);
+			esperar_ack(&suscribers_new_pokemon);
 			break;
 		case APPEARED_POKEMON:
 			dar_aviso(cliente_fd,&suscribers_appeared_pokemon, APPEARED_POKEMON);
+			esperar_ack(&suscribers_appeared_pokemon);
 			break;
 		case CATCH_POKEMON:
 			dar_aviso(cliente_fd,&suscribers_catch_pokemon, CATCH_POKEMON);
+			esperar_ack(&suscribers_catch_pokemon);
 			break;
 		case CAUGHT_POKEMON:
 			dar_aviso(cliente_fd,&suscribers_caught_pokemon, CAUGHT_POKEMON);
+			esperar_ack(&suscribers_caught_pokemon);
 			break;
 		case GET_POKEMON:
 			dar_aviso(cliente_fd,&suscribers_get_pokemon, GET_POKEMON);
+			esperar_ack(&suscribers_get_pokemon);
 			break;
 		case LOCALIZED_POKEMON:
 			dar_aviso(cliente_fd,&suscribers_localized_pokemon, LOCALIZED_POKEMON);
+			esperar_ack(&suscribers_localized_pokemon);
 			break;
 		case 0:
 			//este caso se deberia tratar. si es 0, es porque recv() en serve_client() retorna 0
@@ -115,11 +123,13 @@ void process_request(int cod_op, int cliente_fd) {
 
 
 void suscribir(int cliente_fd, t_list *lista){
+	printf("Suscribiendo\n");
 	list_add(lista, (int *)cliente_fd);
 }
 
 void dar_aviso(int cliente_fd, t_list *listaDeSuscriptores, int op_code){
-
+	//Aca hay que guardar en cache, y dar aviso por otro hilo
+	printf("Dando aviso\n");
 	int id_mensaje = 0;
 	recv(cliente_fd, &id_mensaje, sizeof(int), 0);
 
@@ -138,6 +148,26 @@ void dar_aviso(int cliente_fd, t_list *listaDeSuscriptores, int op_code){
 	list_iterate(listaDeSuscriptores, (void *)avisarle);
 }
 
+void esperar_ack(t_list *listaDeSuscriptores)
+{
+	int cantidadDeAckRecibidos = 0;
+	t_list *duplicada =  list_duplicate(listaDeSuscriptores);
+
+	while(cantidadDeAckRecibidos < list_size(listaDeSuscriptores)){
+	bool ack(int cliente){
+		int cod_op;
+		if(recv(cliente, &cod_op, sizeof(int), MSG_WAITALL) > -1) {
+			printf("Codigo de operacion del ack %d", cod_op);
+			cantidadDeAckRecibidos =+ 1;
+			return 0;
+		} else {
+			return 1;
+		}
+	}
+		list_remove_by_condition(duplicada, ack);
+	}
+	pthread_exit(NULL);
+}
 
 
 
