@@ -295,17 +295,3 @@ void liberar_conexion(int socket_cliente)
 	close(socket_cliente);
 }
 
-void reintentar_conexion(int* conexion, t_config* config, t_log* logger, char* proceso){
-	int tiempo_reconexion;
-	asignar_int_property(config, "TIEMPO_RECONEXION", &tiempo_reconexion);
-
-	if(tiempo_reconexion == NULL){
-		log_error(logger, "No existe la propiedad TIEMPO_RECONEXION");
-		exit(-1);
-	}
-	while(*conexion < 0){
-		sleep(tiempo_reconexion);
-		log_info(logger, "Reintentando conexion con proceso %s", proceso);
-		iniciar_conexion(&(*conexion), config, logger, proceso);
-	}
-}

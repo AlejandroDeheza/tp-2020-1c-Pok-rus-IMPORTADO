@@ -32,8 +32,8 @@ void leer_ip_y_puerto(char** ip, char** puerto, t_config* config, char* nombre_p
 		error_show(" No se encontro %s o %s en el archivo de configuracion\n\n", ipElegida, puertoElegido);
 		exit(-1);
 	}
-	printf("IP = %s.\n"
-		   "PUERTO = %s.\n", *ip, *puerto);
+//	printf("IP = %s.\n"
+//		   "PUERTO = %s.\n", *ip, *puerto);
 
 	free(ipElegida);
 	free(puertoElegido);
@@ -62,6 +62,11 @@ void asignar_int_property(t_config* config, char* property, int* variable){
 	}
 }
 
+
+void configuracion_inicial_planificador(t_config* config, int* retardo_cliclo, char** algoritmo){
+	asignar_int_property(config, "RETARDO_CICLO_CPU", retardo_cliclo);
+	asignar_string_property(config, "ALGORITMO_PLANIFICACION", algoritmo);
+}
 
 void terminar_programa(int conexion, t_log* logger, t_config* config)
 {
