@@ -16,6 +16,7 @@
 #include <commons/error.h>
 #include "serializacion.h"
 #include "config.h"
+#include<semaphore.h>
 
 int crear_conexion(char* ip, char* puerto);
 void iniciar_conexion(int* conexion, t_config* config, t_log* logger, char *nombre_proceso);

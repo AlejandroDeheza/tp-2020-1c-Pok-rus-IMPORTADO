@@ -21,6 +21,7 @@ int tomar_id_mensaje(int* socket);
 
 void iniciar_servidor(char *ip, char* puerto);
 void* recibir_buffer(int socket_cliente, int* size);
+void* recibir_mensaje_desde_cliente(int socket_cliente);
 void process_request(int cod_op, int cliente_fd);
 void devolver_mensaje(void* payload, int size, int socket_cliente, op_code operacion);
 

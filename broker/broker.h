@@ -10,13 +10,16 @@
 #include<readline/readline.h>
 #include<pthread.h>
 
+
+
 #include "../utils/servidor.h"
 #include "../utils/config.h"
 
-void tomar_parte_del_mensaje(int* socket);
+void leer_mensaje(int* socket);
 void process_request(int cod_op, int cliente_fd);
 void suscribir(int cliente_fd, t_list *lista);
 void dar_aviso(int cliente_fd, t_list *listaDeSuscriptores, int op_code);
 void list_elements(int client);
+void esperar_ack(t_list *listaDeSuscriptores);
 
 #endif

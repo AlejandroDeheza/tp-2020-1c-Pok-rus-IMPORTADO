@@ -35,11 +35,6 @@ int crear_socket_para_escuchar(char *ipServidor, char* puertoServidor){
 }
 
 int aceptar_una_conexion(int socket_servidor){
-	//esta funcion es equivalente a esperar_cliente()
-	//pero esta retorna el socket del cliente
-	//tampoco crea los hilos, así eso lo maneja cada proceso. Por ejemplo TEAM
-	//así (el TEAM por ej) puede recibir el mensaje enviado y tratarlo desde el mismo proceso (TEAM)
-
 	struct sockaddr_in dir_cliente;
 
 	int tam_direccion = sizeof(struct sockaddr_in);
@@ -60,6 +55,20 @@ void* recibir_buffer(int socket_cliente, int* size)
 	recv(socket_cliente, buffer, *size, MSG_WAITALL);
 
 	return buffer;
+}
+
+void* recibir_mensaje_desde_cliente(int socket_cliente){
+	//esta funcion se puede llamar desde algun proceso (ej: TEAM)
+	//para recibir el "stream" del t_buffer del t_paquete enviado
+
+	void *stream;
+	int size = 0;
+
+	recv(socket_cliente, &size, sizeof(int), MSG_WAITALL);
+	stream = malloc(size);
+	recv(socket_cliente, stream, size, MSG_WAITALL);
+
+	return stream;
 }
 
 void devolver_mensaje(void* payload, int size, int socket_cliente, op_code operacion)
