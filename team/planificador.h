@@ -12,11 +12,9 @@
 #include <stdlib.h>
 #include "team.h"
 
-t_config* CONFIG;
-t_log* LOGGER;
-
 int RETARDO_CICLO_CPU;
 char* ALGORITMO;
+int CICLOS_EJECUTADOS;
 
 void planificar();
 void planifico_FIFO(t_log* logger);

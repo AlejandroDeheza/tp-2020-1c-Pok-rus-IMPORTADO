@@ -11,9 +11,14 @@
 #include<readline/readline.h>
 #include<pthread.h>
 #include "../utils/cliente.h"
+#include "../utils/servidor.h"
 #include "../utils/config.h"
 #include <limits.h>
 #include "planificador.h"
+
+
+t_config* CONFIG;
+t_log* LOGGER;
 
 //--------------------------------------------------------------------------
 // Sockets de conexion con broker

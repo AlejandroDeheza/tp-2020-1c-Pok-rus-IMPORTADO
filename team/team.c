@@ -18,6 +18,8 @@
 const int RAFAGAS_CATCH = 1;
 
 
+
+
 int main(void) {
 
 	CONFIG = leer_config("../team.config");
@@ -59,6 +61,15 @@ int main(void) {
 	// Envia los mensajes GET al broker (1 por especie)
 	//---------------------------------------------------------------------------------------
 	enviar_get_pokemones_requeridos();
+
+	// prueba
+
+
+	char *nombre_pokemon = "Pikachu";
+	t_coordenadas coordenadas_pokemon;
+	coordenadas_pokemon.posx = 3;
+	coordenadas_pokemon.posy = 8;
+	atender_solicitud_appeared(nombre_pokemon, coordenadas_pokemon);
 
 	//---------------------------------------------------------------------------------------
 	// Suscripcion a las colas de mensajeria del broker
@@ -223,8 +234,11 @@ void hilo_entrenador(t_entrenador_tcb* tcb_entrenador){
 
 		pthread_mutex_lock(&(tcb_entrenador->mutex));
 
-		if(coincidenCoordenadas(tcb_entrenador->coordenadas_del_pokemon, tcb_entrenador->entrenador->coordenadas)){
+		if(!coincidenCoordenadas(tcb_entrenador->coordenadas_del_pokemon, tcb_entrenador->entrenador->coordenadas)){
+			t_coordenadas coordenada_previa = tcb_entrenador->entrenador->coordenadas;
 			mover_entrenador(&(tcb_entrenador->entrenador->coordenadas), tcb_entrenador->coordenadas_del_pokemon);
+			t_coordenadas coordenada_nueva = tcb_entrenador->entrenador->coordenadas;
+			log_info(LOGGER, "Muevo entrenador desde [%d, %d] hasta [%d, %d]", coordenada_previa.posx, coordenada_previa.posy, coordenada_nueva.posx, coordenada_nueva.posy);
 		} else {
 			int conexion = 0;
 			conexion = conectarse_a("BROKER");
@@ -236,7 +250,8 @@ void hilo_entrenador(t_entrenador_tcb* tcb_entrenador){
 }
 
 void realizar_catch(int conexion, char* pokemon, t_coordenadas coordenadas){
-	enviar_catch_pokemon(conexion,0, 0, pokemon, coordenadas.posx, coordenadas.posy);
+	log_info(LOGGER, "Envio mensaje CATCH al Broker");
+	//enviar_catch_pokemon(conexion,0, 0, pokemon, coordenadas.posx, coordenadas.posy);
 	// TODO recibir mensaje asociado y guardarlo
 }
 
@@ -358,7 +373,7 @@ void cargarObjetivoGlobal(){
 }
 
 //---------------------------------------------------------------------------------------------------------
-// Al inicio del proceso, intento una conexion con el Broker con flag de reintento en falso
+// Al inicio del proceso intento una conexion con el Broker para validar el estado del mismo
 // Actualiza la variable global conexion_con_broker
 // Libero esa conexion
 //---------------------------------------------------------------------------------------------------------
@@ -530,17 +545,17 @@ int conectarse_a(char* proceso) {
 // Obtiene la cantidad de segundos para volver a intentar desde el config
 //----------------------------------------------------------------------------------------------------------
 void reintentar_conexion(int* conexion, char* proceso){
-	int *tiempo_reconexion;
+	int tiempo_reconexion = -1;
 
-	asignar_int_property(CONFIG, "TIEMPO_RECONEXION", tiempo_reconexion);
+	asignar_int_property(CONFIG, "TIEMPO_RECONEXION", &tiempo_reconexion);
 
-	if(tiempo_reconexion == NULL){
+	if(tiempo_reconexion == -1){
 		log_error(LOGGER, "No existe la propiedad TIEMPO_RECONEXION");
 		exit(-1);
 	}
 
 	while(*conexion < 0){
-		sleep(*tiempo_reconexion);
+		sleep(tiempo_reconexion);
 		log_info(LOGGER, "Reintentando conexion con proceso %s", proceso);
 		iniciar_conexion(&(*conexion), CONFIG, LOGGER, proceso);
 	}
@@ -595,7 +610,7 @@ void atender_solicitud_appeared(char* pokemon, t_coordenadas coordenadas){
 
 		t_entrenador_tcb* tcb_entrenador = obtener_entrenador_mas_cercano(lista_disponibles, coordenadas);
 
-		list_destroy_and_destroy_elements(lista_disponibles, liberar_tcb);
+		list_destroy(lista_disponibles);
 
 		if(tcb_entrenador != NULL){
 			bool es_el_tcb_buscado(t_entrenador_tcb* elemento){
@@ -606,8 +621,8 @@ void atender_solicitud_appeared(char* pokemon, t_coordenadas coordenadas){
 			list_add(entrenadores_ready, tcb_entrenador);
 			pthread_mutex_unlock(&mutex_entrenadores_ready);
 
-			list_remove_and_destroy_by_condition(entrenadores_new, es_el_tcb_buscado, liberar_tcb);
-			list_remove_and_destroy_by_condition(entrenadores_blocked_sin_espera, es_el_tcb_buscado, liberar_tcb);
+			list_remove_by_condition(entrenadores_new, (void*)es_el_tcb_buscado);
+			list_remove_by_condition(entrenadores_blocked_sin_espera, (void*)es_el_tcb_buscado);
 		}
 
 	}
@@ -667,6 +682,7 @@ void liberar_tcb(t_entrenador_tcb* tcb_entrenador){
 // Cuando se conecta, actualizo el estado en la variable global
 //----------------------------------------------------------------------------------------------------------
 void escuchar_conexion(){
+
 	char* ip;
 	char* puerto;
 
@@ -681,7 +697,7 @@ void escuchar_conexion(){
     log_info(LOGGER, "Comienzo a escuchar IP:%s y PUERTO:%s para recibir conexion de GAME-BOY", ip, puerto);
     socket_servidor_gameboy = crear_socket_para_escuchar(ip, puerto);
     socket_cliente_gameboy = aceptar_una_conexion(socket_servidor_gameboy);
-    log_info(LOGGER, "Se recibio una conexion desde GAME-BOY");
+    log_info(LOGGER, "Se recibio una conexion desde GAME-BOY %d", socket_cliente_gameboy);
     conexion_con_gameboy = CONECTADO;
 
 }

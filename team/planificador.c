@@ -18,8 +18,9 @@
 void planificar(){
 
 	configuracion_inicial_planificador(CONFIG, &RETARDO_CICLO_CPU, &ALGORITMO);
+	CICLOS_EJECUTADOS = 0;
 
-	log_info(LOGGER, "Se va a planificar con algoritomo %s", ALGORITMO);
+	log_info(LOGGER, "Se va a planificar utilizando el algoritomo %s", ALGORITMO);
 
 	if (strcmp(ALGORITMO, "FIFO") == 0) {
 		planifico_FIFO(LOGGER);
@@ -48,24 +49,30 @@ void planifico_FIFO(t_log* logger) {
 	while(1){
 		if(!list_is_empty(entrenadores_ready)){
 			t_entrenador_tcb* tcb_entrenador = list_get(entrenadores_ready,0);
+
+			log_info(LOGGER, "Entra a EXEC un entrenador con %d rafagas", tcb_entrenador->rafagas);
+
 			list_add(entrenadores_exec, tcb_entrenador);
 			list_remove(entrenadores_ready, 0);
 
 			while(tcb_entrenador->rafagas > 0){
+				log_info(LOGGER, "Ejecuto 1 ciclo de CPU");
 				pthread_mutex_unlock(&(tcb_entrenador->mutex));
-				pthread_mutex_lock(&(tcb_entrenador->mutex));
 				tcb_entrenador->rafagas -= 1;
+				CICLOS_EJECUTADOS += 1;
 				sleep(RETARDO_CICLO_CPU);
 			}
 
 			if(conexion_con_broker == CONECTADO){
+				log_info(LOGGER, "El entrenador queda bloqueado esperando la respuesta del CATCH");
 				list_add(entrenadores_blocked_espera, tcb_entrenador);
 			} else {
+				log_info(LOGGER, "Sin conexion con Broker, se asume que CATCH fue exitoso");
+				list_add(tcb_entrenador->entrenador->pokemones_entrenador, tcb_entrenador->nombre_pokemon);
 				list_add(entrenadores_blocked_sin_espera, tcb_entrenador);
 			}
 
 			list_remove(entrenadores_exec, 0);
-
 		}
 	}
 }
