@@ -19,7 +19,7 @@
 #include<semaphore.h>
 
 int crear_conexion(char* ip, char* puerto);
-void iniciar_conexion(int* conexion, t_config* config, t_log* logger, char *nombre_proceso);
+void iniciar_conexion(int* conexion, t_config* config, t_log* logger, char *nombre_proceso, char *tipo_mensaje);
 void enviar_mensaje(void* mensaje, int socket_cliente, op_code codigo_operacion, int id_mensaje, int id_correlativo);
 void enviar_mensaje_a_suscriptores(void* mensaje, int size_mensaje, int socket_cliente, op_code codigo_operacion, int id_mensaje, int id_correlativo);
 void suscribirse_a_cola(int socket_cliente, op_code codigo_operacion);

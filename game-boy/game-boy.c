@@ -14,7 +14,7 @@ int main(int argc, char *argv[]) {
 	if(strcmp(argv[1],"SUSCRIPTOR")==0){
 		//suscribir_a_cola_mensajes();			//TODO
 	}else{
-		iniciar_conexion(&conexion, config, logger, argv[1]);
+		iniciar_conexion(&conexion, config, logger, argv[1], argv[2]);
 		despacharMensaje(conexion, argv);
 	}
 

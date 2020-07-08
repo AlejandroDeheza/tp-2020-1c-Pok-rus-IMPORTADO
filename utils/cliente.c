@@ -15,11 +15,6 @@ int crear_conexion(char *ip, char* puerto)
 	int socket_cliente = socket(server_info->ai_family, server_info->ai_socktype, server_info->ai_protocol);
 
 	if(connect(socket_cliente, server_info->ai_addr, server_info->ai_addrlen) == -1){
-		/*
-		printf("\n");
-		error_show(" Error de conexion\n\n");
-		exit(-1);
-		*/
 		return -1;
 	}
 
@@ -28,7 +23,7 @@ int crear_conexion(char *ip, char* puerto)
 	return socket_cliente;
 }
 
-void iniciar_conexion(int* conexion, t_config* config, t_log* logger, char *nombre_proceso){
+void iniciar_conexion(int* conexion, t_config* config, t_log* logger, char *nombre_proceso, char *tipo_mensaje){
 	char* ip = NULL;
 	char* puerto = NULL;
 
@@ -37,7 +32,11 @@ void iniciar_conexion(int* conexion, t_config* config, t_log* logger, char *nomb
 	*conexion = crear_conexion( ip, puerto);
 
 	if(*conexion > 0){
-		log_info(logger, "Se realizo una conexion con %s", nombre_proceso);
+		log_info(logger, "Se realizo una conexion con %s, para enviar el mensaje $s", nombre_proceso, tipo_mensaje);
+	}else{
+		printf("\n");
+		error_show(" Error de conexion\n\n");
+		exit(-1);
 	}
 }
 
