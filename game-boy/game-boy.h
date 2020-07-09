@@ -10,11 +10,14 @@
 #include <commons/error.h>
 #include <cliente.h>
 #include "../utils/config.h"
+#include<pthread.h>
 
 void verificarEntrada(int argc, char *argv[]);
 
+void iniciar_modo_suscriptor(int conexion_con_broker, char* cola_a_suscribirse, int tiempo_suscripcion);
+void contador_tiempo_suscripcion(int segundos);
+
 void despacharMensaje(int conexion, char *argv[]);
-void logearEnvio(t_log* logger, char *argv[]);
 
 void enviarNew(int conexion, char *argv[]);
 void enviarAppeared(int conexion, char *argv[]);

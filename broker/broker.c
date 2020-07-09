@@ -86,6 +86,24 @@ void process_request(int cod_op, int cliente_fd) {
 		case SUBSCRIBE_LOCALIZED_POKEMON:
 			suscribir(cliente_fd, &suscribers_localized_pokemon);
 			break;
+		case UNSUBSCRIBE_NEW_POKEMON:
+			desuscribir(cliente_fd, &suscribers_new_pokemon);
+			break;
+		case UNSUBSCRIBE_APPEARED_POKEMON:
+			desuscribir(cliente_fd, &suscribers_appeared_pokemon);
+			break;
+		case UNSUBSCRIBE_CATCH_POKEMON:
+			desuscribir(cliente_fd, &suscribers_catch_pokemon);
+			break;
+		case UNSUBSCRIBE_CAUGHT_POKEMON:
+			desuscribir(cliente_fd, &suscribers_caught_pokemon);
+			break;
+		case UNSUBSCRIBE_GET_POKEMON:
+			desuscribir(cliente_fd, &suscribers_get_pokemon);
+			break;
+		case UNSUBSCRIBE_LOCALIZED_POKEMON:
+			desuscribir(cliente_fd, &suscribers_localized_pokemon);
+			break;
 		case NEW_POKEMON:
 			dar_aviso(cliente_fd,&suscribers_new_pokemon, NEW_POKEMON);
 			esperar_ack(&suscribers_new_pokemon);
@@ -124,20 +142,25 @@ void process_request(int cod_op, int cliente_fd) {
 
 void suscribir(int cliente_fd, t_list *lista){
 	printf("Suscribiendo\n");
-	list_add(lista, (int *)cliente_fd);
+	list_add(lista, &cliente_fd);
+}
+
+void desuscribir(int cliente_fd, t_list *lista){
+	printf("Desuscribiendo\n");
+	list_remove(lista, cliente_fd);
 }
 
 void dar_aviso(int cliente_fd, t_list *listaDeSuscriptores, int op_code){
 	//Aca hay que guardar en cache, y dar aviso por otro hilo
 	printf("Dando aviso\n");
-	int id_mensaje = 0;
-	recv(cliente_fd, &id_mensaje, sizeof(int), 0);
 
 	int id_correlativo = 0;
 	recv(cliente_fd, &id_correlativo, sizeof(int), 0);
 
-	int size_buffer = 0;
+	int id_mensaje = 0;
+	recv(cliente_fd, &id_mensaje, sizeof(int), 0);
 
+	int size_buffer = 0;
 	void* mensaje = recibir_buffer(cliente_fd, &size_buffer);
 
     printf("op code %d", op_code);

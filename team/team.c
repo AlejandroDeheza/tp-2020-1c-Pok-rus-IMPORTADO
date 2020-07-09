@@ -486,7 +486,7 @@ void suscribirse_a_colas(){
   			reintentar_conexion(&conexion, "BROKER");
   		}
 
-  		suscribirse_a_cola(conexion, queue_suscripcion);
+  		mensaje_de_suscripcion(conexion, queue_suscripcion);
   		log_info(LOGGER, "Suscripcion a cola de mensajes %s realizada", suscripcion);
   		pthread_mutex_unlock(&mutex_suscripciones);
 

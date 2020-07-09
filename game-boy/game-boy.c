@@ -1,18 +1,24 @@
 #include "game-boy.h"
 
+int tiempo_cumplido = 10;
+
 int main(int argc, char *argv[]) {
 
 	int conexion = 0;
 	t_log* logger = NULL;
-
 	t_config* config = leer_config("../game-boy.config");
 
 	verificarEntrada(argc, argv);
-
 	iniciar_logger(&logger, config, "game-boy");
 
 	if(strcmp(argv[1],"SUSCRIPTOR")==0){
-		//suscribir_a_cola_mensajes();			//TODO
+		char *orden_de_suscripcion = string_new();
+		string_append_with_format(&orden_de_suscripcion, "SUBSCRIBE_", argv[2]);
+		iniciar_conexion(&conexion, config, logger, "BROKER", orden_de_suscripcion);
+		free(orden_de_suscripcion);
+
+		iniciar_modo_suscriptor(conexion, argv[2], atoi(argv[3]));
+
 	}else{
 		iniciar_conexion(&conexion, config, logger, argv[1], argv[2]);
 		despacharMensaje(conexion, argv);
@@ -21,7 +27,7 @@ int main(int argc, char *argv[]) {
 	terminar_programa(conexion, logger, config);
 	printf("\nEl programa finalizo correctamente.\n\n");
 	return EXIT_SUCCESS;
-}	//cuando termine el gameboy, este main() va a quedar un poco mas ordenado
+}
 
 void verificarEntrada(int argc, char *argv[]){
 
@@ -148,6 +154,159 @@ void verificarEntrada(int argc, char *argv[]){
 	}
 }
 
+void iniciar_modo_suscriptor(int conexion_con_broker, char* cola_a_suscribirse, int tiempo_suscripcion)
+{
+	int codigo_operacion = 0;
+
+	if(strcmp(cola_a_suscribirse,"NEW_POKEMON")==0){
+		codigo_operacion = SUBSCRIBE_NEW_POKEMON;
+	}
+	if(strcmp(cola_a_suscribirse,"APPEARED_POKEMON")==0){
+		codigo_operacion = SUBSCRIBE_APPEARED_POKEMON;
+	}
+	if(strcmp(cola_a_suscribirse,"CATCH_POKEMON")==0){
+		codigo_operacion = SUBSCRIBE_CATCH_POKEMON;
+	}
+	if(strcmp(cola_a_suscribirse,"CAUGHT_POKEMON")==0){
+		codigo_operacion = SUBSCRIBE_CAUGHT_POKEMON;
+	}
+	if(strcmp(cola_a_suscribirse,"GET_POKEMON")==0){
+		codigo_operacion = SUBSCRIBE_GET_POKEMON;
+	}
+	if(strcmp(cola_a_suscribirse,"LOCALIZED_POKEMON")==0){
+		codigo_operacion = SUBSCRIBE_LOCALIZED_POKEMON;
+	}
+
+	mensaje_de_suscripcion(conexion_con_broker, codigo_operacion);
+
+	//hace falta este mutex para "recibir_mensaje()"?
+	pthread_mutex_t mutex;
+	pthread_mutex_init(&mutex, NULL);
+
+			//hago un hilo para saber cuanto tiempo queda para desuscribirme
+			//cuando termina el tiempo se modifica una variable global. Me falta sincronizar? TODO
+	pthread_t thread;
+
+	if(0 != pthread_create(&thread, NULL, (void*) contador_tiempo_suscripcion, &tiempo_suscripcion))
+	{
+		error_show(" Algo anda mal con el hilo de gameboy\n\n");
+		exit(-1);
+	}
+	pthread_detach(thread);
+
+	switch (codigo_operacion) {
+		case SUBSCRIBE_NEW_POKEMON:
+			while(tiempo_cumplido != 0){
+				t_new_pokemon* mensaje = recibir_mensaje(conexion_con_broker, &mutex);//hace falta el mutex??
+				//en esta funcion estan usando hilos
+				//creo que es mejor usar los hilos por afuera de la funcion
+				//asi queda mas ordenado. ademas tendria el mismo rendimiento
+
+				printf("\n		NEW POKEMON\n"
+						"		nombre: %s\n"
+						"		posicion x: %i\n"
+						"		posicion y: %i\n"
+						"		cantidad: %i\n",
+				(char*) mensaje->nombre, mensaje->coordenadas.posx, mensaje->coordenadas.posy, mensaje->cantidad);
+
+				free(mensaje->nombre);
+				free(mensaje);
+			}
+			mensaje_de_suscripcion(conexion_con_broker, UNSUBSCRIBE_NEW_POKEMON);
+			break;
+
+		case SUBSCRIBE_APPEARED_POKEMON:
+			while(tiempo_cumplido != 0){
+				t_appeared_pokemon* mensaje = recibir_mensaje(conexion_con_broker, &mutex);
+
+				printf("\n		APPEARED POKEMON\n"
+						"		nombre: %s\n"
+						"		posicion x: %i\n"
+						"		posicion y: %i\n",
+				(char*) mensaje->nombre, mensaje->coordenadas.posx, mensaje->coordenadas.posy);
+
+				free(mensaje->nombre);
+				free(mensaje);
+			}
+			mensaje_de_suscripcion(conexion_con_broker, UNSUBSCRIBE_APPEARED_POKEMON);
+			break;
+
+		case SUBSCRIBE_CATCH_POKEMON:
+			while(tiempo_cumplido != 0){
+				t_catch_pokemon* mensaje = recibir_mensaje(conexion_con_broker, &mutex);
+
+				printf("\n		CATCH POKEMON\n"
+						"		nombre: %s\n"
+						"		posicion x: %i\n"
+						"		posicion y: %i\n",
+				(char*) mensaje->nombre, mensaje->coordenadas.posx, mensaje->coordenadas.posy);
+
+				free(mensaje->nombre);
+				free(mensaje);
+			}
+			mensaje_de_suscripcion(conexion_con_broker, UNSUBSCRIBE_CATCH_POKEMON);
+			break;
+
+		case SUBSCRIBE_CAUGHT_POKEMON:
+			while(tiempo_cumplido != 0){
+				t_caught_pokemon* mensaje = recibir_mensaje(conexion_con_broker, &mutex);
+
+				printf("\n		CAUGHT POKEMON\n"
+						"		resultado: %i\n",
+				mensaje->resultado);
+
+				free(mensaje);
+			}
+			mensaje_de_suscripcion(conexion_con_broker, UNSUBSCRIBE_CAUGHT_POKEMON);
+			break;
+
+		case SUBSCRIBE_GET_POKEMON:
+			while(tiempo_cumplido != 0){
+				t_get_pokemon* mensaje = recibir_mensaje(conexion_con_broker, &mutex);
+
+				printf("\n		GET POKEMON\n"
+						"		nombre: %s\n",
+						(char*) mensaje->nombre);
+
+				free(mensaje->nombre);
+				free(mensaje);
+			}
+			mensaje_de_suscripcion(conexion_con_broker, UNSUBSCRIBE_GET_POKEMON);
+			break;
+
+		case SUBSCRIBE_LOCALIZED_POKEMON:
+			while(tiempo_cumplido != 0){
+				t_localized_pokemon* mensaje = recibir_mensaje(conexion_con_broker, &mutex);
+
+				printf("\n		LOCALIZED POKEMON\n"
+						"		nombre: %s\n",
+						(char*) mensaje->nombre);
+
+				for(int i = 0 ; i < mensaje->coordenadas->elements_count ; i++)
+				{
+					int posx = *((int*) list_get(mensaje->coordenadas, i));
+					i++;
+					int posy = *((int*) list_get(mensaje->coordenadas, i));
+
+					printf( "		posicion x: %i\n"
+							"		posicion y: %i\n\n",
+							posx, posy);
+				}
+				list_destroy_and_destroy_elements(mensaje->coordenadas, free);
+				free(mensaje->nombre);
+				free(mensaje);
+			}
+			mensaje_de_suscripcion(conexion_con_broker, UNSUBSCRIBE_LOCALIZED_POKEMON);
+			break;
+	}
+}
+
+void contador_tiempo_suscripcion(int segundos)
+{
+	sleep(segundos);
+	tiempo_cumplido = 0;
+}
+
 void despacharMensaje(int conexion, char *argv[]){
 
 	if(strcmp(argv[2],"NEW_POKEMON")==0){
@@ -230,7 +389,7 @@ void enviarGet(int conexion, char *argv[])
 void enviarLocalized(int conexion, int argc, char *argv[])
 {
 	//nunca se va a usar esta funcion desde gameboy
-	//la dejo aca para que nos sirva para despues
+	//la dejo aca para que nos sirva para despues, en el gamecard creo que se usa
 	//TODO
 	//esta funcion no es llamada desde despacharMensaje() ni de verificarEntrada()
 	//cuando la quiera sacar solo tengo que sacar esta funcion

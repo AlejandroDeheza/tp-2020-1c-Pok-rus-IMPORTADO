@@ -69,7 +69,7 @@ int main(void) {
 
 void dar_ack(int socket_cliente,t_log* logger, int* op_code){
 	send(socket_cliente, *op_code, sizeof(op_code), 0);
-	log_info(logger, "envio Ack");
+	log_info(logger, "envio Ack");// creo que no hay logs obligatorios para gamecard
 }
 
 
@@ -78,7 +78,7 @@ int suscribirse_a(t_config* config, t_log* logger, char *nombre_proceso, op_code
 
 	iniciar_conexion(&conexion, config, logger, nombre_proceso);
 
-	suscribirse_a_cola(conexion, nombre_cola);
+	mensaje_de_suscripcion(conexion, nombre_cola);
 
 	return conexion;
 };

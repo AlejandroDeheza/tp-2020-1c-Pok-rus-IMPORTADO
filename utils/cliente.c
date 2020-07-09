@@ -23,6 +23,7 @@ int crear_conexion(char *ip, char* puerto)
 	return socket_cliente;
 }
 
+//parece que esta funcion solo se tiene que usar en gameboy, almenos así como esta ahora, con el log
 void iniciar_conexion(int* conexion, t_config* config, t_log* logger, char *nombre_proceso, char *tipo_mensaje){
 	char* ip = NULL;
 	char* puerto = NULL;
@@ -39,7 +40,6 @@ void iniciar_conexion(int* conexion, t_config* config, t_log* logger, char *nomb
 		exit(-1);
 	}
 }
-
 
 void enviar_mensaje(void* mensaje, int socket_cliente, op_code codigo_operacion, int id_mensaje, int id_correlativo)
 {
@@ -83,6 +83,9 @@ void enviar_mensaje(void* mensaje, int socket_cliente, op_code codigo_operacion,
 		case LOCALIZED_POKEMON:
 			printf("Creo un paquete para LOCALIZED_POKEMON\n");
 			serializar_localized_pokemon(&paquete, mensaje);
+			break;
+
+		default:
 			break;
 	}
 	printf("EnviarMensaje -> Mensaje Empaquetado: \"%s\".\n", (char*)paquete->buffer->stream);
@@ -226,7 +229,7 @@ void verificar_estado(int estado) {
 	}
 }
 
-void suscribirse_a_cola(int socket_cliente, op_code codigo_operacion) {
+void mensaje_de_suscripcion(int socket_cliente, op_code codigo_operacion) {
 	int estado = 0;
 	estado = send(socket_cliente, &codigo_operacion, sizeof(op_code), 0);
 	verificar_estado(estado);
@@ -239,10 +242,10 @@ void* recibir_mensaje(int socket_cliente, pthread_mutex_t* mutex) {
 		pthread_mutex_unlock(mutex);
 		pthread_exit(NULL);
 	}
-	int id_mensaje = 0;
-	recv(socket_cliente, &id_mensaje, sizeof(op_code), 0);
 	int id_correlativo = 0;
 	recv(socket_cliente, &id_correlativo, sizeof(op_code), 0);
+	int id_mensaje = 0;
+	recv(socket_cliente, &id_mensaje, sizeof(op_code), 0);
 
 	int size; //Aca hay que liberar?
 	void* mensaje; //Aca hay que liberar?
