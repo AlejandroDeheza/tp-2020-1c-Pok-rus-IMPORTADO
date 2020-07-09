@@ -235,13 +235,22 @@ void mensaje_de_suscripcion(int socket_cliente, op_code codigo_operacion) {
 	verificar_estado(estado);
 }
 
-void* recibir_mensaje(int socket_cliente, pthread_mutex_t* mutex) {
-	pthread_mutex_lock(mutex);
+// es practiamente igual a mensaje_de_suscripcion() pero bueno.. asi deberia ser el ack?
+void enviar_ack(int socket_cliente, op_code codigo_operacion){
+	int estado = 0;
+	estado = send(socket_cliente, &codigo_operacion, sizeof(op_code), 0);
+	verificar_estado(estado);
+}
+
+//saco los mutex porque eso se deberia manejar por afuera de la funcion
+//no necesitan estar aca adentro
+//asi podemos reutilizar esta funcion
+void* recibir_mensaje(int socket_cliente)
+{
 	int codigo_operacion = 0;
 	if(recv(socket_cliente, &codigo_operacion, sizeof(op_code), 0) == -1) {
-		pthread_mutex_unlock(mutex);
-		pthread_exit(NULL);
-	}
+		return NULL;
+	}else{
 	int id_correlativo = 0;
 	recv(socket_cliente, &id_correlativo, sizeof(op_code), 0);
 	int id_mensaje = 0;
@@ -288,8 +297,8 @@ void* recibir_mensaje(int socket_cliente, pthread_mutex_t* mutex) {
 					response = deserializar_localized_pokemon(mensaje);
 					break;
 			}
-	pthread_mutex_unlock(mutex);
 	return response;
+	}
 }
 
 void liberar_conexion(int socket_cliente)

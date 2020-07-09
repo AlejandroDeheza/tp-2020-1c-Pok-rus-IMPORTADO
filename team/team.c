@@ -557,9 +557,13 @@ void reintentar_conexion(int* conexion, char* proceso){
 //----------------------------------------------------------------------------------------------------------
 void recibir_con_semaforo(int socket_cliente, pthread_mutex_t mutex, op_code tipo_mensaje){
 
-	void* response = recibir_mensaje(socket_cliente, &mutex);
+	pthread_mutex_lock(&mutex);
+	void* response = recibir_mensaje(socket_cliente);
+	pthread_mutex_unlock(&mutex);
 
-	if(response != NULL){
+	if(response == NULL){
+		pthread_exit(NULL);
+	}else{
 		switch(tipo_mensaje){
 			case APPEARED_POKEMON:
 				log_info(LOGGER, "Se recibio un mensaje del tipo %s", tipo_mensaje);

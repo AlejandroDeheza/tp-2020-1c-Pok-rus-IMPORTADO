@@ -41,7 +41,13 @@ int main(void) {
 	conex_get = suscribirse_a(config, logger, "BROKER", SUBSCRIBE_GET_POKEMON);
 
 	void* recibir_y_dar_ack(int socket_cliente){
-		void* response = recibir_mensaje(socket_cliente, &mutex);
+
+		pthread_mutex_lock(&mutex);
+		void* response = recibir_mensaje(socket_cliente);
+		pthread_mutex_unlock(&mutex);
+		if(response == NULL){
+			pthread_exit(NULL);
+		}
 		log_info(logger, "recibio mensaje");
 		dar_ack(socket_cliente,&logger, &op_code);
 		return response;

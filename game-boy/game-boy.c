@@ -1,6 +1,7 @@
 #include "game-boy.h"
 
 int tiempo_cumplido = 10;
+pthread_mutex_t mutex;
 
 int main(int argc, char *argv[]) {
 
@@ -179,17 +180,12 @@ void iniciar_modo_suscriptor(int conexion_con_broker, char* cola_a_suscribirse, 
 
 	mensaje_de_suscripcion(conexion_con_broker, codigo_operacion);
 
-	//hace falta este mutex para "recibir_mensaje()"?
-	pthread_mutex_t mutex;
 	pthread_mutex_init(&mutex, NULL);
-
 			//hago un hilo para saber cuanto tiempo queda para desuscribirme
-			//cuando termina el tiempo se modifica una variable global. Me falta sincronizar? TODO
+			//cuando termina el tiempo se modifica una variable global. esta bien sincronizado? revisar TODO
 	pthread_t thread;
-
-	if(0 != pthread_create(&thread, NULL, (void*) contador_tiempo_suscripcion, &tiempo_suscripcion))
-	{
-		error_show(" Algo anda mal con el hilo de gameboy\n\n");
+	if(0 != pthread_create(&thread, NULL, (void*) contador_tiempo_suscripcion, &tiempo_suscripcion)){
+		error_show(" No se pudo crear un hilo de gameboy\n\n");
 		exit(-1);
 	}
 	pthread_detach(thread);
@@ -197,10 +193,10 @@ void iniciar_modo_suscriptor(int conexion_con_broker, char* cola_a_suscribirse, 
 	switch (codigo_operacion) {
 		case SUBSCRIBE_NEW_POKEMON:
 			while(tiempo_cumplido != 0){
-				t_new_pokemon* mensaje = recibir_mensaje(conexion_con_broker, &mutex);//hace falta el mutex??
-				//en esta funcion estan usando hilos
-				//creo que es mejor usar los hilos por afuera de la funcion
-				//asi queda mas ordenado. ademas tendria el mismo rendimiento
+				t_new_pokemon* mensaje = recibir_mensaje(conexion_con_broker);
+				enviar_ack(conexion_con_broker, codigo_operacion);
+				//estos ACK estan bien? revisar TODO
+				//no esta relacionado con el id_mensaje y el id_correlativo?
 
 				printf("\n		NEW POKEMON\n"
 						"		nombre: %s\n"
@@ -217,7 +213,8 @@ void iniciar_modo_suscriptor(int conexion_con_broker, char* cola_a_suscribirse, 
 
 		case SUBSCRIBE_APPEARED_POKEMON:
 			while(tiempo_cumplido != 0){
-				t_appeared_pokemon* mensaje = recibir_mensaje(conexion_con_broker, &mutex);
+				t_appeared_pokemon* mensaje = recibir_mensaje(conexion_con_broker);
+				enviar_ack(conexion_con_broker, codigo_operacion);
 
 				printf("\n		APPEARED POKEMON\n"
 						"		nombre: %s\n"
@@ -233,7 +230,8 @@ void iniciar_modo_suscriptor(int conexion_con_broker, char* cola_a_suscribirse, 
 
 		case SUBSCRIBE_CATCH_POKEMON:
 			while(tiempo_cumplido != 0){
-				t_catch_pokemon* mensaje = recibir_mensaje(conexion_con_broker, &mutex);
+				t_catch_pokemon* mensaje = recibir_mensaje(conexion_con_broker);
+				enviar_ack(conexion_con_broker, codigo_operacion);
 
 				printf("\n		CATCH POKEMON\n"
 						"		nombre: %s\n"
@@ -249,7 +247,8 @@ void iniciar_modo_suscriptor(int conexion_con_broker, char* cola_a_suscribirse, 
 
 		case SUBSCRIBE_CAUGHT_POKEMON:
 			while(tiempo_cumplido != 0){
-				t_caught_pokemon* mensaje = recibir_mensaje(conexion_con_broker, &mutex);
+				t_caught_pokemon* mensaje = recibir_mensaje(conexion_con_broker);
+				enviar_ack(conexion_con_broker, codigo_operacion);
 
 				printf("\n		CAUGHT POKEMON\n"
 						"		resultado: %i\n",
@@ -262,7 +261,8 @@ void iniciar_modo_suscriptor(int conexion_con_broker, char* cola_a_suscribirse, 
 
 		case SUBSCRIBE_GET_POKEMON:
 			while(tiempo_cumplido != 0){
-				t_get_pokemon* mensaje = recibir_mensaje(conexion_con_broker, &mutex);
+				t_get_pokemon* mensaje = recibir_mensaje(conexion_con_broker);
+				enviar_ack(conexion_con_broker, codigo_operacion);
 
 				printf("\n		GET POKEMON\n"
 						"		nombre: %s\n",
@@ -276,7 +276,8 @@ void iniciar_modo_suscriptor(int conexion_con_broker, char* cola_a_suscribirse, 
 
 		case SUBSCRIBE_LOCALIZED_POKEMON:
 			while(tiempo_cumplido != 0){
-				t_localized_pokemon* mensaje = recibir_mensaje(conexion_con_broker, &mutex);
+				t_localized_pokemon* mensaje = recibir_mensaje(conexion_con_broker);
+				enviar_ack(conexion_con_broker, codigo_operacion);
 
 				printf("\n		LOCALIZED POKEMON\n"
 						"		nombre: %s\n",
@@ -304,7 +305,9 @@ void iniciar_modo_suscriptor(int conexion_con_broker, char* cola_a_suscribirse, 
 void contador_tiempo_suscripcion(int segundos)
 {
 	sleep(segundos);
+	pthread_mutex_lock(&mutex);
 	tiempo_cumplido = 0;
+	pthread_mutex_unlock(&mutex);
 }
 
 void despacharMensaje(int conexion, char *argv[]){
