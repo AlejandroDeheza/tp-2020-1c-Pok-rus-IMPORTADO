@@ -33,7 +33,7 @@ void iniciar_conexion(int* conexion, t_config* config, t_log* logger, char *nomb
 	*conexion = crear_conexion( ip, puerto);
 
 	if(*conexion > 0){
-		log_info(logger, "Se realizo una conexion con %s, para enviar el mensaje $s", nombre_proceso, tipo_mensaje);
+		log_info(logger, "Se realizo una conexion con %s, para enviar el mensaje %s", nombre_proceso, tipo_mensaje);
 	}else{
 		printf("\n");
 		error_show(" Error de conexion\n\n");
@@ -248,9 +248,10 @@ void enviar_ack(int socket_cliente, op_code codigo_operacion){
 void* recibir_mensaje(int socket_cliente)
 {
 	int codigo_operacion = 0;
-	if(recv(socket_cliente, &codigo_operacion, sizeof(op_code), 0) == -1) {
+	if(recv(socket_cliente, &codigo_operacion, sizeof(op_code), 0) <= 0) {
 		return NULL;
 	}else{
+
 	int id_correlativo = 0;
 	recv(socket_cliente, &id_correlativo, sizeof(op_code), 0);
 	int id_mensaje = 0;
@@ -259,7 +260,7 @@ void* recibir_mensaje(int socket_cliente)
 	int size; //Aca hay que liberar?
 	void* mensaje; //Aca hay que liberar?
 	recv(socket_cliente,&size, sizeof(int), 0);
-	printf("Socket %d", socket_cliente);
+	printf("Socket %d\n", socket_cliente);
 	printf("RecibirMensaje -> Size: %d Bytes.\n", size);
 	mensaje = malloc(size);
 	recv(socket_cliente,mensaje, size, 0);

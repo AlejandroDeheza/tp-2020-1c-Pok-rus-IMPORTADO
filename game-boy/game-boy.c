@@ -1,8 +1,5 @@
 #include "game-boy.h"
 
-int tiempo_cumplido = 0;
-pthread_mutex_t mutex;
-
 int main(int argc, char *argv[]) {
 
 	int conexion = 0;
@@ -13,12 +10,19 @@ int main(int argc, char *argv[]) {
 	iniciar_logger(&logger, config, "game-boy");
 
 	if(strcmp(argv[1],"SUSCRIPTOR")==0){
+
 		char *orden_de_suscripcion = string_new();
-		string_append_with_format(&orden_de_suscripcion, "SUBSCRIBE_", argv[2]);
+		string_append_with_format(&orden_de_suscripcion, "SUBSCRIBE_%s", argv[2]);
 		iniciar_conexion(&conexion, config, logger, "BROKER", orden_de_suscripcion);
 		free(orden_de_suscripcion);
 
-		iniciar_modo_suscriptor(conexion, argv[2], atoi(argv[3]));
+		op_code codigo_suscripcion = 0;
+		op_code codigo_desuscripcion = 0;
+		obtener_codigos(argv[2], &codigo_suscripcion, &codigo_desuscripcion);
+		printf("\nenviando mensaje para suscripcion:\n");
+		enviar_mensaje_de_suscripcion(conexion, codigo_suscripcion);
+		iniciar_hilo_para_desuscripcion(atoi(argv[3]), conexion, codigo_desuscripcion);
+		imprimir_mensajes_recibidos(codigo_suscripcion, conexion);
 
 	}else{
 		iniciar_conexion(&conexion, config, logger, argv[1], argv[2]);
@@ -26,7 +30,7 @@ int main(int argc, char *argv[]) {
 	}
 
 	terminar_programa(conexion, logger, config);
-	printf("\nEl programa finalizo correctamente.\n\n");
+	printf("\nEl Game-Boy finalizo correctamente.\n\n");
 	return EXIT_SUCCESS;
 }
 
@@ -155,164 +159,198 @@ void verificarEntrada(int argc, char *argv[]){
 	}
 }
 
-void iniciar_modo_suscriptor(int conexion_con_broker, char* cola_a_suscribirse, int tiempo_suscripcion)
+void obtener_codigos(char* cola_a_suscribirse, op_code* codigo_suscripcion, op_code* codigo_desuscripcion)
 {
-	int codigo_operacion = 0;
-
 	if(strcmp(cola_a_suscribirse,"NEW_POKEMON")==0){
-		codigo_operacion = SUBSCRIBE_NEW_POKEMON;
+		*codigo_suscripcion = SUBSCRIBE_NEW_POKEMON;
+		*codigo_desuscripcion = UNSUBSCRIBE_NEW_POKEMON;
 	}
 	if(strcmp(cola_a_suscribirse,"APPEARED_POKEMON")==0){
-		codigo_operacion = SUBSCRIBE_APPEARED_POKEMON;
+		*codigo_suscripcion = SUBSCRIBE_APPEARED_POKEMON;
+		*codigo_desuscripcion = UNSUBSCRIBE_APPEARED_POKEMON;
 	}
 	if(strcmp(cola_a_suscribirse,"CATCH_POKEMON")==0){
-		codigo_operacion = SUBSCRIBE_CATCH_POKEMON;
+		*codigo_suscripcion = SUBSCRIBE_CATCH_POKEMON;
+		*codigo_desuscripcion = UNSUBSCRIBE_CATCH_POKEMON;
 	}
 	if(strcmp(cola_a_suscribirse,"CAUGHT_POKEMON")==0){
-		codigo_operacion = SUBSCRIBE_CAUGHT_POKEMON;
+		*codigo_suscripcion = SUBSCRIBE_CAUGHT_POKEMON;
+		*codigo_desuscripcion = UNSUBSCRIBE_CAUGHT_POKEMON;
 	}
 	if(strcmp(cola_a_suscribirse,"GET_POKEMON")==0){
-		codigo_operacion = SUBSCRIBE_GET_POKEMON;
+		*codigo_suscripcion = SUBSCRIBE_GET_POKEMON;
+		*codigo_desuscripcion = UNSUBSCRIBE_GET_POKEMON;
 	}
 	if(strcmp(cola_a_suscribirse,"LOCALIZED_POKEMON")==0){
-		codigo_operacion = SUBSCRIBE_LOCALIZED_POKEMON;
+		*codigo_suscripcion = SUBSCRIBE_LOCALIZED_POKEMON;
+		*codigo_desuscripcion = UNSUBSCRIBE_LOCALIZED_POKEMON;
 	}
+}
 
-	enviar_mensaje_de_suscripcion(conexion_con_broker, codigo_operacion);
+void iniciar_hilo_para_desuscripcion(int tiempo_suscripcion, int conexion_con_broker, op_code codigo_desuscripcion)
+{
+	argumentos_contador_de_tiempo* arg = malloc(sizeof(argumentos_contador_de_tiempo));
+	arg->tiempo_suscripcion = tiempo_suscripcion;
+	arg->conexion_con_broker = conexion_con_broker;
+	arg->codigo_desuscripcion = codigo_desuscripcion;
 
-	pthread_mutex_init(&mutex, NULL);
-			//hago un hilo para saber cuanto tiempo queda para desuscribirme
-			//cuando termina el tiempo se modifica una variable global. esta bien sincronizado? revisar TODO
 	pthread_t thread;
-	if(0 != pthread_create(&thread, NULL, (void*) contador_de_tiempo, (void*)(&tiempo_suscripcion))){
+	if(0 != pthread_create(&thread, NULL, (void*) contador_de_tiempo, (void*)arg)){
 		error_show(" No se pudo crear un hilo de gameboy\n\n");
 		exit(-1);
 	}
 	pthread_detach(thread);
-
-	switch (codigo_operacion) {
-		case SUBSCRIBE_NEW_POKEMON:
-			while(tiempo_cumplido == 0){
-				t_new_pokemon* mensaje = recibir_mensaje(conexion_con_broker);
-				enviar_ack(conexion_con_broker, codigo_operacion);
-				//estos ACK estan bien? revisar TODO
-				//no esta relacionado con el id_mensaje y el id_correlativo?
-
-				printf("\n		NEW POKEMON\n"
-						"		nombre: %s\n"
-						"		posicion x: %i\n"
-						"		posicion y: %i\n"
-						"		cantidad: %i\n",
-				(char*) mensaje->nombre, mensaje->coordenadas.posx, mensaje->coordenadas.posy, mensaje->cantidad);
-
-				free(mensaje->nombre);
-				free(mensaje);
-			}
-			enviar_mensaje_de_suscripcion(conexion_con_broker, UNSUBSCRIBE_NEW_POKEMON);
-			break;
-
-		case SUBSCRIBE_APPEARED_POKEMON:
-			while(tiempo_cumplido == 0){
-				t_appeared_pokemon* mensaje = recibir_mensaje(conexion_con_broker);
-				enviar_ack(conexion_con_broker, codigo_operacion);
-
-				printf("\n		APPEARED POKEMON\n"
-						"		nombre: %s\n"
-						"		posicion x: %i\n"
-						"		posicion y: %i\n",
-				(char*) mensaje->nombre, mensaje->coordenadas.posx, mensaje->coordenadas.posy);
-
-				free(mensaje->nombre);
-				free(mensaje);
-			}
-			enviar_mensaje_de_suscripcion(conexion_con_broker, UNSUBSCRIBE_APPEARED_POKEMON);
-			break;
-
-		case SUBSCRIBE_CATCH_POKEMON:
-			while(tiempo_cumplido == 0){
-				t_catch_pokemon* mensaje = recibir_mensaje(conexion_con_broker);
-				enviar_ack(conexion_con_broker, codigo_operacion);
-
-				printf("\n		CATCH POKEMON\n"
-						"		nombre: %s\n"
-						"		posicion x: %i\n"
-						"		posicion y: %i\n",
-				(char*) mensaje->nombre, mensaje->coordenadas.posx, mensaje->coordenadas.posy);
-
-				free(mensaje->nombre);
-				free(mensaje);
-			}
-			enviar_mensaje_de_suscripcion(conexion_con_broker, UNSUBSCRIBE_CATCH_POKEMON);
-			break;
-
-		case SUBSCRIBE_CAUGHT_POKEMON:
-			while(tiempo_cumplido == 0){
-				t_caught_pokemon* mensaje = recibir_mensaje(conexion_con_broker);
-				enviar_ack(conexion_con_broker, codigo_operacion);
-
-				printf("\n		CAUGHT POKEMON\n"
-						"		resultado: %i\n",
-				mensaje->resultado);
-
-				free(mensaje);
-			}
-			enviar_mensaje_de_suscripcion(conexion_con_broker, UNSUBSCRIBE_CAUGHT_POKEMON);
-			break;
-
-		case SUBSCRIBE_GET_POKEMON:
-			while(tiempo_cumplido == 0){
-				t_get_pokemon* mensaje = recibir_mensaje(conexion_con_broker);
-				enviar_ack(conexion_con_broker, codigo_operacion);
-
-				printf("\n		GET POKEMON\n"
-						"		nombre: %s\n",
-						(char*) mensaje->nombre);
-
-				free(mensaje->nombre);
-				free(mensaje);
-			}
-			enviar_mensaje_de_suscripcion(conexion_con_broker, UNSUBSCRIBE_GET_POKEMON);
-			break;
-
-		case SUBSCRIBE_LOCALIZED_POKEMON:
-			while(tiempo_cumplido == 0){
-				t_localized_pokemon* mensaje = recibir_mensaje(conexion_con_broker);
-				enviar_ack(conexion_con_broker, codigo_operacion);
-
-				printf("\n		LOCALIZED POKEMON\n"
-						"		nombre: %s\n",
-						(char*) mensaje->nombre);
-
-				for(int i = 0 ; i < mensaje->coordenadas->elements_count ; i++)
-				{
-					int posx = *((int*) list_get(mensaje->coordenadas, i));
-					i++;
-					int posy = *((int*) list_get(mensaje->coordenadas, i));
-
-					printf( "		posicion x: %i\n"
-							"		posicion y: %i\n\n",
-							posx, posy);
-				}
-				list_destroy_and_destroy_elements(mensaje->coordenadas, free);
-				free(mensaje->nombre);
-				free(mensaje);
-			}
-			enviar_mensaje_de_suscripcion(conexion_con_broker, UNSUBSCRIBE_LOCALIZED_POKEMON);
-			break;
-	}
-	pthread_exit(NULL);
-	tiempo_cumplido = 0;
 }
 
-void* contador_de_tiempo(void* arg)
+void* contador_de_tiempo(void* argumentos)
 {
-	int segundos = *((int*)arg);
-	sleep(segundos);
-	pthread_mutex_lock(&mutex);
-	tiempo_cumplido = 1;
-	pthread_mutex_unlock(&mutex);
+	argumentos_contador_de_tiempo* args = argumentos;
+
+	int tiempo_suscripcion = args->tiempo_suscripcion;
+	int conexion_con_broker = args->conexion_con_broker;
+	op_code codigo_desuscripcion = args->codigo_desuscripcion;
+
+	sleep(tiempo_suscripcion);
+
+	printf("\nenviando mensaje para desuscripcion:\n");
+	enviar_mensaje_de_suscripcion(conexion_con_broker, codigo_desuscripcion);
+
+	shutdown(conexion_con_broker, SHUT_RDWR);
 
 	return NULL;
+}
+
+void imprimir_mensajes_recibidos(op_code codigo_operacion, int conexion_con_broker)
+{
+	while(true)
+	{
+		void* mensaje = recibir_mensaje(conexion_con_broker);
+
+		if(mensaje == NULL)break;
+
+		enviar_ack(conexion_con_broker, codigo_operacion);
+		//estos ACK estan bien? revisar TODO
+		//no esta relacionado con el id_mensaje y el id_correlativo?
+
+		switch (codigo_operacion)
+		{
+			case SUBSCRIBE_NEW_POKEMON:
+				imprimir_new_pokemon(mensaje);
+				break;
+
+			case SUBSCRIBE_APPEARED_POKEMON:
+				imprimir_appeared_pokemon(mensaje);
+				break;
+
+			case SUBSCRIBE_CATCH_POKEMON:
+				imprimir_catch_pokemon(mensaje);
+				break;
+
+			case SUBSCRIBE_CAUGHT_POKEMON:
+				imprimir_caught_pokemon(mensaje);
+				break;
+
+			case SUBSCRIBE_GET_POKEMON:
+				imprimir_get_pokemon(mensaje);
+				break;
+
+			case SUBSCRIBE_LOCALIZED_POKEMON:
+				imprimir_localized_pokemon(mensaje);
+				break;
+
+			default:
+				break;
+		}
+	}
+}
+
+void imprimir_new_pokemon(void* mensaje_a_imprimir)
+{
+	t_new_pokemon* mensaje = mensaje_a_imprimir;
+
+	printf("\n		NEW POKEMON\n"
+			"		nombre: %s\n"
+			"		posicion x: %i\n"
+			"		posicion y: %i\n"
+			"		cantidad: %i\n",
+	(char*) mensaje->nombre, mensaje->coordenadas.posx, mensaje->coordenadas.posy, mensaje->cantidad);
+
+	free(mensaje->nombre);
+	free(mensaje);
+}
+
+void imprimir_appeared_pokemon(void* mensaje_a_imprimir)
+{
+	t_appeared_pokemon* mensaje = mensaje_a_imprimir;
+
+	printf("\n		APPEARED POKEMON\n"
+			"		nombre: %s\n"
+			"		posicion x: %i\n"
+			"		posicion y: %i\n",
+	(char*) mensaje->nombre, mensaje->coordenadas.posx, mensaje->coordenadas.posy);
+
+	free(mensaje->nombre);
+	free(mensaje);
+}
+
+void imprimir_catch_pokemon(void* mensaje_a_imprimir)
+{
+	t_catch_pokemon* mensaje = mensaje_a_imprimir;
+
+	printf("\n		CATCH POKEMON\n"
+			"		nombre: %s\n"
+			"		posicion x: %i\n"
+			"		posicion y: %i\n",
+	(char*) mensaje->nombre, mensaje->coordenadas.posx, mensaje->coordenadas.posy);
+
+	free(mensaje->nombre);
+	free(mensaje);
+}
+
+void imprimir_caught_pokemon(void* mensaje_a_imprimir)
+{
+	t_caught_pokemon* mensaje = mensaje_a_imprimir;
+
+	printf("\n		CAUGHT POKEMON\n"
+			"		resultado: %i\n",
+	mensaje->resultado);
+
+	free(mensaje);
+}
+
+void imprimir_get_pokemon(void* mensaje_a_imprimir)
+{
+	t_get_pokemon* mensaje = mensaje_a_imprimir;
+
+	printf("\n		GET POKEMON\n"
+			"		nombre: %s\n",
+			(char*) mensaje->nombre);
+
+	free(mensaje->nombre);
+	free(mensaje);
+}
+
+void imprimir_localized_pokemon(void* mensaje_a_imprimir)
+{
+	t_localized_pokemon* mensaje = mensaje_a_imprimir;
+
+	printf("\n		LOCALIZED POKEMON\n"
+			"		nombre: %s\n",
+			(char*) mensaje->nombre);
+
+	for(int i = 0 ; i < mensaje->coordenadas->elements_count ; i++)
+	{
+		int posx = *((int*) list_get(mensaje->coordenadas, i));
+		i++;
+		int posy = *((int*) list_get(mensaje->coordenadas, i));
+
+		printf( "		posicion x: %i\n"
+				"		posicion y: %i\n\n",
+				posx, posy);
+	}
+	list_destroy_and_destroy_elements(mensaje->coordenadas, free);
+	free(mensaje->nombre);
+	free(mensaje);
 }
 
 void despacharMensaje(int conexion, char *argv[]){

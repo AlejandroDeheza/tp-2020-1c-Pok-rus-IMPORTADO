@@ -13,13 +13,15 @@ t_list suscribers_get_pokemon;
 t_queue queue_localized_pokemon;
 t_list suscribers_localized_pokemon;
 
-pthread_mutex_t mutex;
+pthread_mutex_t mutex_para_desuscribir;
+
+int socket_a_desuscribir = 0;
 
 int main(void)
 {
 	char* ip;
 	char* puerto;
-	pthread_mutex_init(&mutex, NULL);
+	pthread_mutex_init(&mutex_para_desuscribir, NULL);
 
 	t_config* config;
 	list_clean(&suscribers_new_pokemon);
@@ -36,16 +38,17 @@ int main(void)
 
 	int socket_servidor = crear_socket_para_escuchar(ip, puerto);
 
-    while(1){
+    while(1)
+    {
     	pthread_t thread;
 
     	//pthread_mutex_lock(&mutex_conexion);
-    	int socket_cliente = aceptar_una_conexion(socket_servidor);
+	   	argumentos_leer_mensajes* arg = malloc(sizeof(argumentos_leer_mensajes));
+    	arg->socket = aceptar_una_conexion(socket_servidor);
 
-    	pthread_create(&thread,NULL,(void*)leer_mensaje,&socket_cliente);
+    	pthread_create(&thread,NULL,(void*)leer_mensajes, (void*)arg);
     	pthread_detach(thread);
     	//pthread_mutex_unlock(&mutex_conexion);
-
     }
 
     list_destroy(&suscribers_new_pokemon);
@@ -58,16 +61,30 @@ int main(void)
 	return EXIT_SUCCESS;
 }
 
-void leer_mensaje(int* socket)
+void leer_mensajes(void* argumentos)
 {
-	int cod_op;
-	if(recv(*socket, &cod_op, sizeof(int), MSG_WAITALL) == -1)
-		cod_op = -1;
-	process_request(cod_op, *socket);
+	argumentos_leer_mensajes* arg = argumentos;
+	int socket = arg->socket;
+
+	while(1){
+   	    int cod_op;
+
+   	    int valor_retorno = recv(socket, &cod_op, sizeof(int), MSG_WAITALL);
+
+   	    if(valor_retorno == 0)break; //si se finaliza el envio de mensajes, se sale de este while(1)
+
+   	    if(valor_retorno < 0)
+   	    {
+   	    	cod_op = valor_retorno;
+   	    }
+
+		thread_process_request(cod_op, socket);
+	}
 }
 
-void process_request(int cod_op, int cliente_fd) {
-		switch (cod_op) {
+void thread_process_request(int cod_op, int cliente_fd)
+{
+	switch (cod_op) {
 		case SUBSCRIBE_NEW_POKEMON:
 			suscribir(cliente_fd, &suscribers_new_pokemon);
 			break;
@@ -147,7 +164,16 @@ void suscribir(int cliente_fd, t_list *lista){
 
 void desuscribir(int cliente_fd, t_list *lista){
 	printf("Desuscribiendo\n");
-	list_remove(lista, cliente_fd);
+	pthread_mutex_lock(&mutex_para_desuscribir);
+	socket_a_desuscribir = cliente_fd;
+	list_remove_by_condition(lista, es_igual_a_socket_a_desuscribir);
+	pthread_mutex_unlock(&mutex_para_desuscribir);
+}
+
+bool es_igual_a_socket_a_desuscribir(void* elemento_de_lista)
+{
+	int un_socket_de_lista = *((int*)elemento_de_lista);
+	return socket_a_desuscribir == un_socket_de_lista;
 }
 
 void dar_aviso(int cliente_fd, t_list *listaDeSuscriptores, int op_code){
@@ -177,8 +203,9 @@ void esperar_ack(t_list *listaDeSuscriptores)
 	t_list *duplicada =  list_duplicate(listaDeSuscriptores);
 
 	while(cantidadDeAckRecibidos < list_size(listaDeSuscriptores)){
-	bool ack(int cliente){
+	bool ack(void* arg){
 		int cod_op;
+		int cliente = *((int*)arg);
 		if(recv(cliente, &cod_op, sizeof(int), MSG_WAITALL) > -1) {
 			printf("Codigo de operacion del ack %d", cod_op);
 			cantidadDeAckRecibidos =+ 1;
@@ -191,9 +218,3 @@ void esperar_ack(t_list *listaDeSuscriptores)
 	}
 	pthread_exit(NULL);
 }
-
-
-
-
-
-
