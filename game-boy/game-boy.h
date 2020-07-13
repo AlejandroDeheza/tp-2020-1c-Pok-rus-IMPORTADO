@@ -24,7 +24,7 @@ void verificarEntrada(int argc, char *argv[]);
 void obtener_codigos(char* cola_a_suscribirse, op_code* codigo_suscripcion, op_code* codigo_desuscripcion);
 void iniciar_hilo_para_desuscripcion(int tiempo_suscripcion, int conexion_con_broker, op_code codigo_desuscripcion);
 void* contador_de_tiempo(void* argumentos);
-void imprimir_mensajes_recibidos(op_code codigo_operacion, int conexion_con_broker);
+int imprimir_mensaje_recibido(op_code codigo_operacion, int conexion_con_broker);
 
 void imprimir_new_pokemon(void* mensaje_a_imprimir);
 void imprimir_appeared_pokemon(void* mensaje_a_imprimir);

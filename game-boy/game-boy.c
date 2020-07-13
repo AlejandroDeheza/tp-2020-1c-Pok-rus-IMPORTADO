@@ -21,8 +21,15 @@ int main(int argc, char *argv[]) {
 		obtener_codigos(argv[2], &codigo_suscripcion, &codigo_desuscripcion);
 		printf("\nenviando mensaje para suscripcion:\n");
 		enviar_mensaje_de_suscripcion(conexion, codigo_suscripcion);
+		log_info(logger, "Se realizo una suscripcion a la cola de mensajes %s", argv[2]);
 		iniciar_hilo_para_desuscripcion(atoi(argv[3]), conexion, codigo_desuscripcion);
-		imprimir_mensajes_recibidos(codigo_suscripcion, conexion);
+
+		while(true)
+		{
+			int retorno = imprimir_mensaje_recibido(codigo_suscripcion, conexion);
+			if(retorno == -1)break;
+			log_info(logger, "Se recibio un mensaje de la cola %s", argv[2]);
+		}
 
 	}else{
 		iniciar_conexion(&conexion, config, logger, argv[1], argv[2]);
@@ -220,48 +227,47 @@ void* contador_de_tiempo(void* argumentos)
 	return NULL;
 }
 
-void imprimir_mensajes_recibidos(op_code codigo_operacion, int conexion_con_broker)
+int imprimir_mensaje_recibido(op_code codigo_operacion, int conexion_con_broker)
 {
-	while(true)
+	void* mensaje = recibir_mensaje(conexion_con_broker);
+
+	if(mensaje == NULL)return -1;
+
+	enviar_ack(conexion_con_broker, codigo_operacion);
+	//estos ACK estan bien? revisar TODO
+	//no esta relacionado con el id_mensaje y el id_correlativo?
+
+	switch (codigo_operacion)
 	{
-		void* mensaje = recibir_mensaje(conexion_con_broker);
+		case SUBSCRIBE_NEW_POKEMON:
+			imprimir_new_pokemon(mensaje);
+			break;
 
-		if(mensaje == NULL)break;
+		case SUBSCRIBE_APPEARED_POKEMON:
+			imprimir_appeared_pokemon(mensaje);
+			break;
 
-		enviar_ack(conexion_con_broker, codigo_operacion);
-		//estos ACK estan bien? revisar TODO
-		//no esta relacionado con el id_mensaje y el id_correlativo?
+		case SUBSCRIBE_CATCH_POKEMON:
+			imprimir_catch_pokemon(mensaje);
+			break;
 
-		switch (codigo_operacion)
-		{
-			case SUBSCRIBE_NEW_POKEMON:
-				imprimir_new_pokemon(mensaje);
-				break;
+		case SUBSCRIBE_CAUGHT_POKEMON:
+			imprimir_caught_pokemon(mensaje);
+			break;
 
-			case SUBSCRIBE_APPEARED_POKEMON:
-				imprimir_appeared_pokemon(mensaje);
-				break;
+		case SUBSCRIBE_GET_POKEMON:
+			imprimir_get_pokemon(mensaje);
+			break;
 
-			case SUBSCRIBE_CATCH_POKEMON:
-				imprimir_catch_pokemon(mensaje);
-				break;
+		case SUBSCRIBE_LOCALIZED_POKEMON:
+			imprimir_localized_pokemon(mensaje);
+			break;
 
-			case SUBSCRIBE_CAUGHT_POKEMON:
-				imprimir_caught_pokemon(mensaje);
-				break;
-
-			case SUBSCRIBE_GET_POKEMON:
-				imprimir_get_pokemon(mensaje);
-				break;
-
-			case SUBSCRIBE_LOCALIZED_POKEMON:
-				imprimir_localized_pokemon(mensaje);
-				break;
-
-			default:
-				break;
-		}
+		default:
+			break;
 	}
+
+	return 0;
 }
 
 void imprimir_new_pokemon(void* mensaje_a_imprimir)
