@@ -15,7 +15,7 @@
 void verificarEntrada(int argc, char *argv[]);
 
 void iniciar_modo_suscriptor(int conexion_con_broker, char* cola_a_suscribirse, int tiempo_suscripcion);
-void contador_tiempo_suscripcion(int segundos);
+void* contador_de_tiempo(void* puntero_a_entero);
 
 void despacharMensaje(int conexion, char *argv[]);
 

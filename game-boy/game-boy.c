@@ -1,6 +1,6 @@
 #include "game-boy.h"
 
-int tiempo_cumplido = 10;
+int tiempo_cumplido = 0;
 pthread_mutex_t mutex;
 
 int main(int argc, char *argv[]) {
@@ -178,13 +178,13 @@ void iniciar_modo_suscriptor(int conexion_con_broker, char* cola_a_suscribirse, 
 		codigo_operacion = SUBSCRIBE_LOCALIZED_POKEMON;
 	}
 
-	mensaje_de_suscripcion(conexion_con_broker, codigo_operacion);
+	enviar_mensaje_de_suscripcion(conexion_con_broker, codigo_operacion);
 
 	pthread_mutex_init(&mutex, NULL);
 			//hago un hilo para saber cuanto tiempo queda para desuscribirme
 			//cuando termina el tiempo se modifica una variable global. esta bien sincronizado? revisar TODO
 	pthread_t thread;
-	if(0 != pthread_create(&thread, NULL, (void*) contador_tiempo_suscripcion, &tiempo_suscripcion)){
+	if(0 != pthread_create(&thread, NULL, (void*) contador_de_tiempo, (void*)(&tiempo_suscripcion))){
 		error_show(" No se pudo crear un hilo de gameboy\n\n");
 		exit(-1);
 	}
@@ -192,7 +192,7 @@ void iniciar_modo_suscriptor(int conexion_con_broker, char* cola_a_suscribirse, 
 
 	switch (codigo_operacion) {
 		case SUBSCRIBE_NEW_POKEMON:
-			while(tiempo_cumplido != 0){
+			while(tiempo_cumplido == 0){
 				t_new_pokemon* mensaje = recibir_mensaje(conexion_con_broker);
 				enviar_ack(conexion_con_broker, codigo_operacion);
 				//estos ACK estan bien? revisar TODO
@@ -208,11 +208,11 @@ void iniciar_modo_suscriptor(int conexion_con_broker, char* cola_a_suscribirse, 
 				free(mensaje->nombre);
 				free(mensaje);
 			}
-			mensaje_de_suscripcion(conexion_con_broker, UNSUBSCRIBE_NEW_POKEMON);
+			enviar_mensaje_de_suscripcion(conexion_con_broker, UNSUBSCRIBE_NEW_POKEMON);
 			break;
 
 		case SUBSCRIBE_APPEARED_POKEMON:
-			while(tiempo_cumplido != 0){
+			while(tiempo_cumplido == 0){
 				t_appeared_pokemon* mensaje = recibir_mensaje(conexion_con_broker);
 				enviar_ack(conexion_con_broker, codigo_operacion);
 
@@ -225,11 +225,11 @@ void iniciar_modo_suscriptor(int conexion_con_broker, char* cola_a_suscribirse, 
 				free(mensaje->nombre);
 				free(mensaje);
 			}
-			mensaje_de_suscripcion(conexion_con_broker, UNSUBSCRIBE_APPEARED_POKEMON);
+			enviar_mensaje_de_suscripcion(conexion_con_broker, UNSUBSCRIBE_APPEARED_POKEMON);
 			break;
 
 		case SUBSCRIBE_CATCH_POKEMON:
-			while(tiempo_cumplido != 0){
+			while(tiempo_cumplido == 0){
 				t_catch_pokemon* mensaje = recibir_mensaje(conexion_con_broker);
 				enviar_ack(conexion_con_broker, codigo_operacion);
 
@@ -242,11 +242,11 @@ void iniciar_modo_suscriptor(int conexion_con_broker, char* cola_a_suscribirse, 
 				free(mensaje->nombre);
 				free(mensaje);
 			}
-			mensaje_de_suscripcion(conexion_con_broker, UNSUBSCRIBE_CATCH_POKEMON);
+			enviar_mensaje_de_suscripcion(conexion_con_broker, UNSUBSCRIBE_CATCH_POKEMON);
 			break;
 
 		case SUBSCRIBE_CAUGHT_POKEMON:
-			while(tiempo_cumplido != 0){
+			while(tiempo_cumplido == 0){
 				t_caught_pokemon* mensaje = recibir_mensaje(conexion_con_broker);
 				enviar_ack(conexion_con_broker, codigo_operacion);
 
@@ -256,11 +256,11 @@ void iniciar_modo_suscriptor(int conexion_con_broker, char* cola_a_suscribirse, 
 
 				free(mensaje);
 			}
-			mensaje_de_suscripcion(conexion_con_broker, UNSUBSCRIBE_CAUGHT_POKEMON);
+			enviar_mensaje_de_suscripcion(conexion_con_broker, UNSUBSCRIBE_CAUGHT_POKEMON);
 			break;
 
 		case SUBSCRIBE_GET_POKEMON:
-			while(tiempo_cumplido != 0){
+			while(tiempo_cumplido == 0){
 				t_get_pokemon* mensaje = recibir_mensaje(conexion_con_broker);
 				enviar_ack(conexion_con_broker, codigo_operacion);
 
@@ -271,11 +271,11 @@ void iniciar_modo_suscriptor(int conexion_con_broker, char* cola_a_suscribirse, 
 				free(mensaje->nombre);
 				free(mensaje);
 			}
-			mensaje_de_suscripcion(conexion_con_broker, UNSUBSCRIBE_GET_POKEMON);
+			enviar_mensaje_de_suscripcion(conexion_con_broker, UNSUBSCRIBE_GET_POKEMON);
 			break;
 
 		case SUBSCRIBE_LOCALIZED_POKEMON:
-			while(tiempo_cumplido != 0){
+			while(tiempo_cumplido == 0){
 				t_localized_pokemon* mensaje = recibir_mensaje(conexion_con_broker);
 				enviar_ack(conexion_con_broker, codigo_operacion);
 
@@ -297,17 +297,22 @@ void iniciar_modo_suscriptor(int conexion_con_broker, char* cola_a_suscribirse, 
 				free(mensaje->nombre);
 				free(mensaje);
 			}
-			mensaje_de_suscripcion(conexion_con_broker, UNSUBSCRIBE_LOCALIZED_POKEMON);
+			enviar_mensaje_de_suscripcion(conexion_con_broker, UNSUBSCRIBE_LOCALIZED_POKEMON);
 			break;
 	}
+	pthread_exit(NULL);
+	tiempo_cumplido = 0;
 }
 
-void contador_tiempo_suscripcion(int segundos)
+void* contador_de_tiempo(void* arg)
 {
+	int segundos = *((int*)arg);
 	sleep(segundos);
 	pthread_mutex_lock(&mutex);
-	tiempo_cumplido = 0;
+	tiempo_cumplido = 1;
 	pthread_mutex_unlock(&mutex);
+
+	return NULL;
 }
 
 void despacharMensaje(int conexion, char *argv[]){

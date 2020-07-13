@@ -229,7 +229,7 @@ void verificar_estado(int estado) {
 	}
 }
 
-void mensaje_de_suscripcion(int socket_cliente, op_code codigo_operacion) {
+void enviar_mensaje_de_suscripcion(int socket_cliente, op_code codigo_operacion) {
 	int estado = 0;
 	estado = send(socket_cliente, &codigo_operacion, sizeof(op_code), 0);
 	verificar_estado(estado);

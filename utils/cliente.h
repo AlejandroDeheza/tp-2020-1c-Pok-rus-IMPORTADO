@@ -23,7 +23,7 @@ void iniciar_conexion(int* conexion, t_config* config, t_log* logger, char *nomb
 
 void enviar_mensaje(void* mensaje, int socket_cliente, op_code codigo_operacion, int id_mensaje, int id_correlativo);
 void enviar_mensaje_a_suscriptores(void* mensaje, int size_mensaje, int socket_cliente, op_code codigo_operacion, int id_mensaje, int id_correlativo);
-void mensaje_de_suscripcion(int socket_cliente, op_code codigo_operacion);
+void enviar_mensaje_de_suscripcion(int socket_cliente, op_code codigo_operacion);
 
 void enviar_new_pokemon(int conexion, int id_mensaje, int id_correlativo, char* nombre, int posx, int posy, int cantidad);
 void enviar_appeared_pokemon(int conexion, int id_mensaje, int id_correlativo, char* nombre, int posx, int posy);

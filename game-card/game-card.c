@@ -84,7 +84,7 @@ int suscribirse_a(t_config* config, t_log* logger, char *nombre_proceso, op_code
 
 	iniciar_conexion(&conexion, config, logger, nombre_proceso);
 
-	mensaje_de_suscripcion(conexion, nombre_cola);
+	enviar_mensaje_de_suscripcion(conexion, nombre_cola);
 
 	return conexion;
 };
