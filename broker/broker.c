@@ -189,7 +189,7 @@ void dar_aviso(int cliente_fd, t_list *listaDeSuscriptores, int op_code){
 	int size_buffer = 0;
 	void* mensaje = recibir_buffer(cliente_fd, &size_buffer);
 
-    printf("op code %d", op_code);
+    printf("op code %d\n", op_code);
 	void avisarle(int client){
 		enviar_mensaje_a_suscriptores(mensaje, size_buffer, client, op_code, id_mensaje, id_correlativo);
 	}

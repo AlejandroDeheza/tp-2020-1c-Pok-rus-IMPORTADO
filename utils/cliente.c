@@ -128,7 +128,10 @@ void enviar_mensaje_a_suscriptores(void* mensaje, int size_mensaje, int socket_c
 	void* aEnviar = serializar_paquete(paquete, &bytes);
 	printf("EnviarMensaje -> Paquete Serializado - Tamaño Total: %d Bytes.\n", bytes);
 
-	estado = send(socket_cliente, aEnviar, bytes, 0);
+	estado = send(socket_cliente, aEnviar, bytes, MSG_NOSIGNAL); //soy Ale,
+	//agrego el flag "MSG_NOSIGNAL" por lo que decian en este issue: https://github.com/sisoputnfrba/foro/issues/1707
+	//lo marco como TODO para que esto resalte un poco y lo puedan mirar despues
+
 	verificar_estado(estado);
 
 	free(aEnviar);
