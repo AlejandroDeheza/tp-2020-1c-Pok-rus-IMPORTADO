@@ -8,7 +8,7 @@
 #include<readline/readline.h>
 #include<netdb.h>
 
-#include "cliente.h"
+#include "estructuras.h"
 
 void* serializar_paquete(t_paquete* paquete, int *bytes);
 

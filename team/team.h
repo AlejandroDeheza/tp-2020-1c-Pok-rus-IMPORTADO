@@ -10,11 +10,14 @@
 #include<commons/collections/queue.h>
 #include<readline/readline.h>
 #include<pthread.h>
+#include <limits.h>
+#include <math.h>
+
 #include "../utils/cliente.h"
 #include "../utils/servidor.h"
 #include "../utils/config.h"
-#include <limits.h>
 #include "planificador.h"
+#include "config.h"
 
 
 t_config* CONFIG;
@@ -90,9 +93,9 @@ t_entrenador_tcb* obtener_entrenador_mas_cercano(t_list* entrenadores, t_coorden
 void liberar_tcb(t_entrenador_tcb* tcb_entrenador);
 void realizar_catch(int conexion, char* pokemon, t_coordenadas coordenadas);
 
-int conectarse_a(char* proceso);
+int conectarse_a_broker();
 void enviar_get_pokemones_requeridos();
-void reintentar_conexion(int* conexion, char* proceso);
+void reintentar_conexion_con_broker(int conexion);
 void suscribirse_a_colas();
 void suscribirse_a(char *nombre_proceso, op_code nombre_cola);
 void recibir_con_semaforo(int socket_cliente, pthread_mutex_t mutex, op_code op_code);

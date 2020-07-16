@@ -1,13 +1,4 @@
-#include <stdio.h>
-#include <stdlib.h>
 #include "game-card.h"
-
-#include <cliente.h>
-#include "../utils/config.h"
-#include<readline/readline.h>
-
-
-
 
 int main(void) {
 
@@ -31,37 +22,46 @@ int main(void) {
 	int op_code;
 
 	void suscribir(t_config* config) {
-		suscribirse_a(config, logger, "BROKER", op_code);
+		suscribirse_a(config, "BROKER", op_code);
+		log_info(logger, "Se realizo una suscripcion a la cola de mensajes ...");
 	}
 
-	conex_catch = suscribirse_a(config, logger, "BROKER", SUBSCRIBE_CATCH_POKEMON);
+	conex_catch = suscribirse_a(config, "BROKER", SUBSCRIBE_CATCH_POKEMON);
+	log_info(logger, "Se realizo una suscripcion a la cola de mensajes CATCH_POKEMON");
 	sleep(1);
-	conex_appeared = suscribirse_a(config, logger, "BROKER", SUBSCRIBE_APPEARED_POKEMON);
-	sleep(1);
-	conex_get = suscribirse_a(config, logger, "BROKER", SUBSCRIBE_GET_POKEMON);
 
-	void* recibir_y_dar_ack(int socket_cliente){
+	conex_appeared = suscribirse_a(config, "BROKER", SUBSCRIBE_APPEARED_POKEMON);
+	log_info(logger, "Se realizo una suscripcion a la cola de mensajes APPEARED_POKEMON");
+	sleep(1);
+
+	conex_get = suscribirse_a(config, "BROKER", SUBSCRIBE_GET_POKEMON);
+	log_info(logger, "Se realizo una suscripcion a la cola de mensajes GET_POKEMON");
+
+	void* recibir_y_dar_ack(void* arg){
+
+		int socket_cliente = *((int*)arg);
 
 		pthread_mutex_lock(&mutex);
-		void* response = recibir_mensaje(socket_cliente);
+		void* response = recibir_mensaje_como_cliente(socket_cliente);
 		pthread_mutex_unlock(&mutex);
 		if(response == NULL){
 			pthread_exit(NULL);
 		}
 		log_info(logger, "recibio mensaje");
-		dar_ack(socket_cliente,&logger, &op_code);
+		enviar_ack(socket_cliente, op_code);
+		log_info(logger, "envio Ack");// creo que no hay logs obligatorios para gamecard
 		return response;
 	}
 
 	while(1){
 
-		pthread_create(&thread_appeared,NULL,(void*)recibir_y_dar_ack,conex_appeared);
+		pthread_create(&thread_appeared,NULL,(void*)recibir_y_dar_ack, (void*)&conex_appeared);
 		pthread_detach(thread_appeared);
 
-		pthread_create(&thread_get,NULL,(void*)recibir_y_dar_ack,conex_get);
+		pthread_create(&thread_get,NULL,(void*)recibir_y_dar_ack, (void*)&conex_get);
 		pthread_detach(thread_get);
 
-		pthread_create(&thread_catch,NULL,(void*)recibir_y_dar_ack,conex_catch);
+		pthread_create(&thread_catch,NULL,(void*)recibir_y_dar_ack, (void*)&conex_catch);
 		pthread_detach(thread_catch);
 
 	}
@@ -73,16 +73,15 @@ int main(void) {
 	return EXIT_SUCCESS;
 }
 
-void dar_ack(int socket_cliente,t_log* logger, int* op_code){
-	send(socket_cliente, *op_code, sizeof(op_code), 0);
-	log_info(logger, "envio Ack");// creo que no hay logs obligatorios para gamecard
-}
+int suscribirse_a(t_config* config, char *nombre_proceso, op_code nombre_cola)
+{
+	int conexion = iniciar_conexion_como_cliente(nombre_proceso, config);
 
-
-int suscribirse_a(t_config* config, t_log* logger, char *nombre_proceso, op_code nombre_cola){
-	int conexion;
-
-	iniciar_conexion(&conexion, config, logger, nombre_proceso);
+	if(conexion <= 0){
+		printf("\n");
+		error_show(" Error de conexion\n\n");
+		exit(-1);
+	}
 
 	enviar_mensaje_de_suscripcion(conexion, nombre_cola);
 

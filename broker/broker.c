@@ -19,8 +19,6 @@ int socket_a_desuscribir = 0;
 
 int main(void)
 {
-	char* ip;
-	char* puerto;
 	pthread_mutex_init(&mutex_para_desuscribir, NULL);
 
 	t_config* config;
@@ -33,9 +31,8 @@ int main(void)
 
 	config = leer_config("../broker.config");
 
-	asignar_string_property(config, "IP_BROKER", &ip);
-	asignar_string_property(config, "PUERTO_BROKER", &puerto);
-
+	char* ip = asignar_string_property(config, "IP_BROKER");
+	char* puerto = asignar_string_property(config, "PUERTO_BROKER");
 	int socket_servidor = crear_socket_para_escuchar(ip, puerto);
 
     while(1)
@@ -57,6 +54,8 @@ int main(void)
     list_destroy(&suscribers_caught_pokemon);
     list_destroy(&suscribers_get_pokemon);
     list_destroy(&suscribers_localized_pokemon);
+
+    terminar_programa(socket_servidor, NULL, config);
 
 	return EXIT_SUCCESS;
 }
@@ -159,14 +158,17 @@ void thread_process_request(int cod_op, int cliente_fd)
 
 void suscribir(int cliente_fd, t_list *lista){
 	printf("Suscribiendo\n");
-	list_add(lista, &cliente_fd);
+	int* socket = malloc(sizeof(int));
+	*socket = cliente_fd;
+	list_add(lista, socket);
 }
 
 void desuscribir(int cliente_fd, t_list *lista){
 	printf("Desuscribiendo\n");
 	pthread_mutex_lock(&mutex_para_desuscribir);
 	socket_a_desuscribir = cliente_fd;
-	list_remove_by_condition(lista, es_igual_a_socket_a_desuscribir);
+	int* puntero = list_remove_by_condition(lista, es_igual_a_socket_a_desuscribir);
+	free(puntero);
 	pthread_mutex_unlock(&mutex_para_desuscribir);
 }
 

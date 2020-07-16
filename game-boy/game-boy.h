@@ -8,9 +8,10 @@
 #include<commons/config.h>
 #include<readline/readline.h>
 #include <commons/error.h>
+#include<pthread.h>
+
 #include <cliente.h>
 #include "../utils/config.h"
-#include<pthread.h>
 
 typedef struct
 {
@@ -19,12 +20,17 @@ typedef struct
 	op_code codigo_desuscripcion;
 } argumentos_contador_de_tiempo;
 
-void verificarEntrada(int argc, char *argv[]);
+void verificar_Entrada(int argc, char *argv[]);
+
+/* MODO SUSCRIPTOR  */
+void iniciar_modo_suscriptor(int conexion, t_log* logger, char* cola_a_suscribirse, int tiempo_suscripcion);
 
 void obtener_codigos(char* cola_a_suscribirse, op_code* codigo_suscripcion, op_code* codigo_desuscripcion);
 void iniciar_hilo_para_desuscripcion(int tiempo_suscripcion, int conexion_con_broker, op_code codigo_desuscripcion);
 void* contador_de_tiempo(void* argumentos);
-char* imprimir_mensaje_recibido(op_code codigo_operacion, int conexion_con_broker);
+
+/* IMPRIMIR MENSAJES  */
+char* imprimir_mensaje_recibido(void* mensaje_a_imprimir, op_code codigo_operacion);
 
 char* imprimir_new_pokemon(void* mensaje_a_imprimir);
 char* imprimir_appeared_pokemon(void* mensaje_a_imprimir);
@@ -33,13 +39,14 @@ char* imprimir_caught_pokemon(void* mensaje_a_imprimir);
 char* imprimir_get_pokemon(void* mensaje_a_imprimir);
 char* imprimir_localized_pokemon(void* mensaje_a_imprimir);
 
-void despacharMensaje(int conexion, char *argv[]);
+/* DESPACHAR MENSAJES  */
+void despachar_Mensaje(int conexion, char *argv[]);
 
-void enviarNew(int conexion, char *argv[]);
-void enviarAppeared(int conexion, char *argv[]);
-void enviarCatch(int conexion, char *argv[]);
-void enviarCaught(int conexion, char *argv[]);
-void enviarGet(int conexion, char *argv[]);
-void enviarLocalized(int conexion, int argc, char *argv[]);
+void despachar_New(int conexion, char *argv[]);
+void despachar_Appeared(int conexion, char *argv[]);
+void despachar_Catch(int conexion, char *argv[]);
+void despachar_Caught(int conexion, char *argv[]);
+void despachar_Get(int conexion, char *argv[]);
+void despachar_Localized(int conexion, int argc, char *argv[]);
 
 #endif

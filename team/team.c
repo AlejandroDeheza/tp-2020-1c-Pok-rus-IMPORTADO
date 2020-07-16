@@ -8,8 +8,6 @@
  ============================================================================
  */
 
-#include <stdio.h>
-#include <stdlib.h>
 #include "team.h"
 
 //--------------------------------------------------------------------------
@@ -109,13 +107,9 @@ void inicializarGlobales(){
 //----------------------------------------------------------------------------------------------------------
 void obtenerEntrenadores(){
 
-	char* posicionesEntrenadores;
-	char* pokemonesEntrenadores;
-	char* objetivosEntrenadores;
-
-	asignar_string_property(CONFIG, "POSICIONES_ENTRENADORES", &posicionesEntrenadores);
-	asignar_string_property(CONFIG, "POKEMON_ENTRENADORES", &pokemonesEntrenadores);
-	asignar_string_property(CONFIG, "OBJETIVOS_ENTRENADORES", &objetivosEntrenadores);
+	char* posicionesEntrenadores = asignar_string_property(CONFIG, "POSICIONES_ENTRENADORES");
+	char* pokemonesEntrenadores = asignar_string_property(CONFIG, "POKEMON_ENTRENADORES");
+	char* objetivosEntrenadores = asignar_string_property(CONFIG, "OBJETIVOS_ENTRENADORES");
 
 	char** coodenadasEntrenador = formatearPropiedadDelConfig(posicionesEntrenadores);
 	char** pokemonEntrenador = formatearPropiedadDelConfig(pokemonesEntrenadores);
@@ -232,7 +226,7 @@ void hilo_entrenador(t_entrenador_tcb* tcb_entrenador){
 			log_info(LOGGER, "Muevo entrenador desde [%d, %d] hasta [%d, %d]", coordenada_previa.posx, coordenada_previa.posy, coordenada_nueva.posx, coordenada_nueva.posy);
 		} else {
 			int conexion = 0;
-			conexion = conectarse_a("BROKER");
+			conexion = conectarse_a_broker();
 			if(conexion_con_broker == CONECTADO){
 				realizar_catch(conexion, tcb_entrenador->nombre_pokemon, tcb_entrenador->coordenadas_del_pokemon);
 			}
@@ -370,7 +364,7 @@ void cargarObjetivoGlobal(){
 //---------------------------------------------------------------------------------------------------------
 void conexion_inicial(){
 	int conexion = 0;
-	conexion = conectarse_a("BROKER");
+	conexion = conectarse_a_broker();
 
 	if(conexion_con_broker == CONECTADO) {
 		log_info(LOGGER, "Estado de conexion inicial con Broker: CONECTADO");
@@ -414,7 +408,7 @@ void enviar_get_pokemones_requeridos(){
 
 	void envio_un_get(void* pokemon){
 		int conexion = 0;
-		conexion = conectarse_a("BROKER");
+		conexion = conectarse_a_broker();
 
 		char* especie_pokemon = (char*) pokemon;
 
@@ -454,7 +448,9 @@ void suscribirse_a_colas(){
 	// Funcion que ejecuta dentro del hilo
 	// Realiza la conexion del socket, la suscripcion y queda a la espera de mensajes
 	//------------------------------------------------------------------------------------------------------
-	void hilo_suscripcion(op_code queue_suscripcion){
+	void hilo_suscripcion(void* arg_hilo_suscripcion){
+
+		op_code queue_suscripcion = *((op_code*)arg_hilo_suscripcion);
 
   		op_code tipo_de_mensaje;
   		int conexion;
@@ -476,14 +472,16 @@ void suscribirse_a_colas(){
 				tipo_de_mensaje = CAUGHT_POKEMON;
 				suscripcion = "CAUGHT_POKEMON";
 				break;
+			default:
+				break;
 		}
 
   		pthread_mutex_lock(&mutex_suscripciones);
-  		conexion = conectarse_a("BROKER");
+  		conexion = conectarse_a_broker();
 
   		if(conexion < 0){
   			log_info(LOGGER, "Inicio de proceso de reintento de comunicación con el Broker");
-  			reintentar_conexion(&conexion, "BROKER");
+  			reintentar_conexion_con_broker(conexion);
   		}
 
   		enviar_mensaje_de_suscripcion(conexion, queue_suscripcion);
@@ -497,15 +495,18 @@ void suscribirse_a_colas(){
 	}
 
   	pthread_t thread_caught;
-	pthread_create(&thread_caught,NULL,(void*)hilo_suscripcion, SUBSCRIBE_CAUGHT_POKEMON);
+  	op_code codigo_cola_1 = SUBSCRIBE_CAUGHT_POKEMON;
+	pthread_create(&thread_caught,NULL,(void*)hilo_suscripcion, (void*)&codigo_cola_1);
 	pthread_detach(thread_caught);
 
 	pthread_t thread_appeared;
-	pthread_create(&thread_appeared,NULL,(void*)hilo_suscripcion, SUBSCRIBE_APPEARED_POKEMON);
+  	op_code codigo_cola_2 = SUBSCRIBE_APPEARED_POKEMON;
+	pthread_create(&thread_appeared,NULL,(void*)hilo_suscripcion, (void*)&codigo_cola_2);
 	pthread_detach(thread_appeared);
 
 	pthread_t thread_localized;
-	pthread_create(&thread_localized, NULL ,(void*)hilo_suscripcion, SUBSCRIBE_LOCALIZED_POKEMON);
+  	op_code codigo_cola_3 = SUBSCRIBE_LOCALIZED_POKEMON;
+	pthread_create(&thread_localized, NULL ,(void*)hilo_suscripcion, (void*)&codigo_cola_3);
 	pthread_detach(thread_localized);
 
 }
@@ -516,40 +517,40 @@ void suscribirse_a_colas(){
 // Setea flag global para saber el estado de la conexion actual
 // Se establece por parametro si debe iniciar el proceso de reintento  de conexion
 //----------------------------------------------------------------------------------------------------------
-int conectarse_a(char* proceso) {
-	int socket;
-
-	iniciar_conexion(&socket, CONFIG, LOGGER, proceso);
+int conectarse_a_broker() {
+	int socket = iniciar_conexion_como_cliente("BROKER", CONFIG);
 
 	if(socket > 0) {
 		conexion_con_broker = CONECTADO;
+		log_info(LOGGER, "Se realizo una conexion con BROKER");
 	} else {
 		conexion_con_broker = DESCONECTADO;
 	}
 
 	return socket;
-
 }
 
 //----------------------------------------------------------------------------------------------------------
 // Proceso de reintento de comunicacion con Broker
 // Obtiene la cantidad de segundos para volver a intentar desde el config
 //----------------------------------------------------------------------------------------------------------
-void reintentar_conexion(int* conexion, char* proceso){
+void reintentar_conexion_con_broker(int conexion){
 	int tiempo_reconexion = -1;
 
-	asignar_int_property(CONFIG, "TIEMPO_RECONEXION", &tiempo_reconexion);
+	tiempo_reconexion = asignar_int_property(CONFIG, "TIEMPO_RECONEXION");
 
 	if(tiempo_reconexion == -1){
 		log_error(LOGGER, "No existe la propiedad TIEMPO_RECONEXION");
 		exit(-1);
 	}
 
-	while(*conexion < 0){
+	while(conexion < 0){
 		sleep(tiempo_reconexion);
-		log_info(LOGGER, "Reintentando conexion con proceso %s", proceso);
-		iniciar_conexion(&(*conexion), CONFIG, LOGGER, proceso);
+		log_info(LOGGER, "Reintentando conexion con proceso BROKER");
+		conexion = iniciar_conexion_como_cliente("BROKER", CONFIG);
 	}
+
+	log_info(LOGGER, "Se logro conexion con proceso BROKER");
 }
 
 //----------------------------------------------------------------------------------------------------------
@@ -558,7 +559,7 @@ void reintentar_conexion(int* conexion, char* proceso){
 void recibir_con_semaforo(int socket_cliente, pthread_mutex_t mutex, op_code tipo_mensaje){
 
 	pthread_mutex_lock(&mutex);
-	void* response = recibir_mensaje(socket_cliente);
+	void* response = recibir_mensaje_como_cliente(socket_cliente);
 	pthread_mutex_unlock(&mutex);
 
 	if(response == NULL){
@@ -575,6 +576,8 @@ void recibir_con_semaforo(int socket_cliente, pthread_mutex_t mutex, op_code tip
 				break;
 			case CAUGHT_POKEMON:
 				// TODO
+				break;
+			default:
 				break;
 		}
 	}
@@ -676,23 +679,17 @@ void liberar_tcb(t_entrenador_tcb* tcb_entrenador){
 // Escucho puerto e ip para recibir conexion del GAME-BOY
 // Cuando se conecta, actualizo el estado en la variable global
 //----------------------------------------------------------------------------------------------------------
-void escuchar_conexion(){
+void escuchar_conexion()
+{
+	char* ip = NULL;
+	char* puerto = NULL;
 
-	char* ip;
-	char* puerto;
+	leer_ip_y_puerto(&ip, &puerto, CONFIG, "GAMEBOY");
 
-	asignar_string_property(CONFIG, "IP_GAMEBOY", &ip);
-    asignar_string_property(CONFIG, "PUERTO_GAMEBOY", &puerto);
-
-    if(ip == NULL || puerto == NULL){
-    	log_error(LOGGER, "No existe config para conexion con GAMEBOY");
-    	exit(-1);
-    }
-
-    log_info(LOGGER, "Comienzo a escuchar IP:%s y PUERTO:%s para recibir conexion de GAME-BOY", ip, puerto);
     socket_servidor_gameboy = crear_socket_para_escuchar(ip, puerto);
-    socket_cliente_gameboy = aceptar_una_conexion(socket_servidor_gameboy);
-    log_info(LOGGER, "Se recibio una conexion desde GAME-BOY %d", socket_cliente_gameboy);
-    conexion_con_gameboy = CONECTADO;
+    log_info(LOGGER, "Comienzo a escuchar IP:%s y PUERTO:%s para recibir conexion de GAME-BOY", ip, puerto);
 
+    socket_cliente_gameboy = aceptar_una_conexion(socket_servidor_gameboy);
+    log_info(LOGGER, "Se recibio una conexion desde GAME-BOY, socket_cliente_gameboy: %d", socket_cliente_gameboy);
+    conexion_con_gameboy = CONECTADO;
 }

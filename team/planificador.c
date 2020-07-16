@@ -5,8 +5,6 @@
  *      Author: utnso
  */
 
-#include <stdio.h>
-#include <stdlib.h>
 #include "planificador.h"
 
 //----------------------------------------------------------------------------------------------------------
@@ -88,9 +86,10 @@ void planifico_FIFO(t_log* logger) {
 //     4. Elimino proceso de lista de ready
 //----------------------------------------------------------------------------------------------------------
 void planifico_RR(t_config* config, t_log* logger){
-	int quantum;
-	asignar_int_property(config, "QUANTUM", &quantum);
-	if(quantum == NULL){
+
+	int quantum = asignar_int_property(config, "QUANTUM");
+
+	if(quantum == 0){
 		log_error(logger, "No existe la propiedad QUANTUM");
 		exit(-1);
 	}

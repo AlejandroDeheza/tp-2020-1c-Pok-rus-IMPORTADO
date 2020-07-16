@@ -10,7 +10,10 @@
 
 #include <stdio.h>
 #include <stdlib.h>
+
 #include "team.h"
+#include "config.h"
+#include "../utils/config.h"
 
 int RETARDO_CICLO_CPU;
 char* ALGORITMO;
