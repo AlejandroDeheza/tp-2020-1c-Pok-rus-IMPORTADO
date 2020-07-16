@@ -97,7 +97,6 @@ int conectarse_a_broker();
 void enviar_get_pokemones_requeridos();
 void reintentar_conexion_con_broker(int conexion);
 void suscribirse_a_colas();
-void suscribirse_a(char *nombre_proceso, op_code nombre_cola);
 void recibir_con_semaforo(int socket_cliente, pthread_mutex_t mutex, op_code op_code);
 void escuchar_conexion();
 void terminar_proceso();

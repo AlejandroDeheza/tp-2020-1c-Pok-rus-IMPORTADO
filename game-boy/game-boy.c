@@ -10,11 +10,10 @@ int main(int argc, char *argv[]) {
 	int conexion = 0;
 	t_log* logger = NULL;
 	t_config* config = leer_config("../game-boy.config");
+	iniciar_logger(&logger, config, "game-boy");
 
 	//verifico que lo ingresado por consola sea correcto
 	verificar_Entrada(argc, argv);
-
-	iniciar_logger(&logger, config, "game-boy");
 
 	if(strcmp(argv[1],"SUSCRIPTOR")==0){	// lo de aca se ejecuta si estamos en modo SUSCRIPTOR
 

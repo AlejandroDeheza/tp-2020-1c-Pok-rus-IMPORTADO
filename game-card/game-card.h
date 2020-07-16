@@ -14,6 +14,6 @@
 #include "../utils/config.h"
 
 void terminar_programa(int conexion, t_log* log, t_config* config);
-int suscribirse_a(t_config* config, char *nombre_proceso, op_code nombre_cola);
+int suscribirse_a_broker(t_config* config, op_code nombre_cola);
 
 #endif

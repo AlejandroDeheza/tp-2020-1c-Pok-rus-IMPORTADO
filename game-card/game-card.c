@@ -2,8 +2,10 @@
 
 int main(void) {
 
-	t_log* logger;
 	t_config* config = leer_config("../game-card.config");
+	t_log* logger = NULL;
+	iniciar_logger(&logger, config, "game-card");
+
 	pthread_mutex_t mutex;
 	pthread_mutex_init(&mutex, NULL);
 
@@ -16,25 +18,26 @@ int main(void) {
 	int conex_get = 0;
 	pthread_t thread_get;
 
-	iniciar_logger(&logger, config, "game-card");
-	log_info(logger, "Suscribiendo a las colas de mensajes");
+	//log_info(logger, "Suscribiendo a las colas de mensajes");
 
-	int op_code;
+	int op_code = 0;
 
+	/*
 	void suscribir(t_config* config) {
-		suscribirse_a(config, "BROKER", op_code);
+		suscribirse_a_broker(config, "BROKER", op_code);
 		log_info(logger, "Se realizo una suscripcion a la cola de mensajes ...");
 	}
+	*/
 
-	conex_catch = suscribirse_a(config, "BROKER", SUBSCRIBE_CATCH_POKEMON);
+	conex_catch = suscribirse_a_broker(config, SUBSCRIBE_CATCH_POKEMON);
 	log_info(logger, "Se realizo una suscripcion a la cola de mensajes CATCH_POKEMON");
 	sleep(1);
 
-	conex_appeared = suscribirse_a(config, "BROKER", SUBSCRIBE_APPEARED_POKEMON);
+	conex_appeared = suscribirse_a_broker(config, SUBSCRIBE_APPEARED_POKEMON);
 	log_info(logger, "Se realizo una suscripcion a la cola de mensajes APPEARED_POKEMON");
 	sleep(1);
 
-	conex_get = suscribirse_a(config, "BROKER", SUBSCRIBE_GET_POKEMON);
+	conex_get = suscribirse_a_broker(config, SUBSCRIBE_GET_POKEMON);
 	log_info(logger, "Se realizo una suscripcion a la cola de mensajes GET_POKEMON");
 
 	void* recibir_y_dar_ack(void* arg){
@@ -73,9 +76,9 @@ int main(void) {
 	return EXIT_SUCCESS;
 }
 
-int suscribirse_a(t_config* config, char *nombre_proceso, op_code nombre_cola)
+int suscribirse_a_broker(t_config* config, op_code nombre_cola)
 {
-	int conexion = iniciar_conexion_como_cliente(nombre_proceso, config);
+	int conexion = iniciar_conexion_como_cliente("BROKER", config);
 
 	if(conexion <= 0){
 		printf("\n");
