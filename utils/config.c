@@ -1,18 +1,12 @@
 #include "config.h"
 
-void iniciar_logger(t_log** logger, t_config* config, char* nombre_proceso)
+t_log* generar_logger(t_config* config, char* nombre_proceso)
 {
 	char* log_file = asignar_string_property(config, "LOG_FILE");
 
-	if(!log_file){
-		error_show(" No se encontro LOG_FILE en el archivo de configuracion\n\n");
-		exit(-1);
-	}
-	*logger = log_create(log_file, nombre_proceso , true, LOG_LEVEL_INFO);
+	if(!log_file) imprimir_error_y_terminar_programa("No se encontro LOG_FILE en el archivo de configuracion");
 
-//	printf("Configuraciones:\n"
-//			"LOG_FILE = %s\n", log_file);
-	free(log_file);
+	return log_create(log_file, nombre_proceso , true, LOG_LEVEL_INFO);
 }
 
 void leer_ip_y_puerto(char** ip, char** puerto, t_config* config, char* nombre_proceso)
@@ -30,8 +24,6 @@ void leer_ip_y_puerto(char** ip, char** puerto, t_config* config, char* nombre_p
 		error_show(" No se encontro %s o %s en el archivo de configuracion\n\n", ipElegida, puertoElegido);
 		exit(-1);
 	}
-//	printf("IP = %s.\n"
-//		   "PUERTO = %s.\n", *ip, *puerto);
 
 	free(ipElegida);
 	free(puertoElegido);
@@ -66,6 +58,17 @@ void configuracion_inicial_planificador(t_config* config, int* retardo_cliclo, c
 	*algoritmo = asignar_string_property(config, "ALGORITMO_PLANIFICACION");
 }
 
+void imprimir_error_y_terminar_programa(const char* mensaje)
+{
+	printf("\n");
+	error_show(" %s\n", mensaje);
+	perror("Descripcion ");
+
+	printf("\n");
+	printf("\n");
+	exit(-1);
+}
+
 void terminar_programa(int conexion, t_log* logger, t_config* config)
 {
 	int retorno;
@@ -80,9 +83,5 @@ void terminar_programa(int conexion, t_log* logger, t_config* config)
 		retorno = close(conexion);
 	}
 
-	if(retorno == -1){
-		printf("\n");
-		error_show(" Ocurrio un error al cerrar el socket\n\n");
-		exit(-1);
-	}
+	if(retorno == -1) imprimir_error_y_terminar_programa("Ocurrio un error al cerrar el socket");
 }

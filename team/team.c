@@ -24,7 +24,7 @@ int main(void) {
 
 	inicializarGlobales();
 
-	iniciar_logger(&LOGGER, CONFIG, "team");
+	LOGGER = generar_logger(CONFIG, "team");
 
 	//---------------------------------------------------------------------------------------
 	// Creacion de hilo planificador

@@ -8,9 +8,8 @@ bool imprimir_con_printf = true; //si se pone false
 int main(int argc, char *argv[]) {
 
 	int conexion = 0;
-	t_log* logger = NULL;
 	t_config* config = leer_config("../game-boy.config");
-	iniciar_logger(&logger, config, "game-boy");
+	t_log* logger = generar_logger(config, "game-boy");
 
 	//verifico que lo ingresado por consola sea correcto
 	verificar_Entrada(argc, argv);
@@ -20,9 +19,7 @@ int main(int argc, char *argv[]) {
 		conexion = iniciar_conexion_como_cliente("BROKER", config);
 
 		if(conexion <= 0){
-			printf("\n");
-			error_show(" Error de conexion\n\n");
-			exit(-1);
+			imprimir_error_y_terminar_programa("Error de conexion");
 		}
 
 		char *orden_de_suscripcion = string_new();
@@ -36,9 +33,7 @@ int main(int argc, char *argv[]) {
 		conexion = iniciar_conexion_como_cliente(argv[1], config);
 
 		if(conexion <= 0){
-			printf("\n");
-			error_show(" Error de conexion\n\n");
-			exit(-1);
+			imprimir_error_y_terminar_programa("Error de conexion");
 		}
 
 		log_info(logger, "Se realizo una conexion con %s, para enviar el mensaje %s", argv[1], argv[2]);
@@ -256,9 +251,9 @@ void iniciar_hilo_para_desuscripcion(int tiempo_suscripcion, int conexion_con_br
 	arg->codigo_desuscripcion = codigo_desuscripcion;
 
 	pthread_t thread;
-	if(0 != pthread_create(&thread, NULL, (void*) contador_de_tiempo, (void*)arg)){
-		error_show(" No se pudo crear un hilo de gameboy\n\n");
-		exit(-1);
+	if(0 != pthread_create(&thread, NULL, (void*) contador_de_tiempo, (void*)arg))
+	{
+		imprimir_error_y_terminar_programa("No se pudo crear un hilo de gameboy");
 	}
 	pthread_detach(thread);
 }
@@ -563,17 +558,15 @@ void despachar_Localized(int conexion, int argc, char *argv[])
 	//esta funcion no es llamada desde despacharMensaje() ni de verificarEntrada()
 	//cuando la quiera sacar solo tengo que sacar esta funcion
 
-	if(argc < 4){
-		printf("\n");
-		error_show(" Para GET_POKEMON debe ingresar los argumentos con el siguiente formato:\n"
-						"./gameboy [PROCESO] LOCALIZED_POKEMON [PARES DE COORDENADAS]*\n\n");
-						//y el id_correlativo?..
-		exit(-1);
+	if(argc < 4)
+	{
+		imprimir_error_y_terminar_programa("Para GET_POKEMON debe ingresar los argumentos con el siguiente formato:\n"
+				"./gameboy [PROCESO] LOCALIZED_POKEMON [PARES DE COORDENADAS]*");
+		//y el id_correlativo?..
 	}
-	if(argc%2 == 1){
-		printf("\n");
-		error_show(" No ingresaste bien las coordenadas. Deben ser grupos de 2 numeros\n\n");
-		exit(-1);
+	if(argc%2 == 1)
+	{
+		imprimir_error_y_terminar_programa("No ingresaste bien las coordenadas. Deben ser grupos de 2 numeros");
 	}
 
 	int cantidad_pares_de_coordenadas = (argc - 3) / 2;

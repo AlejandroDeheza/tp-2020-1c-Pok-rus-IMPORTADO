@@ -10,7 +10,7 @@
 #include <commons/error.h>
 #include <sys/socket.h>
 
-void iniciar_logger(t_log** logger, t_config* config, char* nombre_proceso);
+t_log* generar_logger(t_config* config, char* nombre_proceso);
 void leer_ip_y_puerto(char** ip, char** puerto, t_config* config, char* nombre_proceso);
 t_config* leer_config(char*);
 
@@ -18,6 +18,8 @@ char* asignar_string_property(t_config*, char* property);
 int asignar_int_property(t_config* config, char* property);
 
 void configuracion_inicial_planificador(t_config* config, int* retardo_cliclo, char** algoritmo);
+
+void imprimir_error_y_terminar_programa(const char* mensaje);
 
 void terminar_programa(int conexion, t_log* logger, t_config* config);
 
