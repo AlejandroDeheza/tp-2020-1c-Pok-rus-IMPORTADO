@@ -414,7 +414,7 @@ void enviar_get_pokemones_requeridos(){
 
 		if((conexion_con_broker == CONECTADO) && (!envie_pokemon(especie_pokemon, get_enviados))){
 			log_info(LOGGER, "Envio GET para la especie %s", especie_pokemon);
-			enviar_get_pokemon(conexion, 0, 0, especie_pokemon);
+			generar_y_enviar_get_pokemon(conexion, 0, 0, especie_pokemon);
 			liberar_conexion(conexion);
 			log_info(LOGGER, "Libero conexion");
 			list_add(get_enviados, especie_pokemon);

@@ -14,9 +14,7 @@ int crear_socket_como_cliente(char *ip, char* puerto)
 
 	int socket_cliente = socket(server_info->ai_family, server_info->ai_socktype, server_info->ai_protocol);
 
-	if(connect(socket_cliente, server_info->ai_addr, server_info->ai_addrlen) == -1){
-		return -1;
-	}
+	if(connect(socket_cliente, server_info->ai_addr, server_info->ai_addrlen) == -1) return -1;
 
 	freeaddrinfo(server_info);
 
@@ -30,15 +28,13 @@ int iniciar_conexion_como_cliente(char *nombre_de_proceso_servidor, t_config* co
 
 	leer_ip_y_puerto(&ip, &puerto, config, nombre_de_proceso_servidor);
 
-	conexion = crear_socket_como_cliente( ip, puerto);
+	conexion = crear_socket_como_cliente(ip, puerto);
 
 	return conexion;
 }
 
-void enviar_mensaje_como_cliente(void* mensaje, int socket_cliente, op_code codigo_operacion, int id_mensaje, int id_correlativo)
+int enviar_mensaje_como_cliente(void* mensaje, int socket_cliente, op_code codigo_operacion, int id_mensaje, int id_correlativo)
 {
-	int estado = 0;
-
 	t_paquete* paquete = malloc(sizeof(t_paquete));
 	paquete->codigo_operacion = codigo_operacion;
 	paquete->id_correlativo = id_correlativo;	//este id lo puede settear el proceso que manda el mensaje
@@ -50,54 +46,48 @@ void enviar_mensaje_como_cliente(void* mensaje, int socket_cliente, op_code codi
 
 	switch (codigo_operacion){
 		case NEW_POKEMON:
-			//printf("Creo un paquete para NEW_POKEMON\n");
 			serializar_new_pokemon(&paquete, mensaje);
 			break;
 
 		case APPEARED_POKEMON:
-			//printf("Creo un paquete para APPEARED_POKEMON\n");
 			serializar_appeared_pokemon(&paquete, mensaje);
 			break;
 
 		case CATCH_POKEMON:
-			//printf("Creo un paquete para CATCH_POKEMON\n");
 			serializar_catch_pokemon(&paquete, mensaje);
 
 			break;
 		case CAUGHT_POKEMON:
-			//printf("Creo un paquete para CAUGHT_POKEMON\n");
 			serializar_caught_pokemon(&paquete, mensaje);
 
 			break;
 		case GET_POKEMON:
-			//printf("Creo un paquete para GET_POKEMON\n");
 			serializar_get_pokemon(&paquete, mensaje);
 			break;
 
 		case LOCALIZED_POKEMON:
-			//printf("Creo un paquete para LOCALIZED_POKEMON\n");
 			serializar_localized_pokemon(&paquete, mensaje);
 			break;
 
 		default:
 			break;
 	}
-	//printf("EnviarMensaje -> Mensaje Empaquetado: \"%s\".\n", (char*)paquete->buffer->stream);
-
 	int bytes = 0;
 	void* aEnviar = serializar_paquete(paquete, &bytes);
-	printf("EnviarMensaje -> Paquete Serializado - Tamaño Total: %d Bytes.\n", bytes);
+	printf("EnviarMensaje -> Paquete Serializado - Tamaño Total: %d Bytes.\n", bytes);	//PARA LAS PRUEBAS COMENTAR ESTO TODO
 
-	estado = send(socket_cliente, aEnviar, bytes, 0);
-	verificar_estado(estado);
+	int estado = send(socket_cliente, aEnviar, bytes, 0);
+	verificar_estado(estado);	//PARA LAS PRUEBAS COMENTAR ESTO TODO
 	free(aEnviar);
 	free(paquete->buffer->stream);
 	free(paquete->buffer);
 	free(paquete);
 	printf("\n");
+
+	return estado;
 }
 
-void enviar_new_pokemon(int conexion, int id_mensaje, int id_correlativo, char* nombre, int posx, int posy, int cantidad)
+void generar_y_enviar_new_pokemon(int conexion, int id_mensaje, int id_correlativo, char* nombre, int posx, int posy, int cantidad)
 {
 	t_new_pokemon* new_pokemon = malloc(sizeof(t_new_pokemon));
 	new_pokemon->size = strlen(nombre) + 1;
@@ -112,7 +102,7 @@ void enviar_new_pokemon(int conexion, int id_mensaje, int id_correlativo, char* 
 	free(new_pokemon);
 }
 
-void enviar_appeared_pokemon(int conexion, int id_mensaje, int id_correlativo, char* nombre, int posx, int posy)
+void generar_y_enviar_appeared_pokemon(int conexion, int id_mensaje, int id_correlativo, char* nombre, int posx, int posy)
 {
 	t_appeared_pokemon* appeared_pokemon = malloc(sizeof(t_appeared_pokemon));
 	appeared_pokemon->size = strlen(nombre) + 1;
@@ -126,7 +116,7 @@ void enviar_appeared_pokemon(int conexion, int id_mensaje, int id_correlativo, c
 	free(appeared_pokemon);
 }
 
-void enviar_catch_pokemon(int conexion, int id_mensaje, int id_correlativo, char* nombre, int posx, int posy)
+void generar_y_enviar_catch_pokemon(int conexion, int id_mensaje, int id_correlativo, char* nombre, int posx, int posy)
 {
 	t_catch_pokemon* catch_pokemon = malloc(sizeof(t_catch_pokemon));
 	catch_pokemon->size = strlen(nombre) + 1;
@@ -140,7 +130,7 @@ void enviar_catch_pokemon(int conexion, int id_mensaje, int id_correlativo, char
 	free(catch_pokemon);
 }
 
-void enviar_caught_pokemon(int conexion, int id_mensaje, int id_correlativo, int resultado)
+void generar_y_enviar_caught_pokemon(int conexion, int id_mensaje, int id_correlativo, int resultado)
 {
 	t_caught_pokemon* caught_pokemon = malloc(sizeof(t_caught_pokemon));
 	caught_pokemon->resultado= resultado;
@@ -149,7 +139,7 @@ void enviar_caught_pokemon(int conexion, int id_mensaje, int id_correlativo, int
 	free(caught_pokemon);
 }
 
-void enviar_get_pokemon(int conexion, int id_mensaje, int id_correlativo, char* nombre)
+void generar_y_enviar_get_pokemon(int conexion, int id_mensaje, int id_correlativo, char* nombre)
 {
 	t_get_pokemon* get_pokemon = malloc(sizeof(t_get_pokemon));
 	get_pokemon->size = strlen(nombre) + 1;
@@ -161,7 +151,7 @@ void enviar_get_pokemon(int conexion, int id_mensaje, int id_correlativo, char* 
 	free(get_pokemon);
 }
 
-void enviar_localized_pokemon(int conexion, int id_mensaje, int id_correlativo, char* nombre, t_list* coordenadas)
+void generar_y_enviar_localized_pokemon(int conexion, int id_mensaje, int id_correlativo, char* nombre, t_list* coordenadas)
 {
 	t_localized_pokemon* localized_pokemon = malloc(sizeof(t_localized_pokemon));
 	localized_pokemon->size = strlen(nombre) + 1;
@@ -189,17 +179,21 @@ void verificar_estado(int estado) {
 	}
 }
 
-void enviar_mensaje_de_suscripcion(int socket_cliente, op_code codigo_operacion) {
+int enviar_mensaje_de_suscripcion(int socket_cliente, op_code codigo_operacion) {
 	int estado = 0;
 	estado = send(socket_cliente, &codigo_operacion, sizeof(op_code), 0);
 	verificar_estado(estado);
+
+	return estado;
 }
 
 // es practiamente igual a mensaje_de_suscripcion() pero bueno.. asi deberia ser el ack?
-void enviar_ack(int socket_cliente, op_code codigo_operacion){
+int enviar_ack(int socket_cliente, op_code codigo_operacion){
 	int estado = 0;
 	estado = send(socket_cliente, &codigo_operacion, sizeof(op_code), 0);
 	verificar_estado(estado);
+
+	return estado;
 }
 
 //saco los mutex porque eso se deberia manejar por afuera de la funcion
@@ -213,11 +207,8 @@ void* recibir_mensaje_como_cliente(int socket_cliente)
 	if(recv(socket_cliente, &id_correlativo, sizeof(int), 0) <= 0)return NULL;
 	int id_mensaje = 0;
 	if(recv(socket_cliente, &id_mensaje, sizeof(int), 0) <= 0)return NULL;
-
 	int size;
 	if(recv(socket_cliente,&size, sizeof(int), 0) <= 0)return NULL;
-	printf("Socket %d\n", socket_cliente);
-	printf("RecibirMensaje -> Size: %d Bytes.\n", size);
 
 	void* mensaje = malloc(size);
 	if(recv(socket_cliente,mensaje, size, 0) <= 0)return NULL;
@@ -226,32 +217,26 @@ void* recibir_mensaje_como_cliente(int socket_cliente)
 
 	switch (codigo_operacion){
 		case NEW_POKEMON:
-			printf("Leo un NEW_POKEMON\n");
 			response = deserializar_new_pokemon(mensaje);
 			break;
 
 		case APPEARED_POKEMON:
-			printf("Leo un APPEARED_POKEMON\n");
 			response = deserializar_appeared_pokemon(mensaje);
 			break;
 
 		case CATCH_POKEMON:
-			printf("Leo un CATCH_POKEMON\n");
 			response = deserializar_catch_pokemon(mensaje);
 			break;
 
 		case CAUGHT_POKEMON:
-			printf("Leo un CAUGHT_POKEMON\n");
 			response = deserializar_caught_pokemon(mensaje);
 			break;
 
 		case GET_POKEMON:
-			printf("Leo un GET_POKEMON\n");
 			response = deserializar_get_pokemon(mensaje);
 			break;
 
 		case LOCALIZED_POKEMON:
-			printf("Leo un LOCALIZED_POKEMON\n");
 			response = deserializar_localized_pokemon(mensaje);
 			break;
 	}

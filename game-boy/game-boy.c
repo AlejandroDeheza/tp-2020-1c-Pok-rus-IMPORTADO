@@ -18,12 +18,9 @@ int main(int argc, char *argv[]) {
 
 		conexion = iniciar_conexion_como_cliente("BROKER", config);
 
-		if(conexion <= 0){
-			imprimir_error_y_terminar_programa("Error de conexion");
-		}
+		if(conexion <= 0) imprimir_error_y_terminar_programa("Error de conexion con BROKER");
 
-		char *orden_de_suscripcion = string_new();
-		string_append_with_format(&orden_de_suscripcion, "SUBSCRIBE_%s", argv[2]);
+		char *orden_de_suscripcion = string_from_format("SUBSCRIBE_%s", argv[2]);
 		log_info(logger, "Se realizo una conexion con BROKER, para enviar el mensaje %s", orden_de_suscripcion);
 		free(orden_de_suscripcion);
 
@@ -32,9 +29,7 @@ int main(int argc, char *argv[]) {
 	}else{	// esto se ejecuta si estamos en MODO NORMAL / MODO NO SUSCRIPTOR
 		conexion = iniciar_conexion_como_cliente(argv[1], config);
 
-		if(conexion <= 0){
-			imprimir_error_y_terminar_programa("Error de conexion");
-		}
+		if(conexion <= 0) imprimir_error_y_terminar_programa("Error de conexion");
 
 		log_info(logger, "Se realizo una conexion con %s, para enviar el mensaje %s", argv[1], argv[2]);
 
@@ -186,7 +181,8 @@ void iniciar_modo_suscriptor(int conexion, t_log* logger, char* cola_a_suscribir
 	obtener_codigos(cola_a_suscribirse, &codigo_suscripcion, &codigo_desuscripcion);
 
 	//envio mensaje a BROKER para suscribirme a una cola
-	enviar_mensaje_de_suscripcion(conexion, codigo_suscripcion);
+	if(enviar_mensaje_de_suscripcion(conexion, codigo_suscripcion) <= 0) imprimir_error_y_terminar_programa("No se pudo enviar mensaje de suscripcion a BROKER");
+
 	log_info(logger, "Se realizo una suscripcion a la cola de mensajes %s", cola_a_suscribirse);
 
 	//este hilo cierra el socket cuando se acabe el tiempo de suscripcion
@@ -201,12 +197,14 @@ void iniciar_modo_suscriptor(int conexion, t_log* logger, char* cola_a_suscribir
 		if(mensaje == NULL)break;
 
 		//si no hay error, se envia ACK al BROKER
-		enviar_ack(conexion, codigo_suscripcion);
+		enviar_ack(conexion, codigo_suscripcion);// MIRAR VALOR DE RETORNO TODO
 		//estos ACK estan bien? revisar TODO
 		//no deberia estar relacionado con el id_mensaje y el id_correlativo?
 
 		//se imprime por pantalla el mensaje recibido (si imprimir_con_printf == true) y retorna un String con el mensaje a loguear.
-		char* mensaje_para_loguear = imprimir_mensaje_recibido(mensaje, codigo_suscripcion);
+		imprimir_mensaje_recibido(mensaje, codigo_suscripcion);	//COMENTAR PARA LAS PRUEBAS TODO
+
+		char* mensaje_para_loguear = generar_mensaje_para_loggear(mensaje, codigo_suscripcion);
 
 		//se loguea el mensaje y vuelve a empezar el bucle
 		log_info(logger, "Se recibio el mensaje <<%s>> de la cola %s", mensaje_para_loguear, cola_a_suscribirse);
@@ -282,7 +280,7 @@ void* contador_de_tiempo(void* argumentos)
 
 char* imprimir_mensaje_recibido(void* mensaje, op_code codigo_operacion)
 {
-	char* mensaje_para_loguear;
+	char* mensaje_para_loguear = NULL;
 
 	switch (codigo_operacion)
 	{
@@ -331,8 +329,7 @@ char* imprimir_new_pokemon(void* mensaje_a_imprimir)
 		(char*) mensaje->nombre, mensaje->coordenadas.posx, mensaje->coordenadas.posy, mensaje->cantidad);
 	}
 
-	char* mensaje_para_loguear = string_new();
-	string_append_with_format(&mensaje_para_loguear, "NEW_POKEMON %s %i %i %i",
+	char* mensaje_para_loguear = string_from_format("NEW_POKEMON %s %i %i %i",
 			(char*) mensaje->nombre, mensaje->coordenadas.posx, mensaje->coordenadas.posy, mensaje->cantidad);
 
 	free(mensaje->nombre);
@@ -354,8 +351,7 @@ char* imprimir_appeared_pokemon(void* mensaje_a_imprimir)
 		(char*) mensaje->nombre, mensaje->coordenadas.posx, mensaje->coordenadas.posy);
 	}
 
-	char* mensaje_para_loguear = string_new();
-	string_append_with_format(&mensaje_para_loguear, "APPEARED_POKEMON %s %i %i",
+	char* mensaje_para_loguear = string_from_format("APPEARED_POKEMON %s %i %i",
 			(char*) mensaje->nombre, mensaje->coordenadas.posx, mensaje->coordenadas.posy);
 
 	free(mensaje->nombre);
@@ -377,8 +373,7 @@ char* imprimir_catch_pokemon(void* mensaje_a_imprimir)
 		(char*) mensaje->nombre, mensaje->coordenadas.posx, mensaje->coordenadas.posy);
 	}
 
-	char* mensaje_para_loguear = string_new();
-	string_append_with_format(&mensaje_para_loguear, "CATCH_POKEMON %s %i %i",
+	char* mensaje_para_loguear = string_from_format("CATCH_POKEMON %s %i %i",
 			(char*) mensaje->nombre, mensaje->coordenadas.posx, mensaje->coordenadas.posy);
 
 	free(mensaje->nombre);
@@ -398,9 +393,7 @@ char* imprimir_caught_pokemon(void* mensaje_a_imprimir)
 		mensaje->resultado);
 	}
 
-	char* mensaje_para_loguear = string_new();
-	string_append_with_format(&mensaje_para_loguear, "CAUGHT_POKEMON %i",
-			(char*) mensaje->resultado);
+	char* mensaje_para_loguear = string_from_format("CAUGHT_POKEMON %i", (char*) mensaje->resultado);
 
 	free(mensaje);
 
@@ -418,9 +411,7 @@ char* imprimir_get_pokemon(void* mensaje_a_imprimir)
 				(char*) mensaje->nombre);
 	}
 
-	char* mensaje_para_loguear = string_new();
-	string_append_with_format(&mensaje_para_loguear, "GET_POKEMON %s",
-			(char*) mensaje->nombre);
+	char* mensaje_para_loguear = string_from_format("GET_POKEMON %s", (char*) mensaje->nombre);
 
 	free(mensaje->nombre);
 	free(mensaje);
@@ -439,9 +430,7 @@ char* imprimir_localized_pokemon(void* mensaje_a_imprimir)
 				(char*) mensaje->nombre);
 	}
 
-	char* mensaje_para_loguear = string_new();
-	string_append_with_format(&mensaje_para_loguear, "LOCALIZED_POKEMON %s %i",
-			(char*) mensaje->nombre, (mensaje->coordenadas->elements_count)/2);
+	char* mensaje_para_loguear = string_from_format("LOCALIZED_POKEMON %s %i", (char*) mensaje->nombre, (mensaje->coordenadas->elements_count)/2);
 
 	for(int i = 0 ; i < mensaje->coordenadas->elements_count ; i++)
 	{
@@ -456,8 +445,7 @@ char* imprimir_localized_pokemon(void* mensaje_a_imprimir)
 					posx, posy);
 		}
 
-		string_append_with_format(&mensaje_para_loguear, " %i %i",
-				posx, posy);
+		string_append_with_format(&mensaje_para_loguear, " %i %i", posx, posy);
 	}
 	list_destroy_and_destroy_elements(mensaje->coordenadas, free);
 	free(mensaje->nombre);
@@ -496,7 +484,7 @@ void despachar_New(int conexion, char *argv[])
 	if(strcmp(argv[1],"GAMECARD")==0)	//SE ENVIO EL MENSAJE PARA GAMECARD
 		id_mensaje = atoi(argv[7]);
 
-	enviar_new_pokemon(conexion, id_mensaje, id_correlativo, argv[3], posx, posy, cantidad);
+	generar_y_enviar_new_pokemon(conexion, id_mensaje, id_correlativo, argv[3], posx, posy, cantidad);
 }
 
 void despachar_Appeared(int conexion, char *argv[])
@@ -509,7 +497,7 @@ void despachar_Appeared(int conexion, char *argv[])
 	if(strcmp(argv[1],"BROKER")==0)	 	//SE ENVIO EL MENSAJE PARA BROKER
 		id_correlativo = atoi(argv[6]);
 
-	enviar_appeared_pokemon(conexion, id_mensaje, id_correlativo, argv[3], posx, posy);
+	generar_y_enviar_appeared_pokemon(conexion, id_mensaje, id_correlativo, argv[3], posx, posy);
 }
 
 void despachar_Catch(int conexion, char *argv[])
@@ -522,7 +510,7 @@ void despachar_Catch(int conexion, char *argv[])
 	if(strcmp(argv[1],"GAMECARD")==0)	//SE ENVIO EL MENSAJE PARA GAMECARD
 		id_mensaje = atoi(argv[6]);
 
-	enviar_catch_pokemon(conexion, id_mensaje, id_correlativo, argv[3], posx, posy);
+	generar_y_enviar_catch_pokemon(conexion, id_mensaje, id_correlativo, argv[3], posx, posy);
 }
 
 void despachar_Caught(int conexion, char *argv[])
@@ -536,7 +524,7 @@ void despachar_Caught(int conexion, char *argv[])
 		resultado = 1;
 	}
 
-	enviar_caught_pokemon(conexion, id_mensaje, id_correlativo, resultado);
+	generar_y_enviar_caught_pokemon(conexion, id_mensaje, id_correlativo, resultado);
 }
 
 void despachar_Get(int conexion, char *argv[])
@@ -547,7 +535,7 @@ void despachar_Get(int conexion, char *argv[])
 	if(strcmp(argv[1],"GAMECARD")==0)	//SE ENVIO EL MENSAJE PARA GAMECARD
 		id_mensaje = atoi(argv[4]);
 
-	enviar_get_pokemon(conexion, id_mensaje, id_correlativo, argv[3]);
+	generar_y_enviar_get_pokemon(conexion, id_mensaje, id_correlativo, argv[3]);
 }
 
 void despachar_Localized(int conexion, int argc, char *argv[])
@@ -588,7 +576,7 @@ void despachar_Localized(int conexion, int argc, char *argv[])
 	int id_mensaje = 0;
 	int id_correlativo = 0;
 
-	enviar_localized_pokemon(conexion, id_mensaje, id_correlativo, argv[3], lista_coordenadas);
+	generar_y_enviar_localized_pokemon(conexion, id_mensaje, id_correlativo, argv[3], lista_coordenadas);
 	list_destroy_and_destroy_elements(lista_coordenadas, free);
 
 }

@@ -10,76 +10,31 @@ int main(void) {
 
 	iniciar_file_system();
 
-/*
+	pthread_t thread_new_appeared = iniciar_hilo_de_mensajes("NEW_POKEMON", SUBSCRIBE_NEW_POKEMON);
+
+	pthread_t thread_catch_caught = iniciar_hilo_de_mensajes("CATCH_POKEMON", SUBSCRIBE_CATCH_POKEMON);
+
+	pthread_t thread_get_localized = iniciar_hilo_de_mensajes("GET_POKEMON", SUBSCRIBE_GET_POKEMON);
+
+	pthread_join(thread_new_appeared, NULL);
+	pthread_join(thread_catch_caught, NULL);
+	pthread_join(thread_get_localized, NULL);
+
+
+
+
+
+
 	pthread_mutex_t mutex;
 	pthread_mutex_init(&mutex, NULL);
 
-	int conex_appeared = 0;
-	pthread_t thread_appeared;
-
-	int conex_catch = 0;
-	pthread_t thread_catch;
-
-	int conex_get = 0;
-	pthread_t thread_get;
-
-	//log_info(logger, "Suscribiendo a las colas de mensajes");
-
-	int op_code = 0;
-
-
-	//void suscribir(t_config* config) {
-	//	suscribirse_a_broker(config, "BROKER", op_code);
-	//	log_info(logger, "Se realizo una suscripcion a la cola de mensajes ...");
-	//}
 
 
 
 
-	conex_catch = suscribirse_a_broker(CONFIG, SUBSCRIBE_CATCH_POKEMON);
-	log_info(LOGGER, "Se realizo una suscripcion a la cola de mensajes CATCH_POKEMON");
-	sleep(1);
 
-	conex_appeared = suscribirse_a_broker(CONFIG, SUBSCRIBE_APPEARED_POKEMON);
-	log_info(LOGGER, "Se realizo una suscripcion a la cola de mensajes APPEARED_POKEMON");
-	sleep(1);
+	config_destroy(METADATA_METADATA_BIN);
 
-	conex_get = suscribirse_a_broker(CONFIG, SUBSCRIBE_GET_POKEMON);
-	log_info(LOGGER, "Se realizo una suscripcion a la cola de mensajes GET_POKEMON");
-
-	void* recibir_y_dar_ack(void* arg){
-
-		int socket_cliente = *((int*)arg);
-
-		pthread_mutex_lock(&mutex);
-		void* response = recibir_mensaje_como_cliente(socket_cliente);
-		pthread_mutex_unlock(&mutex);
-		if(response == NULL){
-			pthread_exit(NULL);
-		}
-		log_info(LOGGER, "recibio mensaje");
-		enviar_ack(socket_cliente, op_code);
-		log_info(LOGGER, "envio Ack");// creo que no hay logs obligatorios para gamecard
-		return response;
-	}
-
-	while(1){
-
-		pthread_create(&thread_appeared,NULL,(void*)recibir_y_dar_ack, (void*)&conex_appeared);
-		pthread_detach(thread_appeared);
-
-		pthread_create(&thread_get,NULL,(void*)recibir_y_dar_ack, (void*)&conex_get);
-		pthread_detach(thread_get);
-
-		pthread_create(&thread_catch,NULL,(void*)recibir_y_dar_ack, (void*)&conex_catch);
-		pthread_detach(thread_catch);
-
-	}
-
-	terminar_programa(conex_appeared, LOGGER, CONFIG);
-	terminar_programa(conex_catch, LOGGER, CONFIG);
-	terminar_programa(conex_get, LOGGER, CONFIG);
-	*/
     int retorno = msync(BITMAP->bitarray, BITMAP->size, MS_SYNC);
 
     if(retorno == -1) log_info(LOGGER, "[[ERROR]] Ocurrio un error al usar mysinc()");
@@ -93,6 +48,8 @@ int main(void) {
 
 void executar_antes_de_terminar(int numero_senial)
 {
+	config_destroy(METADATA_METADATA_BIN);
+
 	log_info(LOGGER, "Se recibio la senial : %i  -- terminando programa", numero_senial);
 
     int retorno = msync(BITMAP->bitarray, BITMAP->size, MS_SYNC);
@@ -106,6 +63,100 @@ void executar_antes_de_terminar(int numero_senial)
 	exit(0);
 }
 
+pthread_t iniciar_hilo_de_mensajes(char* cola_a_suscribirse, op_code codigo_suscripcion)
+{
+	argumentos_de_hilo* arg = malloc(sizeof(argumentos_de_hilo));
+	arg->mensaje = cola_a_suscribirse;
+	arg->codigo_operacion = codigo_suscripcion;
+
+	pthread_t thread;
+	if(0 != pthread_create(&thread, NULL, conectar_recibir_y_enviar_mensajes, (void*)arg))
+		imprimir_error_y_terminar_programa("No se pudo crear hilo conectar_recibir_y_enviar_mensaje()");
+
+	return thread;
+}
+
+void* conectar_recibir_y_enviar_mensajes(void* argumentos)
+{
+	argumentos_de_hilo* args = argumentos;
+	char* cola_a_suscribirse = args->mensaje;
+	op_code codigo_suscripcion = args->codigo_operacion;
+
+	int tiempo_de_reintento_conexion = asignar_int_property(CONFIG, "TIEMPO_DE_REINTENTO_CONEXION");
+
+	while(true)
+	{
+		int conexion = iniciar_conexion_como_cliente("BROKER", CONFIG);
+
+		while(conexion <= 0)
+		{
+			log_info(LOGGER, "La conexion con el BROKER para suscribirse a cola %s fallo. Reintentando conexion en : %i segundos", cola_a_suscribirse, tiempo_de_reintento_conexion);
+
+			sleep(tiempo_de_reintento_conexion);
+
+			conexion = iniciar_conexion_como_cliente("BROKER", CONFIG);
+		}
+
+		log_info(LOGGER, "Se realizo una conexion con BROKER, para suscribirse a cola %s", cola_a_suscribirse);
+
+		if(enviar_mensaje_de_suscripcion(conexion, codigo_suscripcion) <= 0) continue;
+
+		log_info(LOGGER, "Se realizo una suscripcion a la cola de mensajes %s del BROKER", cola_a_suscribirse);
+
+		while(true)
+		{
+			//queda bloqueado hasta que el gameboy recibe un mensaje,
+			void* mensaje = recibir_mensaje_como_cliente(conexion);	//GUARDA QUE NO TE DA LOS IDS DE MENSAJE TODO
+
+			//si se recibe el mensaje de error (que se genera si se CAE EL BROKER), se sale de este while(true) y reintenta la conexion
+			if(mensaje == NULL) break;
+
+			//si no hay error, se envia ACK al BROKER
+			if(enviar_ack(conexion, codigo_suscripcion) <= 0) break;
+			//deberias intentar hacer la tarea asignada y reintentar enviar ACK (LUEGO DE VOLVER A CONECTAR...) TODO
+
+			//estos ACK estan bien? revisar TODO
+			//no deberia estar relacionado con el id_mensaje y el id_correlativo?
+
+			//retorna un String con el mensaje a loguear.
+			char* mensaje_para_loguear = generar_mensaje_para_loggear(mensaje, codigo_suscripcion);
+
+			//se loguea el mensaje y vuelve a empezar el bucle
+			log_info(LOGGER, "Se recibio el mensaje <<%s>> de la cola %s", mensaje_para_loguear, cola_a_suscribirse);
+
+			free(mensaje_para_loguear);
+
+			iniciar_hilo_para_tratar_y_responder_mensaje(mensaje, codigo_suscripcion);
+		}
+	}
+
+	return NULL;
+}
+
+void iniciar_hilo_para_tratar_y_responder_mensaje(void* mensaje, op_code codigo_operacion)
+{
+	argumentos_de_hilo* arg = malloc(sizeof(argumentos_de_hilo));
+	arg->mensaje = mensaje;
+	arg->codigo_operacion = codigo_operacion;
+
+	pthread_t thread;
+	if(0 != pthread_create(&thread, NULL, tratar_y_responder_mensaje, (void*)arg))
+		imprimir_error_y_terminar_programa("No se pudo crear hilo tratar_y_responder_mensaje()");
+
+	pthread_detach(thread);
+}
+
+void* tratar_y_responder_mensaje(void* argumentos)
+{
+	//ESTE HILO SE VA A ENCARGAR DE REALIZAR LA TAREA ASIGNADA A LA RECEPCION DE ESE MENSAJE
+	//LUEGO SE ENCARGARA DE ENVIARLO AL BROKER
+	//DEBE ESPERAR A QUE EL BROKER LE RESPONDA Y DEBE GUARDAR LOS DATOS QUE EL BROKER LE BRINDE
+	//SI TODO ESO VA BIEN, EL HILO FINALIZA
+	//SI NO RECIBE RESPUESTA DEL BROKER, EL HILO VA REINTENTAR ENVIARLO HASTA QUE OBTENGA RESPUESTA DEL BROKER
+
+	return NULL;
+}
+
 void iniciar_file_system()
 {
 	char* punto_montaje_file_system = asignar_string_property(CONFIG, "PUNTO_MONTAJE_TALLGRASS");
@@ -113,24 +164,14 @@ void iniciar_file_system()
 
 	generar_estructura_file_system_si_hace_falta(punto_montaje_file_system);
 
-	t_config* metadata_metadata_bin = config_para_file_system(punto_montaje_file_system, "/Metadata/Metadata.bin");
+	METADATA_METADATA_BIN = config_para_file_system(punto_montaje_file_system, "/Metadata/Metadata.bin");
 
-	int cant_max_bloques = asignar_int_property(metadata_metadata_bin, "BLOCKS");
+	int cant_max_bloques = asignar_int_property(METADATA_METADATA_BIN, "BLOCKS");
 
 	char* path_metadata_bitmap_bin = string_from_format("%s/Metadata/Bitmap.bin", punto_montaje_file_system);
 
 	BITMAP = mapear_bitmap_en_memoria(path_metadata_bitmap_bin, cant_max_bloques/8);
 	free(path_metadata_bitmap_bin);
-
-	//bitarray_c_bit(BITMAP, 56);
-	//bitarray_set_bit(BITMAP, 83);
-
-	printf("\n%i\n", bitarray_test_bit(BITMAP, 56));
-	printf("\n%i\n", bitarray_test_bit(BITMAP, 83));
-	printf("\n%i\n", bitarray_test_bit(BITMAP, 0));
-	printf("\n%i\n", bitarray_test_bit(BITMAP, 3));
-
-	config_destroy(metadata_metadata_bin);
 }
 
 t_config* config_para_file_system(char* punto_montaje_file_system, char* path_archivo)
@@ -290,21 +331,3 @@ void generar_bloques_bin_que_hagan_falta(char* punto_montaje_file_system, int ca
 	}
 }
 
-
-
-
-
-
-int suscribirse_a_broker(t_config* config, op_code nombre_cola)
-{
-	int conexion = iniciar_conexion_como_cliente("BROKER", config);
-
-	if(conexion <= 0)
-	{
-		imprimir_error_y_terminar_programa("Error de conexion en suscribirse_a_broker()");
-	}
-
-	enviar_mensaje_de_suscripcion(conexion, nombre_cola);
-
-	return conexion;
-};

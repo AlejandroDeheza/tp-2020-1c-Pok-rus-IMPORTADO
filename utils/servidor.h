@@ -18,7 +18,7 @@
 int crear_socket_para_escuchar(char *ipServidor, char* puertoServidor);
 int aceptar_una_conexion(int socket_servidor);
 
-void enviar_mensaje_a_suscriptores(void* mensaje, int size_mensaje, int socket_cliente, op_code codigo_operacion, int id_mensaje, int id_correlativo);
+int enviar_mensaje_a_suscriptores(void* mensaje, int size_mensaje, int socket_cliente, op_code codigo_operacion, int id_mensaje, int id_correlativo);
 
 int tomar_cod_op_del_mensaje(int* socket);
 int tomar_id_correlativo(int* socket);
