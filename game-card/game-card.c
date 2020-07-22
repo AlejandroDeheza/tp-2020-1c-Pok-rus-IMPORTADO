@@ -2,11 +2,13 @@
 
 int main(int argc, char *argv[]) {
 
-	signal(SIGTERM, &executar_antes_de_terminar);
-	signal(SIGINT, &executar_antes_de_terminar);
+	signal(SIGTERM, &ejecutar_antes_de_terminar);
+	signal(SIGINT, &ejecutar_antes_de_terminar);
 
 	CONFIG = leer_config("../game-card.config");
 	LOGGER = generar_logger(CONFIG, "game-card");
+
+	log_error(LOGGER, "PROBANDO LOG_ERRROR(). NO PASO NINGUN ERROR");
 
 	verificar_e_interpretar_entrada(argc, argv);
 
@@ -42,7 +44,7 @@ int main(int argc, char *argv[]) {
 
     int retorno = msync(BITMAP->bitarray, BITMAP->size, MS_SYNC);
 
-    if(retorno == -1) log_info(LOGGER, "[[ERROR]] Ocurrio un error al usar mysinc()");
+    if(retorno == -1) log_error(LOGGER, "Ocurrio un error al usar mysinc()");
 
 	munmap(BITMAP->bitarray, BITMAP->size);
 
@@ -51,7 +53,7 @@ int main(int argc, char *argv[]) {
 	return EXIT_SUCCESS;
 }
 
-void executar_antes_de_terminar(int numero_senial)
+void ejecutar_antes_de_terminar(int numero_senial)
 {
 	config_destroy(METADATA_METADATA_BIN);
 
@@ -59,7 +61,7 @@ void executar_antes_de_terminar(int numero_senial)
 
     int retorno = msync(BITMAP->bitarray, BITMAP->size, MS_SYNC);
 
-    if(retorno == -1) log_info(LOGGER, "[[ERROR]] Ocurrio un error al usar mysinc()");
+    if(retorno == -1) log_error(LOGGER, "Ocurrio un error al usar mysinc()");
 
 	munmap(BITMAP->bitarray, BITMAP->size);
 
@@ -99,20 +101,11 @@ void* conectar_recibir_y_enviar_mensajes(void* argumentos)
 	char* cola_a_suscribirse = args->stream;
 	op_code codigo_suscripcion = args->entero;
 
-	int tiempo_de_reintento_conexion = asignar_int_property(CONFIG, "TIEMPO_DE_REINTENTO_CONEXION");
-
 	while(true)
 	{
-		int conexion = iniciar_conexion_como_cliente("BROKER", CONFIG);
-
-		while(conexion <= 0)
-		{
-			log_info(LOGGER, "La conexion con el BROKER para suscribirse a cola %s fallo. Reintentando conexion en : %i segundos", cola_a_suscribirse, tiempo_de_reintento_conexion);
-
-			sleep(tiempo_de_reintento_conexion);
-
-			conexion = iniciar_conexion_como_cliente("BROKER", CONFIG);
-		}
+		char* mensaje_de_logueo_al_reintentar_conexion = string_from_format("La conexion con el BROKER para suscribirse a cola %s fallo.", cola_a_suscribirse);
+		int conexion = conectar_a_broker_y_reintentar_si_hace_falta(mensaje_de_logueo_al_reintentar_conexion);
+		free(mensaje_de_logueo_al_reintentar_conexion);
 
 		log_info(LOGGER, "Se realizo una conexion con BROKER, para suscribirse a cola %s", cola_a_suscribirse);
 
@@ -151,6 +144,24 @@ void* conectar_recibir_y_enviar_mensajes(void* argumentos)
 	return NULL;
 }
 
+int conectar_a_broker_y_reintentar_si_hace_falta(char* mensaje_de_logueo_al_reintentar_conexion)
+{
+	int conexion = iniciar_conexion_como_cliente("BROKER", CONFIG);
+
+	int tiempo_de_reintento_conexion = asignar_int_property(CONFIG, "TIEMPO_DE_REINTENTO_CONEXION");
+
+	while(conexion <= 0)
+	{
+		log_info(LOGGER, "%s Reintentando conexion en : %i segundos", mensaje_de_logueo_al_reintentar_conexion, tiempo_de_reintento_conexion);
+
+		sleep(tiempo_de_reintento_conexion);
+
+		conexion = iniciar_conexion_como_cliente("BROKER", CONFIG);
+	}
+
+	return conexion;
+}
+
 void iniciar_hilo_para_tratar_y_responder_mensaje(int id_mensaje_recibido, void* mensaje, op_code codigo_suscripcion)
 {
 	argumentos_de_hilo* arg = malloc(sizeof(argumentos_de_hilo));
@@ -179,18 +190,6 @@ void iniciar_hilo_para_tratar_y_responder_mensaje(int id_mensaje_recibido, void*
 	pthread_detach(thread);
 }
 
-void* tratar_y_responder_mensaje(void* argumentos)
-{
-	//ESTE HILO SE VA A ENCARGAR DE REALIZAR LA TAREA ASIGNADA A LA RECEPCION DE ESE MENSAJE
-	//LUEGO SE ENCARGARA DE ENVIARLO AL BROKER
-	//DEBE ESPERAR A QUE EL BROKER LE MANDE ID MENSAJE...QUE ME SIRVE DE ACK...
-	//SI TODO ESO VA BIEN, EL HILO FINALIZA
-	//SI NO RECIBE RESPUESTA DEL BROKER, EL HILO VA REINTENTAR ENVIARLO HASTA QUE OBTENGA RESPUESTA DEL BROKER. O NO? porque hay que cambiar el socket...
-	//por ahora, si no se puede enviar, terminas el hilo
-
-	return NULL;
-}
-
 void* atender_new_pokemon(void* argumentos)
 {
 	argumentos_de_hilo* args = argumentos;
@@ -199,39 +198,19 @@ void* atender_new_pokemon(void* argumentos)
 
 	if(verificar_si_existe(mensaje->nombre) == false) crear_archivo(mensaje->nombre);
 
-	int tiempo_de_reintento_operacion = asignar_int_property(CONFIG, "TIEMPO_DE_REINTENTO_OPERACION");
-
-	bool se_puede_abrir = verificar_si_se_puede_abrir(mensaje->nombre);
-
-	while(se_puede_abrir == false)
-	{
-		sleep(tiempo_de_reintento_operacion);
-
-		se_puede_abrir = verificar_si_se_puede_abrir(mensaje->nombre);
-	}
+	pedir_archivo(mensaje->nombre);
 
 	agregar_cantidad(mensaje->nombre);
 
-	int tiempo_de_retardo_operacion = asignar_int_property(CONFIG, "TIEMPO_RETARDO_OPERACION");
+	retener_un_rato_y_liberar_archivo(mensaje->nombre);
 
-	sleep(tiempo_de_retardo_operacion);
-
-	liberar_archivo(mensaje->nombre);
-
-	int conexion = iniciar_conexion_como_cliente("BROKER", CONFIG);
-
-	int tiempo_de_reintento_conexion = asignar_int_property(CONFIG, "TIEMPO_DE_REINTENTO_CONEXION");
-
-	while(conexion <= 0)
-	{
-		log_info(LOGGER, "La conexion con el BROKER para enviar appeared_pokemon fallo. Reintentando conexion en : %i segundos", tiempo_de_reintento_conexion);
-
-		sleep(tiempo_de_reintento_conexion);
-
-		conexion = iniciar_conexion_como_cliente("BROKER", CONFIG);
-	}
+	int conexion = conectar_a_broker_y_reintentar_si_hace_falta("La conexion con el BROKER para enviar APPEARED_POKEMON fallo.");
+	//NO SERIA NECESARIO REINTENTAR CONEXION SI EL TEAM REINTENTA ENVIAR LOS PEDIDOS QUE NO RECIBE. REVISAR TODO
 
 	int estado = generar_y_enviar_appeared_pokemon(conexion, 0, id_mensaje_recibido, mensaje->nombre, mensaje->coordenadas.posx, mensaje->coordenadas.posy);
+
+	verificar_estado_del_envio_y_cerrar_conexion("APPEARED_POKEMON", estado, conexion);
+
 	/*
 	Verificar si el Pokémon existe dentro de nuestro Filesystem. Para esto se deberá buscar dentro del directorio Pokemon si existe el archivo con el nombre de nuestro pokémon. En caso de no existir se deberá crear.
 	Verificar si se puede abrir el archivo (si no hay otro proceso que lo esté abriendo). En caso que el archivo se encuentre abierto se deberá reintentar la operación luego de un tiempo definido en el archivo de configuración.
@@ -254,46 +233,39 @@ void* atender_catch_pokemon(void* argumentos)
 	int id_mensaje_recibido = args->entero;
 	t_catch_pokemon* mensaje = args->stream;
 
+	int resultado_caught = 0;
+
 	if(verificar_si_existe(mensaje->nombre) == false)
-		log_info(LOGGER, "ERROR : Se recibio catch_pokemon. No existe pokemon solicitado en file system. Nombre del pokemon: %s", mensaje->nombre);
-
-	int tiempo_de_reintento_operacion = asignar_int_property(CONFIG, "TIEMPO_DE_REINTENTO_OPERACION");
-
-	bool se_puede_abrir = verificar_si_se_puede_abrir(mensaje->nombre);
-
-	while(se_puede_abrir == false)
 	{
-		sleep(tiempo_de_reintento_operacion);
+		log_error(LOGGER, "Se recibio CATCH_POKEMON. No existe pokemon solicitado en file system. Nombre del pokemon: %s", mensaje->nombre);
 
-		se_puede_abrir = verificar_si_se_puede_abrir(mensaje->nombre);
+		conectar_enviar_verificar_caught(id_mensaje_recibido, resultado_caught);
+
+		pthread_exit(NULL);	//ASI SE HACE PARA TERMINAR UN HILO?? REVISAR TODO
 	}
+
+	pedir_archivo(mensaje->nombre);
 
 	if(verificar_si_existen_posiciones(mensaje->nombre, mensaje->coordenadas.posx, mensaje->coordenadas.posy) == false)
-		log_info(LOGGER, "ERROR : Se recibio catch_pokemon. No existe pokemon en ubicacion solicitada en file system. "
+	{
+		retener_un_rato_y_liberar_archivo(mensaje->nombre);
+
+		log_error(LOGGER, "Se recibio CATCH_POKEMON. No existe pokemon en ubicacion solicitada en file system. "
 				"Nombre del pokemon: %s posx: %i posy %i", mensaje->nombre, mensaje->coordenadas.posx, mensaje->coordenadas.posy);
 
-	int resultado_caught = evaluar_catch_y_reducir_cantidad(mensaje->nombre);
+		conectar_enviar_verificar_caught(id_mensaje_recibido, resultado_caught);
 
-	int tiempo_de_retardo_operacion = asignar_int_property(CONFIG, "TIEMPO_RETARDO_OPERACION");
-
-	sleep(tiempo_de_retardo_operacion);
-
-	liberar_archivo(mensaje->nombre);
-
-	int conexion = iniciar_conexion_como_cliente("BROKER", CONFIG);
-
-	int tiempo_de_reintento_conexion = asignar_int_property(CONFIG, "TIEMPO_DE_REINTENTO_CONEXION");
-
-	while(conexion <= 0)
-	{
-		log_info(LOGGER, "La conexion con el BROKER para enviar caught_pokemon fallo. Reintentando conexion en : %i segundos", tiempo_de_reintento_conexion);
-
-		sleep(tiempo_de_reintento_conexion);
-
-		conexion = iniciar_conexion_como_cliente("BROKER", CONFIG);
+		pthread_exit(NULL);	//ASI SE HACE PARA TERMINAR UN HILO?? REVISAR TODO
 	}
 
-	int estado = generar_y_enviar_caught_pokemon(conexion, 0, id_mensaje_recibido, resultado_caught);
+	reducir_cantidad(mensaje->nombre);
+
+	resultado_caught = 1;
+
+	retener_un_rato_y_liberar_archivo(mensaje->nombre);
+
+	conectar_enviar_verificar_caught(id_mensaje_recibido, resultado_caught);
+
 	/*
 	Este mensaje cumplirá la función de indicar si es posible capturar un Pokemon, y capturarlo en tal caso. Para esto se recibirán los siguientes parámetros:
 	ID del mensaje recibido.
@@ -316,17 +288,58 @@ void* atender_catch_pokemon(void* argumentos)
 	return NULL;
 }
 
+void conectar_enviar_verificar_caught(int id_mensaje_recibido, int resultado_caught)
+{
+	char* mensaje_de_logueo_al_reintentar_conexion = string_from_format("La conexion con el BROKER para enviar CAUGHT_POKEMON fallo.");
+	int conexion = conectar_a_broker_y_reintentar_si_hace_falta(mensaje_de_logueo_al_reintentar_conexion);
+	free(mensaje_de_logueo_al_reintentar_conexion);
+
+	int estado = generar_y_enviar_caught_pokemon(conexion, 0, id_mensaje_recibido, resultado_caught);
+
+	verificar_estado_del_envio_y_cerrar_conexion("CAUGHT_POKEMON", estado, conexion);
+}
+
 void* atender_get_pokemon(void* argumentos)
 {
 	argumentos_de_hilo* args = argumentos;
 	int id_mensaje_recibido = args->entero;
 	t_get_pokemon* mensaje = args->stream;
 
+	if(verificar_si_existe(mensaje->nombre) == false)
+	{
+		log_error(LOGGER, "Se recibio GET_POKEMON. No existe pokemon solicitado en file system. Nombre del pokemon: %s", mensaje->nombre);
+
+		char* mensaje_de_logueo_al_reintentar_conexion = string_from_format("La conexion con el BROKER para enviar LOCALIZED_POKEMON fallo.");
+		int conexion = conectar_a_broker_y_reintentar_si_hace_falta(mensaje_de_logueo_al_reintentar_conexion);
+		free(mensaje_de_logueo_al_reintentar_conexion);
+
+		int estado = generar_y_enviar_localized_pokemon(conexion, 0, id_mensaje_recibido, mensaje->nombre, NULL);
+		//VERIFICAR QUE TEAM SABE ENTENDER UNA LISTA NULL. TODO
+
+		verificar_estado_del_envio_y_cerrar_conexion("LOCALIZED_POKEMON", estado, conexion);
+
+		pthread_exit(NULL);	//ASI SE HACE PARA TERMINAR UN HILO?? REVISAR TODO
+	}
+
+	pedir_archivo(mensaje->nombre);
+
+	t_list* lista_posiciones = obtener_todas_las_posiciones(mensaje->nombre);
+
+	retener_un_rato_y_liberar_archivo(mensaje->nombre);
+
+	char* mensaje_de_logueo_al_reintentar_conexion = string_from_format("La conexion con el BROKER para enviar LOCALIZED_POKEMON fallo.");
+	int conexion = conectar_a_broker_y_reintentar_si_hace_falta(mensaje_de_logueo_al_reintentar_conexion);
+	free(mensaje_de_logueo_al_reintentar_conexion);
+
+	int estado = generar_y_enviar_localized_pokemon(conexion, 0, id_mensaje_recibido, mensaje->nombre, lista_posiciones);
+
+	verificar_estado_del_envio_y_cerrar_conexion("LOCALIZED_POKEMON", estado, conexion);
+
 	/*
 	Este mensaje cumplirá la función de obtener todas las posiciones y su cantidad de un Pokémon específico. Para esto recibirá:
 	El identificador del mensaje recibido.
 	Pokémon a devolver.
-	Al recibir este mensaje se deberán realizar las siguientes operaciones:
+
 	Verificar si el Pokémon existe dentro de nuestro Filesystem. Para esto se deberá buscar dentro del directorio Pokemon, si existe el archivo con el nombre de nuestro pokémon. En caso de no existir se deberá informar el mensaje sin posiciones ni cantidades.
 	Verificar si se puede abrir el archivo (si no hay otro proceso que lo esté abriendo). En caso que el archivo se encuentre abierto se deberá reintentar la operación luego de un tiempo definido por configuración.
 	Obtener todas las posiciones y cantidades de Pokemon requerido.
@@ -340,6 +353,40 @@ void* atender_get_pokemon(void* argumentos)
 	En caso que no se pueda realizar la conexión con el Broker se debe informar por logs y continuar la ejecución.
 	*/
 	return NULL;
+}
+
+void pedir_archivo(char* nombre_pokemon)
+{
+	int tiempo_de_reintento_operacion = asignar_int_property(CONFIG, "TIEMPO_DE_REINTENTO_OPERACION");
+
+	bool se_puede_abrir = verificar_si_se_puede_abrir(nombre_pokemon);
+
+	while(se_puede_abrir == false)
+	{
+		sleep(tiempo_de_reintento_operacion);
+
+		se_puede_abrir = verificar_si_se_puede_abrir(nombre_pokemon);
+	}
+}
+
+void retener_un_rato_y_liberar_archivo(char* nombre_pokemon)
+{
+	int tiempo_de_retardo_operacion = asignar_int_property(CONFIG, "TIEMPO_RETARDO_OPERACION");
+
+	sleep(tiempo_de_retardo_operacion);
+
+	liberar_archivo(nombre_pokemon);
+}
+
+void verificar_estado_del_envio_y_cerrar_conexion(char* tipo_mensaje, int estado, int conexion)
+{
+	if(estado <= 0){
+		log_error(LOGGER, "No se pudo enviar %s al BROKER. Continuando operacion del GAME CARD", tipo_mensaje);
+	}else{
+		esperar_id_mensaje_enviado(conexion);	//EL GAMECARD NO HACE NADA CON EL ID, SOLO TIENE QUE ESPERARLO
+	}
+
+	close(conexion);
 }
 
 void iniciar_file_system()

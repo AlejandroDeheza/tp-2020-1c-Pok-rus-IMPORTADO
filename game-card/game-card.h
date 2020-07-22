@@ -35,7 +35,7 @@ typedef struct
 	void* stream;
 } argumentos_de_hilo;
 
-void executar_antes_de_terminar(int numero_senial);
+void ejecutar_antes_de_terminar(int numero_senial);
 
 void verificar_e_interpretar_entrada(int argc, char *argv[]);
 
@@ -55,6 +55,5 @@ t_bitarray* mapear_bitmap_en_memoria(char* archivo, size_t size_memoria_a_mapear
 pthread_t iniciar_hilo_de_mensajes(char* cola_a_suscribirse, op_code codigo_suscripcion);
 void* conectar_recibir_y_enviar_mensajes(void* argumentos);
 void iniciar_hilo_para_tratar_y_responder_mensaje(void* mensaje, op_code codigo_operacion);
-void* tratar_y_responder_mensaje(void* argumentos);
 
 #endif
