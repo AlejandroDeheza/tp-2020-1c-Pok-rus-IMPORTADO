@@ -122,7 +122,7 @@ void thread_process_request(int cod_op, int cliente_fd)
 			break;
 		case NEW_POKEMON:
 			dar_aviso(cliente_fd,&suscribers_new_pokemon, NEW_POKEMON);
-			esperar_ack(&suscribers_new_pokemon);
+			esperar_ack(&suscribers_new_pokemon);	//DEBERIAS USAR EL SOCKET COMO IDENTIFICARDOR DEL PROCESO, ALMENOS SIRVE PARA ESPERAR EL ACK.. TODO
 			break;
 		case APPEARED_POKEMON:
 			dar_aviso(cliente_fd,&suscribers_appeared_pokemon, APPEARED_POKEMON);
@@ -160,7 +160,15 @@ void suscribir(int cliente_fd, t_list *lista){
 	printf("Suscribiendo\n");
 	int* socket = malloc(sizeof(int));
 	*socket = cliente_fd;
-	list_add(lista, socket);
+	list_add(lista, socket);	//EL SOCKET SOLO SE USA PARA ATENDER LOS MENSAJES EN SISTUACIONES NORMALES
+	//SI BROKER U OTRO PROCESO SE CAE, HAY QUE ACTUALIZAR SOCKET CUANDO TODO ESTE ESTABLE
+
+	int id_manual_del_proceso = 0;	// ESTO TAMBIEN SE DEBERIA GUARDAR EN LA LISTA TODO
+	//SI ES == 0, ENTONCES TENDRIA UN COMPORTAMIENTO POR DEFAULT --> NO LE ENVIA NADA SI EL PROCESO SE CAE Y SE RECONECTA, POR EJ TODO
+	recv(cliente_fd, &id_manual_del_proceso, sizeof(int), 0);
+
+
+	//HACE FALTA ENVIAR ACK DEL MENSAJE DE SUSCRIPCION?? TODO
 }
 
 void desuscribir(int cliente_fd, t_list *lista){
@@ -185,7 +193,7 @@ void dar_aviso(int cliente_fd, t_list *listaDeSuscriptores, int op_code){
 	int id_correlativo = 0;
 	recv(cliente_fd, &id_correlativo, sizeof(int), 0);
 
-	int id_mensaje = 0;
+	int id_mensaje = 0;	//EL BROKER DEBERIA GENERAR UN ID Y GUARDARLO EN ALGUNA PARTE. TAMBIEN DEBERIA MANDAR ESE ID AL EMISOR DEL MENSAJE TODO
 	recv(cliente_fd, &id_mensaje, sizeof(int), 0);
 
 	int size_buffer = 0;
@@ -205,17 +213,19 @@ void esperar_ack(t_list *listaDeSuscriptores)
 	t_list *duplicada =  list_duplicate(listaDeSuscriptores);
 
 	while(cantidadDeAckRecibidos < list_size(listaDeSuscriptores)){
+
 	bool ack(void* arg){
-		int cod_op;
+		int id_mensaje_del_ack;
 		int cliente = *((int*)arg);
-		if(recv(cliente, &cod_op, sizeof(int), MSG_WAITALL) > -1) {
-			printf("Codigo de operacion del ack %d", cod_op);
+		if(recv(cliente, &id_mensaje_del_ack, sizeof(int), MSG_WAITALL) > -1) {
+			printf("Codigo de mensaje del ack %d", id_mensaje_del_ack);	// AL RECIBIR ACK DEBERIA HACER OTRA COSA... TODO
 			cantidadDeAckRecibidos =+ 1;
 			return 0;
 		} else {
 			return 1;
 		}
 	}
+
 		list_remove_by_condition(duplicada, ack);
 	}
 	pthread_exit(NULL);

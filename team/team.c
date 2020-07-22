@@ -18,7 +18,9 @@ const int RAFAGAS_CATCH = 1;
 
 
 
-int main(void) {
+int main(int argc, char *argv[]) {
+
+	verificar_e_interpretar_entrada(argc, argv);
 
 	CONFIG = leer_config("../team.config");
 
@@ -76,6 +78,18 @@ int main(void) {
 
 	exit(0);
 
+}
+
+void verificar_e_interpretar_entrada(int argc, char *argv[])
+{
+	if(argc > 1 ){
+		error_show(" Ingresaste mas argumentos de los necesarios.\n"
+				"Solo se puede ingresar un argumento, el ID_MANUAL_DEL_PROCESO, que es opcional.\n"
+				"Si no se ingresa, se setea en 0\n\n");
+		exit(-1);
+	}
+
+	if(argc == 1) ID_MANUAL_DEL_PROCESO = atoi(argv[1]);
 }
 
 //----------------------------------------------------------------------------------------------------------
@@ -484,7 +498,7 @@ void suscribirse_a_colas(){
   			reintentar_conexion_con_broker(conexion);
   		}
 
-  		enviar_mensaje_de_suscripcion(conexion, queue_suscripcion);
+  		enviar_mensaje_de_suscripcion(conexion, queue_suscripcion, ID_MANUAL_DEL_PROCESO);
   		log_info(LOGGER, "Suscripcion a cola de mensajes %s realizada", suscripcion);
   		pthread_mutex_unlock(&mutex_suscripciones);
 
@@ -558,8 +572,11 @@ void reintentar_conexion_con_broker(int conexion){
 //----------------------------------------------------------------------------------------------------------
 void recibir_con_semaforo(int socket_cliente, pthread_mutex_t mutex, op_code tipo_mensaje){
 
+	int id_correlativo = 0;		//EL TEAM SI USA EL ID CORRELATIVO. ARREGLAR TODO
+	int id_mensaje = 0;
+
 	pthread_mutex_lock(&mutex);
-	void* response = recibir_mensaje_como_cliente(socket_cliente);
+	void* response = recibir_mensaje_como_cliente(socket_cliente, &id_correlativo, &id_mensaje);
 	pthread_mutex_unlock(&mutex);
 
 	if(response == NULL){

@@ -23,6 +23,8 @@
 t_config* CONFIG;
 t_log* LOGGER;
 
+int ID_MANUAL_DEL_PROCESO = 0;
+
 //--------------------------------------------------------------------------
 // Sockets de conexion con broker
 //--------------------------------------------------------------------------
@@ -63,6 +65,9 @@ t_list* entrenadores_blocked_espera;
 t_list* entrenadores_blocked_sin_espera;
 t_list* entrenadores_exec;
 t_list* pokemones_recibidos;
+
+
+void verificar_e_interpretar_entrada(int argc, char *argv[]);
 
 //--------------------------------------------------------------------------
 // Metodos para iniciar proceso

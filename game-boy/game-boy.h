@@ -40,13 +40,13 @@ char* imprimir_get_pokemon(void* mensaje_a_imprimir);
 char* imprimir_localized_pokemon(void* mensaje_a_imprimir);
 
 /* DESPACHAR MENSAJES  */
-void despachar_Mensaje(int conexion, char *argv[]);
+int despachar_Mensaje(int conexion, char *argv[]);
 
-void despachar_New(int conexion, char *argv[]);
-void despachar_Appeared(int conexion, char *argv[]);
-void despachar_Catch(int conexion, char *argv[]);
-void despachar_Caught(int conexion, char *argv[]);
-void despachar_Get(int conexion, char *argv[]);
-void despachar_Localized(int conexion, int argc, char *argv[]);
+int despachar_New(int conexion, char *argv[]);
+int despachar_Appeared(int conexion, char *argv[]);
+int despachar_Catch(int conexion, char *argv[]);
+int despachar_Caught(int conexion, char *argv[]);
+int despachar_Get(int conexion, char *argv[]);
+int despachar_Localized(int conexion, int argc, char *argv[]);
 
 #endif

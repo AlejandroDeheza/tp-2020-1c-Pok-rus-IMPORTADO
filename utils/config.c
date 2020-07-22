@@ -99,6 +99,30 @@ char* generar_mensaje_para_loggear(void* mensaje, op_code codigo_operacion)
 			mensaje_para_loguear = generar_localized_pokemon_para_loggear(mensaje);
 			break;
 
+		case NEW_POKEMON:
+			mensaje_para_loguear = generar_new_pokemon_para_loguear(mensaje);
+			break;
+
+		case APPEARED_POKEMON:
+			mensaje_para_loguear = generar_appeared_pokemon_para_loggear(mensaje);
+			break;
+
+		case CATCH_POKEMON:
+			mensaje_para_loguear = generar_catch_pokemon_para_loggear(mensaje);
+			break;
+
+		case CAUGHT_POKEMON:
+			mensaje_para_loguear = generar_caught_pokemon_para_loggear(mensaje);
+			break;
+
+		case GET_POKEMON:
+			mensaje_para_loguear = generar_get_pokemon_para_loggear(mensaje);
+			break;
+
+		case LOCALIZED_POKEMON:
+			mensaje_para_loguear = generar_localized_pokemon_para_loggear(mensaje);
+			break;
+
 		default:
 			break;
 	}

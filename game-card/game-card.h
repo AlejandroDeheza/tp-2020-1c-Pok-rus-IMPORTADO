@@ -27,13 +27,17 @@ t_log* LOGGER = NULL;
 t_bitarray* BITMAP = NULL;
 t_config* METADATA_METADATA_BIN = NULL;
 
+int ID_MANUAL_DEL_PROCESO = 0;
+
 typedef struct
 {
-	void* mensaje;
-	op_code codigo_operacion;
+	int* entero;
+	void* stream;
 } argumentos_de_hilo;
 
 void executar_antes_de_terminar(int numero_senial);
+
+void verificar_e_interpretar_entrada(int argc, char *argv[]);
 
 void iniciar_file_system();
 
