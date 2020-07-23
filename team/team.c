@@ -10,6 +10,8 @@
 
 #include "team.h"
 
+
+int ID_MANUAL_DEL_PROCESO_TEAM = 0;
 //--------------------------------------------------------------------------
 // Constantes
 //--------------------------------------------------------------------------
@@ -89,7 +91,7 @@ void verificar_e_interpretar_entrada(int argc, char *argv[])
 		exit(-1);
 	}
 
-	if(argc == 1) ID_MANUAL_DEL_PROCESO = atoi(argv[1]);
+	if(argc == 1) ID_MANUAL_DEL_PROCESO_TEAM = atoi(argv[1]);
 }
 
 //----------------------------------------------------------------------------------------------------------
@@ -498,7 +500,7 @@ void suscribirse_a_colas(){
   			reintentar_conexion_con_broker(conexion);
   		}
 
-  		enviar_mensaje_de_suscripcion(conexion, queue_suscripcion, ID_MANUAL_DEL_PROCESO);
+  		enviar_mensaje_de_suscripcion(conexion, queue_suscripcion, ID_MANUAL_DEL_PROCESO_TEAM);
   		log_info(LOGGER, "Suscripcion a cola de mensajes %s realizada", suscripcion);
   		pthread_mutex_unlock(&mutex_suscripciones);
 

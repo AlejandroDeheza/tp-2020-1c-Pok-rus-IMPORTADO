@@ -31,7 +31,7 @@ int ID_MANUAL_DEL_PROCESO = 0;
 
 typedef struct
 {
-	int* entero;
+	int entero;
 	void* stream;
 } argumentos_de_hilo;
 
@@ -54,6 +54,16 @@ t_bitarray* mapear_bitmap_en_memoria(char* archivo, size_t size_memoria_a_mapear
 
 pthread_t iniciar_hilo_de_mensajes(char* cola_a_suscribirse, op_code codigo_suscripcion);
 void* conectar_recibir_y_enviar_mensajes(void* argumentos);
-void iniciar_hilo_para_tratar_y_responder_mensaje(void* mensaje, op_code codigo_operacion);
+int conectar_a_broker_y_reintentar_si_hace_falta(char* mensaje_de_logueo_al_reintentar_conexion);
+
+void iniciar_hilo_para_tratar_y_responder_mensaje(int id_mensaje_recibido, void* mensaje, op_code codigo_operacion);
+void* atender_new_pokemon(void* argumentos);
+void* atender_catch_pokemon(void* argumentos);
+void* atender_get_pokemon(void* argumentos);
+
+void conectar_enviar_verificar_caught(int id_mensaje_recibido, int resultado_caught);
+void pedir_archivo(char* nombre_pokemon);
+void retener_un_rato_y_liberar_archivo(char* nombre_pokemon);
+void verificar_estado_del_envio_y_cerrar_conexion(char* tipo_mensaje, int estado, int conexion);
 
 #endif

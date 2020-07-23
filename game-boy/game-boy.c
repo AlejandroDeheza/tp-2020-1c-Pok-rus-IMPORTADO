@@ -37,7 +37,7 @@ int main(int argc, char *argv[]) {
 		int estado = despachar_Mensaje(conexion, argv);
 		if(estado <= 0) imprimir_error_y_terminar_programa("Error al enviar mensaje al BROKER");
 
-		int id_mensaje_enviado = esperar_id_mensaje_enviado();	//EL GAMEBOY NO HACE NADA CON ESTO
+		int id_mensaje_enviado = esperar_id_mensaje_enviado(conexion);	//EL GAMEBOY NO HACE NADA CON ESTO
 		//SE VA A QUEDAR BLOQUEADO SI EL BROKER SE CAE...PERO NO CREO QUE PASE JUSTO CUANDO LE ENVIAMOS UN MENSAJE
 		if(id_mensaje_enviado <= 0) imprimir_error_y_terminar_programa("Error al recibir id_mensaje_enviado del BROKER");
 	}
@@ -280,7 +280,7 @@ void* contador_de_tiempo(void* argumentos)
 	//se envia mensaje a BROKER para que este deje de enviarnos mensajes
 	//hay que cambiar esto del lado del BROKER, no deberia ser necesario hacer esto porque el GAMEBOY podria cortarse abruptamente
 	//TODO
-	enviar_mensaje_de_suscripcion(conexion_con_broker, codigo_desuscripcion);
+	enviar_mensaje_de_suscripcion(conexion_con_broker, codigo_desuscripcion, 0);
 
 	//con esta funcion se corta la conexion, asi se corta el bucle de iniciar_modo_suscriptor()
 	shutdown(conexion_con_broker, SHUT_RDWR);
