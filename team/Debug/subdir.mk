@@ -4,12 +4,19 @@
 
 # Add inputs and outputs from these tool invocations to the build variables 
 C_SRCS += \
+../planificador.c \
 ../team.c 
 
+O_SRCS += \
+../team.o \
+../utils.o 
+
 OBJS += \
+./planificador.o \
 ./team.o 
 
 C_DEPS += \
+./planificador.d \
 ./team.d 
 
 

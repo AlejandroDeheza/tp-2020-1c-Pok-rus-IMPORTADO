@@ -1,8 +1,9 @@
 #include "servidor.h"
 
+int crear_socket_para_escuchar(char *ipServidor, char* puertoServidor){
+	//esta funcion es equivalente a iniciar_servidor()
+	//pero esta retorna el socket del servidor
 
-void iniciar_servidor(char *ip, char* puerto)
-{
 	int socket_servidor;
 
     struct addrinfo hints, *servinfo, *p;
@@ -12,10 +13,10 @@ void iniciar_servidor(char *ip, char* puerto)
     hints.ai_socktype = SOCK_STREAM;
     hints.ai_flags = AI_PASSIVE;
 
-    getaddrinfo(ip, puerto, &hints, &servinfo);
+    getaddrinfo(ipServidor, puertoServidor, &hints, &servinfo);
 
-    for (p=servinfo; p != NULL; p = p->ai_next)
-    {
+    for (p=servinfo; p != NULL; p = p->ai_next){
+
         if ((socket_servidor = socket(p->ai_family, p->ai_socktype, p->ai_protocol)) == -1)
             continue;
 
@@ -30,49 +31,56 @@ void iniciar_servidor(char *ip, char* puerto)
 
     freeaddrinfo(servinfo);
 
-    while(1)
-    	esperar_cliente(socket_servidor);
+    return socket_servidor;
 }
 
-void esperar_cliente(int socket_servidor)
-{
+int aceptar_una_conexion(int socket_servidor){
 	struct sockaddr_in dir_cliente;
-	pthread_t thread;
 
 	int tam_direccion = sizeof(struct sockaddr_in);
 
 	int socket_cliente = accept(socket_servidor, (void*) &dir_cliente,(void*) &tam_direccion);
 
-	pthread_create(&thread,NULL,(void*)serve_client,&socket_cliente);
-	pthread_detach(thread);
-
+	return socket_cliente;
 }
 
-void serve_client(int* socket)
+//Es bastante parecido a enviar_mensaje_como_cliente() de cliente.c, pero este no serializa, ya que el broker al enterarse de que recibio un mensaje,
+// lo redistribuye y no pierde tiempo deserializando y serializando
+int enviar_mensaje_a_suscriptores(void* mensaje, int size_mensaje, int socket_cliente, op_code codigo_operacion, int id_mensaje, int id_correlativo)
 {
-	int cod_op;
-	if(recv(*socket, &cod_op, sizeof(int), MSG_WAITALL) == -1)
-		cod_op = -1;
-	process_request(cod_op, *socket);
+	t_paquete* paquete = malloc(sizeof(t_paquete));
+	paquete->codigo_operacion = codigo_operacion;
+	paquete->id_correlativo = id_correlativo;	//este id lo puede settear el proceso que manda el mensaje
+												//tambien lo puede dejar en 0 si no conoce el id
+	paquete->id_mensaje = id_mensaje;	//EL ID_MENSAJE SIEMPRE LO SETEA EL BROKER
+								//a menos que el gameboy envie un mensaje a gamecard
+								//en ese caso lo seteamos nosotros desde consola
+	paquete->buffer = malloc(sizeof(t_buffer));
+
+	paquete->buffer->size = size_mensaje;
+	paquete->buffer->stream = malloc(paquete->buffer->size);
+	memcpy(paquete->buffer->stream, mensaje, paquete->buffer->size);
+
+	int bytes = 0;
+	void* aEnviar = serializar_paquete(paquete, &bytes);
+	printf("EnviarMensaje -> Paquete Serializado - Tamaño Total: %d Bytes.\n", bytes);
+
+	int estado = send(socket_cliente, aEnviar, bytes, MSG_NOSIGNAL); //soy Ale,
+	//agrego el flag "MSG_NOSIGNAL" por lo que decian en este issue: https://github.com/sisoputnfrba/foro/issues/1707
+	//lo marco como TODO para que esto resalte un poco y lo puedan mirar despues
+
+	verificar_estado(estado);
+
+	free(aEnviar);
+	free(paquete->buffer->stream);
+	free(paquete->buffer);
+	free(paquete);
+
+	return estado;
 }
 
-void process_request(int cod_op, int cliente_fd) {
-	int size;
-	void* msg;
-		switch (cod_op) {
-		case MENSAJE:
-			msg = recibir_mensaje_servidor(cliente_fd, &size);
-			devolver_mensaje(msg, size, cliente_fd);
-			free(msg);
-			break;
-		case 0:
-			pthread_exit(NULL);
-		case -1:
-			pthread_exit(NULL);
-		}
-}
-
-void* recibir_mensaje_servidor(int socket_cliente, int* size)
+/**************vv funciones anteriores vv*****************/
+void* recibir_buffer(int socket_cliente, int* size)
 {
 	void * buffer;
 
@@ -83,11 +91,27 @@ void* recibir_mensaje_servidor(int socket_cliente, int* size)
 	return buffer;
 }
 
-void devolver_mensaje(void* payload, int size, int socket_cliente)
+void* recibir_mensaje_desde_cliente(int socket_cliente){
+	//esta funcion se puede llamar desde algun proceso (ej: TEAM)
+	//para recibir el "stream" del t_buffer del t_paquete enviado
+
+	void *stream;
+	int size = 0;
+
+	recv(socket_cliente, &size, sizeof(int), MSG_WAITALL);
+	stream = malloc(size);
+	recv(socket_cliente, stream, size, MSG_WAITALL);
+
+	return stream;
+}
+
+void devolver_mensaje(void* payload, int size, int socket_cliente, op_code operacion)
 {
 	t_paquete* paquete = malloc(sizeof(t_paquete));
 
-	paquete->codigo_operacion = 1;
+	paquete->codigo_operacion = operacion;
+	paquete->id_correlativo = 0;	//agregado para que no rompa
+	paquete->id_mensaje = 0;		//agregado para que no rompa
 	paquete->buffer = malloc(sizeof(t_buffer));
 	paquete->buffer->size = size;
 	paquete->buffer->stream = malloc(paquete->buffer->size);
@@ -104,3 +128,4 @@ void devolver_mensaje(void* payload, int size, int socket_cliente)
 	free(paquete->buffer);
 	free(paquete);
 }
+
