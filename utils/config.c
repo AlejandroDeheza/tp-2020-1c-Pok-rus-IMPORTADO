@@ -196,13 +196,14 @@ char* generar_localized_pokemon_para_loggear(void* mensaje_a_imprimir)
 {
 	t_localized_pokemon* mensaje = mensaje_a_imprimir;
 
-	char* mensaje_para_loguear = string_from_format("LOCALIZED_POKEMON nombre: %s cantidad de posiciones: %i", (char*) mensaje->nombre, (mensaje->coordenadas->elements_count)/2);
+	char* mensaje_para_loguear = string_from_format("LOCALIZED_POKEMON nombre: %s cantidad de posiciones: %i", (char*) mensaje->nombre, mensaje->coordenadas->elements_count);
 
 	for(int i = 0 ; i < mensaje->coordenadas->elements_count ; i++)
 	{
-		int posx = *((int*) list_get(mensaje->coordenadas, i));
-		i++;
-		int posy = *((int*) list_get(mensaje->coordenadas, i));
+		t_coordenadas* coordenadas = list_get(mensaje->coordenadas, i);
+
+		int posx = coordenadas->posx;
+		int posy = coordenadas->posy;
 
 		string_append_with_format(&mensaje_para_loguear, " x: %i y: %i", posx, posy);
 	}

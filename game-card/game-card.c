@@ -369,7 +369,7 @@ bool verificar_si_existe(char* nombre_pokemon)
 
 	closedir(carpeta);
 
-	char* path_archivo_con_nombre = string_append_with_format(path_carpeta_con_nombre, "/Metadata.bin");
+	char* path_archivo_con_nombre = string_from_format("%s/Metadata.bin", path_carpeta_con_nombre);
 	free(path_carpeta_con_nombre);
 
 	struct stat datos_archivo;
@@ -395,7 +395,7 @@ void crear_archivo(char* nombre_pokemon)
 
 	crear_carpeta_si_no_existe(path_carpeta_con_nombre);
 
-	char* path_archivo_con_nombre = string_append_with_format(path_carpeta_con_nombre, "/Metadata.bin");
+	char* path_archivo_con_nombre = string_from_format("%s/Metadata.bin", path_carpeta_con_nombre);
 
 	struct stat datos_archivo;
 
@@ -479,7 +479,7 @@ void agregar_cantidad(t_new_pokemon* mensaje)
 
     	fread(contenido_de_un_bloque, tamanio_bloques_del_file_system, 1, archivo_bloque_bin);
 
-    	string_append_with_format(todo_el_archivo_pokemon_en_un_string, "%s", contenido_de_un_bloque);
+    	string_append_with_format(&todo_el_archivo_pokemon_en_un_string, "%s", contenido_de_un_bloque);
     	free(contenido_de_un_bloque);
 
     	fclose(archivo_bloque_bin);
@@ -496,7 +496,7 @@ void agregar_cantidad(t_new_pokemon* mensaje)
     int posy = mensaje->coordenadas.posy;
     char* posicion_buscada_en_string = string_from_format("%i-%i", posx, posy);
 
-    int i = 0;
+    i = 0;
 
     int indice_de_busqueda = -1;
 
@@ -516,7 +516,7 @@ void agregar_cantidad(t_new_pokemon* mensaje)
 
     char* nuevo_archivo_pokemon_en_un_string = string_new();
 
-    int i = 1;
+    i = 1;
 
     if(indice_de_busqueda != -1)
     {	//  SI ESTO SE EJECUTA, REPRESENTA UN --->  agregar_cantidad_en_linea();
@@ -527,11 +527,11 @@ void agregar_cantidad(t_new_pokemon* mensaje)
 
         array_con_linea_de_posicion_y_cantidad[indice_de_busqueda] = string_from_format("%s=%i", posicion_buscada_en_string, cantidad_nueva_de_pokemones);
 
-    	string_append_with_format(nuevo_archivo_pokemon_en_un_string, "%s", array_con_linea_de_posicion_y_cantidad[0]);
+    	string_append_with_format(&nuevo_archivo_pokemon_en_un_string, "%s", array_con_linea_de_posicion_y_cantidad[0]);
 
         while(array_con_linea_de_posicion_y_cantidad[i] != NULL)
         {
-        	string_append_with_format(nuevo_archivo_pokemon_en_un_string, "\n%s", array_con_linea_de_posicion_y_cantidad[i]);
+        	string_append_with_format(&nuevo_archivo_pokemon_en_un_string, "\n%s", array_con_linea_de_posicion_y_cantidad[i]);
 
         	i++;
         }
@@ -544,15 +544,15 @@ void agregar_cantidad(t_new_pokemon* mensaje)
     {	//  SI ESTO SE EJECUTA, REPRESENTA UN --->   agregar_cantidad_al_final();
         char* posicion_para_agregar_al_final = string_from_format("%s=%i", posicion_buscada_en_string, mensaje->cantidad);
 
-    	string_append_with_format(nuevo_archivo_pokemon_en_un_string, "%s", array_con_linea_de_posicion_y_cantidad[0]);
+    	string_append_with_format(&nuevo_archivo_pokemon_en_un_string, "%s", array_con_linea_de_posicion_y_cantidad[0]);
 
         while(array_con_linea_de_posicion_y_cantidad[i] != NULL)
         {
-        	string_append_with_format(nuevo_archivo_pokemon_en_un_string, "\n%s", array_con_linea_de_posicion_y_cantidad[i]);
+        	string_append_with_format(&nuevo_archivo_pokemon_en_un_string, "\n%s", array_con_linea_de_posicion_y_cantidad[i]);
 
         	i++;
         }
-        string_append_with_format(nuevo_archivo_pokemon_en_un_string, "\n%s", posicion_para_agregar_al_final);
+        string_append_with_format(&nuevo_archivo_pokemon_en_un_string, "\n%s", posicion_para_agregar_al_final);
         free(posicion_para_agregar_al_final);
     }
 
@@ -582,7 +582,7 @@ void agregar_cantidad(t_new_pokemon* mensaje)
     int cantidad_de_bloques_necesaria = (atoi(nuevo_value_SIZE_archivo_pokemon) / tamanio_bloques_del_file_system) + segundo_es_division_con_resto;
 
     int j = 0;
-    int i = 0;
+    i = 0;
 
     if(cantidad_de_bloques_anterior == cantidad_de_bloques_necesaria)
     {	//ESTO SE EJECUTA SI ME ALCANZA CON LOS BLOQUES QUE TENGO
@@ -730,7 +730,7 @@ int verificar_si_existen_posiciones(char* nombre_pokemon, int posx, int posy)
 
     	fread(contenido_de_un_bloque, tamanio_bloques_del_file_system, 1, archivo_bloque_bin);
 
-    	string_append_with_format(todo_el_archivo_pokemon_en_un_string, "%s", contenido_de_un_bloque);
+    	string_append_with_format(&todo_el_archivo_pokemon_en_un_string, "%s", contenido_de_un_bloque);
     	free(contenido_de_un_bloque);
 
     	fclose(archivo_bloque_bin);
@@ -753,7 +753,7 @@ int verificar_si_existen_posiciones(char* nombre_pokemon, int posx, int posy)
     free(todo_el_archivo_pokemon_en_un_string);
     char* posicion_buscada_en_string = string_from_format("%i-%i", posx, posy);
 
-    int i = 0;
+    i = 0;
 
     int indice_de_busqueda = -1;
 
@@ -819,7 +819,7 @@ void reducir_cantidad(t_catch_pokemon* mensaje)
 
     	fread(contenido_de_un_bloque, tamanio_bloques_del_file_system, 1, archivo_bloque_bin);
 
-    	string_append_with_format(todo_el_archivo_pokemon_en_un_string, "%s", contenido_de_un_bloque);
+    	string_append_with_format(&todo_el_archivo_pokemon_en_un_string, "%s", contenido_de_un_bloque);
     	free(contenido_de_un_bloque);
 
     	fclose(archivo_bloque_bin);
@@ -836,7 +836,7 @@ void reducir_cantidad(t_catch_pokemon* mensaje)
     int posy = mensaje->coordenadas.posy;
     char* posicion_buscada_en_string = string_from_format("%i-%i", posx, posy);
 
-    int i = 0;
+    i = 0;
 
     int indice_de_busqueda = -1;
 
@@ -856,7 +856,7 @@ void reducir_cantidad(t_catch_pokemon* mensaje)
 
     char* nuevo_archivo_pokemon_en_un_string = string_new();
 
-    int i = 1;
+    i = 1;
 
    	char* linea_de_posicion_encontrada = array_con_linea_de_posicion_y_cantidad[indice_de_busqueda];
     char** key_y_value = string_split(linea_de_posicion_encontrada, "=");
@@ -867,12 +867,12 @@ void reducir_cantidad(t_catch_pokemon* mensaje)
 
     	if(indice_de_busqueda != 0)
     	{
-    		string_append_with_format(nuevo_archivo_pokemon_en_un_string, "%s", array_con_linea_de_posicion_y_cantidad[0]);
+    		string_append_with_format(&nuevo_archivo_pokemon_en_un_string, "%s", array_con_linea_de_posicion_y_cantidad[0]);
 
             while(array_con_linea_de_posicion_y_cantidad[i] != NULL)
             {
             	if(indice_de_busqueda != i)
-            		string_append_with_format(nuevo_archivo_pokemon_en_un_string, "\n%s", array_con_linea_de_posicion_y_cantidad[i]);
+            		string_append_with_format(&nuevo_archivo_pokemon_en_un_string, "\n%s", array_con_linea_de_posicion_y_cantidad[i]);
 
                	i++;
             }
@@ -881,11 +881,11 @@ void reducir_cantidad(t_catch_pokemon* mensaje)
     	{
     		i = 2;
 
-    		string_append_with_format(nuevo_archivo_pokemon_en_un_string, "%s", array_con_linea_de_posicion_y_cantidad[1]);
+    		string_append_with_format(&nuevo_archivo_pokemon_en_un_string, "%s", array_con_linea_de_posicion_y_cantidad[1]);
 
             while(array_con_linea_de_posicion_y_cantidad[i] != NULL)
             {
-               	string_append_with_format(nuevo_archivo_pokemon_en_un_string, "\n%s", array_con_linea_de_posicion_y_cantidad[i]);
+               	string_append_with_format(&nuevo_archivo_pokemon_en_un_string, "\n%s", array_con_linea_de_posicion_y_cantidad[i]);
                	i++;
             }
     	}
@@ -896,11 +896,11 @@ void reducir_cantidad(t_catch_pokemon* mensaje)
 
         array_con_linea_de_posicion_y_cantidad[indice_de_busqueda] = string_from_format("%s=%i", posicion_buscada_en_string, cantidad_nueva_de_pokemones);
 
-      	string_append_with_format(nuevo_archivo_pokemon_en_un_string, "%s", array_con_linea_de_posicion_y_cantidad[0]);
+      	string_append_with_format(&nuevo_archivo_pokemon_en_un_string, "%s", array_con_linea_de_posicion_y_cantidad[0]);
 
         while(array_con_linea_de_posicion_y_cantidad[i] != NULL)
         {
-           	string_append_with_format(nuevo_archivo_pokemon_en_un_string, "\n%s", array_con_linea_de_posicion_y_cantidad[i]);
+           	string_append_with_format(&nuevo_archivo_pokemon_en_un_string, "\n%s", array_con_linea_de_posicion_y_cantidad[i]);
            	i++;
         }
     }
@@ -926,7 +926,7 @@ void reducir_cantidad(t_catch_pokemon* mensaje)
     //**** SE INTERPRETA SI HAY QUE ELIMINAR EL ULTIMO BLOQUE  ****//	TODO
 
     int j = 0;
-    int i = 0;
+    i = 0;
 
     while(j < atoi(nuevo_value_SIZE_archivo_pokemon))
     {
@@ -964,10 +964,10 @@ void reducir_cantidad(t_catch_pokemon* mensaje)
 
     	if(cantidad_de_bloques_necesaria != 0)
     	{
-        	string_append_with_format(nuevo_value_blocks_sin_corchetes, "%s", array_bloques_del_archivo_pokemon[0]);
+        	string_append_with_format(&nuevo_value_blocks_sin_corchetes, "%s", array_bloques_del_archivo_pokemon[0]);
 
         	for(int i = 1; i < cantidad_de_bloques_necesaria; i++)
-        		string_append_with_format(nuevo_value_blocks_sin_corchetes, ",%s", array_bloques_del_archivo_pokemon[i]);
+        		string_append_with_format(&nuevo_value_blocks_sin_corchetes, ",%s", array_bloques_del_archivo_pokemon[i]);
         		//ESTE FOR FUNCIONA?? O TENGO QUE USAR LLAVES? TODO
     	}
 
@@ -996,7 +996,7 @@ void reducir_cantidad(t_catch_pokemon* mensaje)
 t_list* obtener_todas_las_posiciones(char* nombre_pokemon)
 {
 	char* punto_montaje_file_system = asignar_string_property(CONFIG, "PUNTO_MONTAJE_TALLGRASS");
-	char* path_archivo_pokemon_metadata_bin = string_from_format("%s/Files/%s/Metadata.bin", punto_montaje_file_system, (char*) mensaje->nombre);
+	char* path_archivo_pokemon_metadata_bin = string_from_format("%s/Files/%s/Metadata.bin", punto_montaje_file_system, nombre_pokemon);
 	t_config* archivo_pokemon_metadata_bin = config_create(path_archivo_pokemon_metadata_bin);
 
 	if(archivo_pokemon_metadata_bin == NULL)
@@ -1032,7 +1032,7 @@ t_list* obtener_todas_las_posiciones(char* nombre_pokemon)
 
     	fread(contenido_de_un_bloque, tamanio_bloques_del_file_system, 1, archivo_bloque_bin);
 
-    	string_append_with_format(todo_el_archivo_pokemon_en_un_string, "%s", contenido_de_un_bloque);
+    	string_append_with_format(&todo_el_archivo_pokemon_en_un_string, "%s", contenido_de_un_bloque);
     	free(contenido_de_un_bloque);
 
     	fclose(archivo_bloque_bin);
@@ -1056,19 +1056,20 @@ t_list* obtener_todas_las_posiciones(char* nombre_pokemon)
 
     t_list* lista_coordenadas = list_create();
 
-    int i = 0;
+    i = 0;
 
     while(array_con_linea_de_posicion_y_cantidad[i] != NULL)
     {
-        char** key_y_value = string_split(array_con_linea_de_posicion_y_cantidad, "=");
+        char** key_y_value = string_split(array_con_linea_de_posicion_y_cantidad[i], "=");
 
         char** pos_x_pos_y = string_split(key_y_value[0], "-");
 
-        int posx = atoi(pos_x_pos_y[0]);		//REVISAR TEMA *INT O *T_COOR TODO TENGO QUE ARREGLARLO EN TODO EL TP....
-        list_add(lista_coordenadas, &posx);
+        t_coordenadas* coordenadas = malloc(sizeof(t_coordenadas));
 
-        int posy = atoi(pos_x_pos_y[1]);
-        list_add(lista_coordenadas, &posy);
+        coordenadas->posx = atoi(pos_x_pos_y[0]);
+        coordenadas->posy = atoi(pos_x_pos_y[1]);
+
+        list_add(lista_coordenadas, coordenadas);
 
         i++;
 

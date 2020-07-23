@@ -79,7 +79,7 @@ int enviar_mensaje_como_cliente(void* mensaje, int socket_cliente, op_code codig
 	int estado = send(socket_cliente, aEnviar, bytes, 0);
 	verificar_estado(estado);	//PARA LAS PRUEBAS COMENTAR ESTO TODO
 	free(aEnviar);
-	free(paquete->buffer->stream);
+	free(paquete->buffer->stream);		//HACE FALTA ESTE FREE()?? NO HAGO EL FREE() EN GENERAR_Y_ENVIAR_T_ALGO() ??? TODO
 	free(paquete->buffer);
 	free(paquete);
 	printf("\n");

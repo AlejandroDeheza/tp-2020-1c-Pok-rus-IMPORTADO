@@ -61,6 +61,13 @@ void* atender_new_pokemon(void* argumentos);
 void* atender_catch_pokemon(void* argumentos);
 void* atender_get_pokemon(void* argumentos);
 
+bool verificar_si_existe(char* nombre_pokemon);
+void crear_archivo(char* nombre_pokemon);
+void agregar_cantidad(t_new_pokemon* mensaje);
+int verificar_si_existen_posiciones(char* nombre_pokemon, int posx, int posy);
+void reducir_cantidad(t_catch_pokemon* mensaje);
+t_list* obtener_todas_las_posiciones(char* nombre_pokemon);
+
 void conectar_enviar_verificar_caught(int id_mensaje_recibido, int resultado_caught);
 void pedir_archivo(char* nombre_pokemon);
 void retener_un_rato_y_liberar_archivo(char* nombre_pokemon);

@@ -96,7 +96,7 @@ void serializar_get_pokemon(t_paquete** paquete, void* mensaje){
 	memcpy((*paquete)->buffer->stream + offset, get_pokemon->nombre, get_pokemon->size);
 }
 
-void serializar_localized_pokemon(t_paquete** paquete, void* mensaje){
+void serializar_localized_pokemon(t_paquete** paquete, void* mensaje){		//NO PODRIA HACER LOS FREE() ACA?? TODO de t_localized_pokemon y t_coordenadas
 
 	int offset = 0;
 
@@ -242,20 +242,20 @@ t_localized_pokemon* deserializar_localized_pokemon(void *stream){ 	//DESPUES DE
     stream += sizeof(pokemon->size);
     memcpy(&(cantidad_pares_de_coordenadas), stream, sizeof(int));
     stream += sizeof(int);
+
     pokemon->coordenadas = list_create();
 
     int i;
-    t_coordenadas* coordenadas = malloc(sizeof(t_coordenadas));
-
     for(i = 0; i < cantidad_pares_de_coordenadas ; i++)
     {
+        t_coordenadas* coordenadas = malloc(sizeof(t_coordenadas));
+
     	memcpy(&(coordenadas->posx), stream, sizeof(int));
     	stream += sizeof(int);
    	    memcpy(&(coordenadas->posy), stream, sizeof(int));
    	    stream += sizeof(int);
    	    list_add(pokemon->coordenadas, coordenadas);
     }
-    free(coordenadas);
 
 	return pokemon;
 }

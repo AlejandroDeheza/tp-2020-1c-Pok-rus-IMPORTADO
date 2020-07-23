@@ -440,13 +440,14 @@ char* imprimir_localized_pokemon(void* mensaje_a_imprimir)
 				(char*) mensaje->nombre);
 	}
 
-	char* mensaje_para_loguear = string_from_format("LOCALIZED_POKEMON %s %i", (char*) mensaje->nombre, (mensaje->coordenadas->elements_count)/2);
+	char* mensaje_para_loguear = string_from_format("LOCALIZED_POKEMON %s %i", (char*) mensaje->nombre, mensaje->coordenadas->elements_count);
 
 	for(int i = 0 ; i < mensaje->coordenadas->elements_count ; i++)
 	{
-		int posx = *((int*) list_get(mensaje->coordenadas, i));
-		i++;
-		int posy = *((int*) list_get(mensaje->coordenadas, i));
+		t_coordenadas* coordenadas = list_get(mensaje->coordenadas, i);
+
+		int posx = coordenadas->posx;
+		int posy = coordenadas->posy;
 
 		if(imprimir_con_printf){
 
@@ -547,7 +548,7 @@ int despachar_Localized(int conexion, int argc, char *argv[])
 	//esta funcion no es llamada desde despacharMensaje() ni de verificarEntrada()
 	//cuando la quiera sacar solo tengo que sacar esta funcion
 
-	if(argc < 4)imprimir_error_y_terminar_programa("Para GET_POKEMON debe ingresar los argumentos con el siguiente formato:\n"
+	if(argc < 4)imprimir_error_y_terminar_programa("Para LOCALIZED_POKEMON debe ingresar los argumentos con el siguiente formato:\n"
 				"./gameboy [PROCESO] LOCALIZED_POKEMON [PARES DE COORDENADAS]*");
 		//y el id_correlativo?..
 
