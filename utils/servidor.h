@@ -20,14 +20,11 @@ int aceptar_una_conexion(int socket_servidor);
 
 int enviar_mensaje_a_suscriptores(void* mensaje, int size_mensaje, int socket_cliente, op_code codigo_operacion, int id_mensaje, int id_correlativo);
 
-int tomar_cod_op_del_mensaje(int* socket);
-int tomar_id_correlativo(int* socket);
-int tomar_id_mensaje(int* socket);
+bool es_codigo_operacion_valido(op_code codigo_operacion);
 
-void iniciar_servidor(char *ip, char* puerto);
+/**************vv funciones anteriores vv*****************/
 void* recibir_buffer(int socket_cliente, int* size);
 void* recibir_mensaje_desde_cliente(int socket_cliente);
-void process_request(int cod_op, int cliente_fd);
 void devolver_mensaje(void* payload, int size, int socket_cliente, op_code operacion);
 
 #endif /* SERVIDOR_H_ */

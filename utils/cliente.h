@@ -36,7 +36,7 @@ int enviar_mensaje_de_suscripcion(int socket_cliente, op_code codigo_operacion, 
 int esperar_id_mensaje_enviado(int socket_cliente);
 int enviar_ack(int socket_cliente, int id_mensaje_recibido);
 
-void* recibir_mensaje_como_cliente(int socket_cliente, int* id_correlativo, int* id_mensaje);
+void* recibir_mensaje_como_cliente(op_code* codigo_operacion, int socket_cliente, int* id_correlativo, int* id_mensaje);
 void liberar_conexion(int socket_cliente);
 
 #endif /* TEAM_UTILS_H_ */

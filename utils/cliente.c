@@ -228,10 +228,10 @@ int enviar_ack(int socket_cliente, int id_mensaje_recibido){
 //saco los mutex porque eso se deberia manejar por afuera de la funcion
 //no necesitan estar aca adentro
 //asi podemos reutilizar esta funcion
-void* recibir_mensaje_como_cliente(int socket_cliente, int* id_correlativo, int* id_mensaje)
+void* recibir_mensaje_como_cliente(op_code* codigo_operacion, int socket_cliente, int* id_correlativo, int* id_mensaje)
 {
-	int codigo_operacion = 0;	//POR COMO MODELAMOS EL TP, LOS CLIENTES NO NECESITAN ESTO
-	if(recv(socket_cliente, &codigo_operacion, sizeof(op_code), 0) <= 0)return NULL;
+	//POR COMO MODELAMOS EL TP, LOS CLIENTES NO NECESITAN EL CODIGO OPERACION... O NO? TODO
+	if(recv(socket_cliente, codigo_operacion, sizeof(op_code), 0) <= 0)return NULL;
 	//SI SE RECIBEN MENOS BYTES DE LOS PEDIDOS, DEBERIA TIRAR ERROR... TODO EL RECV() NO ERA BLOQUEANTE?
 	//SI CAMBIO ESO ACA, TENGO QUE CAMBIARLO EN TODOS LOS RECV() DEL TP...
 
@@ -246,7 +246,7 @@ void* recibir_mensaje_como_cliente(int socket_cliente, int* id_correlativo, int*
 
 	void* response;
 
-	switch (codigo_operacion){
+	switch (*codigo_operacion){
 		case NEW_POKEMON:
 			response = deserializar_new_pokemon(mensaje);
 			break;
@@ -269,6 +269,9 @@ void* recibir_mensaje_como_cliente(int socket_cliente, int* id_correlativo, int*
 
 		case LOCALIZED_POKEMON:
 			response = deserializar_localized_pokemon(mensaje);
+			break;
+
+		default:
 			break;
 	}
 

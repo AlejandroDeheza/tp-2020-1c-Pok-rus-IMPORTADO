@@ -577,8 +577,10 @@ void recibir_con_semaforo(int socket_cliente, pthread_mutex_t mutex, op_code tip
 	int id_correlativo = 0;		//EL TEAM SI USA EL ID CORRELATIVO. ARREGLAR TODO
 	int id_mensaje = 0;
 
+	op_code codigo_operacion_recibido = 0;
+
 	pthread_mutex_lock(&mutex);
-	void* response = recibir_mensaje_como_cliente(socket_cliente, &id_correlativo, &id_mensaje);
+	void* response = recibir_mensaje_como_cliente(&codigo_operacion_recibido, socket_cliente, &id_correlativo, &id_mensaje);
 	pthread_mutex_unlock(&mutex);
 
 	if(response == NULL){

@@ -79,6 +79,31 @@ int enviar_mensaje_a_suscriptores(void* mensaje, int size_mensaje, int socket_cl
 	return estado;
 }
 
+bool es_codigo_operacion_valido(op_code codigo_operacion)
+{
+	if(		codigo_operacion == NEW_POKEMON ||
+			codigo_operacion == APPEARED_POKEMON ||
+			codigo_operacion == CATCH_POKEMON ||
+			codigo_operacion == CAUGHT_POKEMON ||
+			codigo_operacion == GET_POKEMON ||
+			codigo_operacion == LOCALIZED_POKEMON ||
+			codigo_operacion == SUBSCRIBE_NEW_POKEMON ||
+			codigo_operacion == SUBSCRIBE_APPEARED_POKEMON ||
+			codigo_operacion == SUBSCRIBE_CATCH_POKEMON ||
+			codigo_operacion == SUBSCRIBE_CAUGHT_POKEMON ||
+			codigo_operacion == SUBSCRIBE_GET_POKEMON ||
+			codigo_operacion == SUBSCRIBE_LOCALIZED_POKEMON ||
+			codigo_operacion == UNSUBSCRIBE_NEW_POKEMON ||
+			codigo_operacion == UNSUBSCRIBE_APPEARED_POKEMON ||
+			codigo_operacion == UNSUBSCRIBE_CATCH_POKEMON ||
+			codigo_operacion == UNSUBSCRIBE_CAUGHT_POKEMON ||
+			codigo_operacion == UNSUBSCRIBE_GET_POKEMON ||
+			codigo_operacion == UNSUBSCRIBE_LOCALIZED_POKEMON
+			) return true;
+
+	return false;
+}
+
 /**************vv funciones anteriores vv*****************/
 void* recibir_buffer(int socket_cliente, int* size)
 {

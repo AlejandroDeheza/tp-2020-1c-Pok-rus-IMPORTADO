@@ -20,6 +20,7 @@
 
 #include <cliente.h>
 #include "../utils/config.h"
+#include "servidor.h"
 
 t_config* CONFIG = NULL;
 t_log* LOGGER = NULL;
@@ -52,6 +53,9 @@ void generar_bloques_bin_que_hagan_falta(char* punto_montaje_file_system, int ca
 t_bitarray* mapear_bitmap_en_memoria(char* archivo, size_t size_memoria_a_mapear);
 
 
+pthread_t iniciar_hilo_para_escuchar_gameboy();
+void* recibir_mensajes_de_gameboy();
+
 pthread_t iniciar_hilo_de_mensajes(char* cola_a_suscribirse, op_code codigo_suscripcion);
 void* conectar_recibir_y_enviar_mensajes(void* argumentos);
 int conectar_a_broker_y_reintentar_si_hace_falta(char* mensaje_de_logueo_al_reintentar_conexion);
@@ -70,7 +74,9 @@ t_list* obtener_todas_las_posiciones(char* nombre_pokemon);
 
 void conectar_enviar_verificar_caught(int id_mensaje_recibido, int resultado_caught);
 void pedir_archivo(char* nombre_pokemon);
+bool verificar_si_se_puede_abrir(char* nombre_pokemon);
 void retener_un_rato_y_liberar_archivo(char* nombre_pokemon);
+void liberar_archivo(char* nombre_pokemon);
 void verificar_estado_del_envio_y_cerrar_conexion(char* tipo_mensaje, int estado, int conexion);
 
 #endif

@@ -14,7 +14,7 @@ int main(int argc, char *argv[]) {
 
 	iniciar_file_system();
 
-	pthread_t thread_servidor = iniciar_hilo_servidor("ALGO", 0);	//TODO
+	pthread_t thread_servidor = iniciar_hilo_para_escuchar_gameboy();	//TODO
 
 	pthread_t thread_new_appeared = iniciar_hilo_de_mensajes("NEW_POKEMON", SUBSCRIBE_NEW_POKEMON);
 
@@ -82,6 +82,53 @@ void verificar_e_interpretar_entrada(int argc, char *argv[])
 	if(argc == 1) ID_MANUAL_DEL_PROCESO = atoi(argv[1]);
 }
 
+pthread_t iniciar_hilo_para_escuchar_gameboy()
+{
+	pthread_t thread;
+	if(0 != pthread_create(&thread, NULL, recibir_mensajes_de_gameboy, NULL))
+		imprimir_error_y_terminar_programa("No se pudo crear hilo recibir_mensajes_de_gameboy()");
+
+	return thread;
+}
+
+void* recibir_mensajes_de_gameboy()
+{
+	char* ip = asignar_string_property(CONFIG, "IP_GAMECARD");
+	char* puerto = asignar_string_property(CONFIG, "PUERTO_GAMECARD");
+	int socket_servidor = crear_socket_para_escuchar(ip, puerto);
+
+    while(true)
+    {
+    	int socket_cliente = aceptar_una_conexion(socket_servidor);
+
+    	int id_correlativo = 0;
+		int id_mensaje_recibido = 0; 	//EL GAMECARD SOLO USA ID MENSAJE
+		op_code codigo_operacion_recibido = 0;
+
+		//queda bloqueado hasta que el gamecard recibe un mensaje del gameboy
+		void* mensaje = recibir_mensaje_como_cliente(&codigo_operacion_recibido, socket_cliente, &id_correlativo, &id_mensaje_recibido);
+		//DEBERIA CAMBIAR EL NOMBRE DE ESTA FUNCION TODO
+
+		//CAPAZ, ANTES DE RECIBIR TODO EL MENSAJE, DEBERIA REVISAR EL CODIGO DE OPERACION
+
+		//si se recibe el mensaje de error (que se genera si se CAE EL GAMEBOY O SI HAY UN ERROR), se sale de este while(true) y ESPERA OTRA CONEXION
+		if(mensaje == NULL) break;
+
+		if(es_codigo_operacion_valido(codigo_operacion_recibido) == false) break;
+		//RECHAZA MENSAJES QUE NO ESPERA.. NO SE SI FUNCIONA COMO ESPERO...
+		//CAPAZ DEBERIA ESPERAR UN ID DEL GAMEBOY, UN ID QUE PONGA EN EL .CONFIG TODO
+		//ASI LO IDENTIFICO UNEQUIVOCAMENTE. ASI CON TODOS LOS PROCESOS
+
+		char* mensaje_para_loguear = generar_mensaje_para_loggear(mensaje, codigo_operacion_recibido);
+		log_info(LOGGER, "Se recibio el mensaje <<%s>> del GAMEBOY", mensaje_para_loguear);
+		free(mensaje_para_loguear);
+
+		iniciar_hilo_para_tratar_y_responder_mensaje(id_mensaje_recibido, mensaje, codigo_operacion_recibido);
+    }
+
+	return NULL;
+}
+
 pthread_t iniciar_hilo_de_mensajes(char* cola_a_suscribirse, op_code codigo_suscripcion)
 {
 	argumentos_de_hilo* arg = malloc(sizeof(argumentos_de_hilo));
@@ -124,8 +171,10 @@ void* conectar_recibir_y_enviar_mensajes(void* argumentos)
 			int id_correlativo = 0;
 			int id_mensaje_recibido = 0; 	//EL GAMECARD SOLO USA ID MENSAJE
 
+			op_code codigo_operacion_recibido = 0;
+
 			//queda bloqueado hasta que el gameboy recibe un mensaje,
-			void* mensaje = recibir_mensaje_como_cliente(conexion, &id_correlativo, &id_mensaje_recibido);
+			void* mensaje = recibir_mensaje_como_cliente(&codigo_operacion_recibido, conexion, &id_correlativo, &id_mensaje_recibido);
 
 			//si se recibe el mensaje de error (que se genera si se CAE EL BROKER), se sale de este while(true) y reintenta la conexion
 			if(mensaje == NULL) break;
@@ -1109,6 +1158,34 @@ void pedir_archivo(char* nombre_pokemon)
 	}
 }
 
+bool verificar_si_se_puede_abrir(char* nombre_pokemon)
+{
+	char* punto_montaje_file_system = asignar_string_property(CONFIG, "PUNTO_MONTAJE_TALLGRASS");
+	char* path_archivo_pokemon_metadata_bin = string_from_format("%s/Files/%s/Metadata.bin", punto_montaje_file_system, nombre_pokemon);
+	t_config* archivo_pokemon_metadata_bin = config_create(path_archivo_pokemon_metadata_bin);
+
+	if(archivo_pokemon_metadata_bin == NULL)
+	{
+		char* mensaje_error = string_from_format("No se pudo abrir archivo %s", path_archivo_pokemon_metadata_bin);
+		imprimir_error_y_terminar_programa(mensaje_error);
+		free(mensaje_error); //ESTO NUNCA SE EJECUTA...
+	}
+	free(path_archivo_pokemon_metadata_bin);
+
+	char* esta_abierto = asignar_string_property(archivo_pokemon_metadata_bin, "OPEN");
+
+	if(strcmp(esta_abierto,"N") == 0)
+	{
+		config_set_value(archivo_pokemon_metadata_bin, "OPEN", "Y");
+		config_save(archivo_pokemon_metadata_bin);
+		config_destroy(archivo_pokemon_metadata_bin);
+		return true;
+	}
+
+	config_destroy(archivo_pokemon_metadata_bin);
+	return false;
+}
+
 void retener_un_rato_y_liberar_archivo(char* nombre_pokemon)
 {
 	int tiempo_de_retardo_operacion = asignar_int_property(CONFIG, "TIEMPO_RETARDO_OPERACION");
@@ -1116,6 +1193,25 @@ void retener_un_rato_y_liberar_archivo(char* nombre_pokemon)
 	sleep(tiempo_de_retardo_operacion);
 
 	liberar_archivo(nombre_pokemon);
+}
+
+void liberar_archivo(char* nombre_pokemon)
+{
+	char* punto_montaje_file_system = asignar_string_property(CONFIG, "PUNTO_MONTAJE_TALLGRASS");
+	char* path_archivo_pokemon_metadata_bin = string_from_format("%s/Files/%s/Metadata.bin", punto_montaje_file_system, nombre_pokemon);
+	t_config* archivo_pokemon_metadata_bin = config_create(path_archivo_pokemon_metadata_bin);
+
+	if(archivo_pokemon_metadata_bin == NULL)
+	{
+		char* mensaje_error = string_from_format("No se pudo abrir archivo %s", path_archivo_pokemon_metadata_bin);
+		imprimir_error_y_terminar_programa(mensaje_error);
+		free(mensaje_error); //ESTO NUNCA SE EJECUTA...
+	}
+	free(path_archivo_pokemon_metadata_bin);
+
+	config_set_value(archivo_pokemon_metadata_bin, "OPEN", "N");
+	config_save(archivo_pokemon_metadata_bin);
+	config_destroy(archivo_pokemon_metadata_bin);
 }
 
 void verificar_estado_del_envio_y_cerrar_conexion(char* tipo_mensaje, int estado, int conexion)

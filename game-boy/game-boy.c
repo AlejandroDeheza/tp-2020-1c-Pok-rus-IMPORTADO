@@ -37,9 +37,11 @@ int main(int argc, char *argv[]) {
 		int estado = despachar_Mensaje(conexion, argv);
 		if(estado <= 0) imprimir_error_y_terminar_programa("Error al enviar mensaje al BROKER");
 
-		int id_mensaje_enviado = esperar_id_mensaje_enviado(conexion);	//EL GAMEBOY NO HACE NADA CON ESTO
-		//SE VA A QUEDAR BLOQUEADO SI EL BROKER SE CAE...PERO NO CREO QUE PASE JUSTO CUANDO LE ENVIAMOS UN MENSAJE
-		if(id_mensaje_enviado <= 0) imprimir_error_y_terminar_programa("Error al recibir id_mensaje_enviado del BROKER");
+		if(strcmp(argv[1],"BROKER") == 0){
+			int id_mensaje_enviado = esperar_id_mensaje_enviado(conexion);	//EL GAMEBOY NO HACE NADA CON ESTO
+			//SE VA A QUEDAR BLOQUEADO SI EL BROKER SE CAE...PERO NO CREO QUE PASE JUSTO CUANDO LE ENVIAMOS UN MENSAJE
+			if(id_mensaje_enviado <= 0) imprimir_error_y_terminar_programa("Error al recibir id_mensaje_enviado del BROKER");
+		}
 	}
 
 	terminar_programa(conexion, logger, config);
@@ -199,10 +201,12 @@ void iniciar_modo_suscriptor(int conexion, t_log* logger, char* cola_a_suscribir
 	int id_correlativo = 0;		//EL GAMEBOY NO USA NINGUNO DE LOS 2 IDs
 	int id_mensaje_recibido = 0;
 
+	op_code codigo_operacion_recibido = 0;
+
 	while(true)
 	{
 		//queda bloqueado hasta que el gameboy recibe un mensaje,
-		void* mensaje = recibir_mensaje_como_cliente(conexion, &id_correlativo, &id_mensaje_recibido);
+		void* mensaje = recibir_mensaje_como_cliente(&codigo_operacion_recibido, conexion, &id_correlativo, &id_mensaje_recibido);
 
 		//si se recibe el mensaje de error (que se genera si se acaba el tiempo de suscripcion), se sale de este while(true)
 		if(mensaje == NULL)break;
