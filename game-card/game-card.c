@@ -248,7 +248,7 @@ void* atender_catch_pokemon(void* argumentos)
 
 	pedir_archivo(mensaje->nombre);
 
-	if(verificar_si_existen_posiciones(mensaje->nombre, mensaje->coordenadas.posx, mensaje->coordenadas.posy) == false)
+	if(verificar_si_existen_posiciones(mensaje->nombre, mensaje->coordenadas.posx, mensaje->coordenadas.posy) == -1)
 	{
 		retener_un_rato_y_liberar_archivo(mensaje->nombre);
 
@@ -428,7 +428,8 @@ void crear_archivo(char* nombre_pokemon)
 			}
 
 			//fprintf(metadata_bin, "%s", datos_metadata_bin);
-			fwrite("DIRECTORY=N\nSIZE=0\nBLOCKS=[0]\nOPEN=N", strlen("DIRECTORY=N\nSIZE=0\nBLOCKS=[0]\nOPEN=N"), 1, archivo);
+			fwrite("DIRECTORY=N\nSIZE=0\nBLOCKS=[]\nOPEN=N", strlen("DIRECTORY=N\nSIZE=0\nBLOCKS=[0]\nOPEN=N"), 1, archivo);
+			//DEBERIA PONER BLOCK=[0] ? O DEJARLO ASI? REVISAR TODO
 
 			fclose(archivo);
 		}
@@ -454,7 +455,7 @@ void agregar_cantidad(t_new_pokemon* mensaje)
 	free(path_archivo_pokemon_metadata_bin);
 
 	char* bloques_del_archivo_pokemon = asignar_string_property(archivo_pokemon_metadata_bin, "BLOCKS");
-	char** array_bloques_del_archivo_pokemon = string_get_string_as_array(bloques_del_archivo_pokemon);
+	char** array_bloques_del_archivo_pokemon = string_get_string_as_array(bloques_del_archivo_pokemon);	//REVISAR QUE PASA CON LISTA VACIA TODO
 
 	int tamanio_bloques_del_file_system = asignar_int_property(METADATA_METADATA_BIN, "BLOCK_SIZE");
 
@@ -487,9 +488,10 @@ void agregar_cantidad(t_new_pokemon* mensaje)
     }
 
 
-    //**** BUSQQUEDA DE LAS POSICIONES ****//
+    //**** BUSQUEDA DE LAS POSICIONES ****//
 
     char** array_con_linea_de_posicion_y_cantidad = string_split(todo_el_archivo_pokemon_en_un_string, "\n");
+    free(todo_el_archivo_pokemon_en_un_string);
     int posx = mensaje->coordenadas.posx;
     int posy = mensaje->coordenadas.posy;
     char* posicion_buscada_en_string = string_from_format("%i-%i", posx, posy);
@@ -554,6 +556,7 @@ void agregar_cantidad(t_new_pokemon* mensaje)
         free(posicion_para_agregar_al_final);
     }
 
+	int tamanio_anterior_archivo_pokemon = asignar_int_property(archivo_pokemon_metadata_bin, "SIZE");
     char* nuevo_value_SIZE_archivo_pokemon = string_from_format("%i", strlen(nuevo_archivo_pokemon_en_un_string));
     config_set_value(archivo_pokemon_metadata_bin, "SIZE", nuevo_value_SIZE_archivo_pokemon);
 
@@ -570,7 +573,6 @@ void agregar_cantidad(t_new_pokemon* mensaje)
 
     //**** SE INTERPRETA SI HAY QUE AGREGAR UN BLOQUE MAS  ****//
 
-	int tamanio_anterior_archivo_pokemon = asignar_int_property(archivo_pokemon_metadata_bin, "SIZE");
     int primer_es_division_con_resto = 0;
     if((tamanio_anterior_archivo_pokemon % tamanio_bloques_del_file_system) != 0) primer_es_division_con_resto = 1;
     int cantidad_de_bloques_anterior = (tamanio_anterior_archivo_pokemon / tamanio_bloques_del_file_system) + primer_es_division_con_resto;
@@ -682,12 +684,414 @@ void agregar_cantidad(t_new_pokemon* mensaje)
     }
     free(array_bloques_del_archivo_pokemon);
 
-    free(todo_el_archivo_pokemon_en_un_string);
     free(nuevo_archivo_pokemon_en_un_string);
     free(nuevo_value_SIZE_archivo_pokemon);
 
     config_save(archivo_pokemon_metadata_bin);
 	config_destroy(archivo_pokemon_metadata_bin);
+}
+
+int verificar_si_existen_posiciones(char* nombre_pokemon, int posx, int posy)
+{
+	char* punto_montaje_file_system = asignar_string_property(CONFIG, "PUNTO_MONTAJE_TALLGRASS");
+	char* path_archivo_pokemon_metadata_bin = string_from_format("%s/Files/%s/Metadata.bin", punto_montaje_file_system, nombre_pokemon);
+	t_config* archivo_pokemon_metadata_bin = config_create(path_archivo_pokemon_metadata_bin);
+
+	if(archivo_pokemon_metadata_bin == NULL)
+	{
+		char* mensaje_error = string_from_format("No se pudo abrir archivo %s", path_archivo_pokemon_metadata_bin);
+		imprimir_error_y_terminar_programa(mensaje_error);
+		free(mensaje_error); //ESTO NUNCA SE EJECUTA...
+	}
+	free(path_archivo_pokemon_metadata_bin);
+
+	char* bloques_del_archivo_pokemon = asignar_string_property(archivo_pokemon_metadata_bin, "BLOCKS");
+	config_destroy(archivo_pokemon_metadata_bin);
+	char** array_bloques_del_archivo_pokemon = string_get_string_as_array(bloques_del_archivo_pokemon);
+
+	int tamanio_bloques_del_file_system = asignar_int_property(METADATA_METADATA_BIN, "BLOCK_SIZE");
+
+
+	//**** METO TODA LA INFO DEL ARCHIVO POKEMON (QUE ESTABA SEPARADA EN BLOQUES) EN UN STRING ****//
+
+	char* todo_el_archivo_pokemon_en_un_string = string_new();
+
+    int i = 0;
+    while (array_bloques_del_archivo_pokemon[i] != NULL)
+    {
+    	char* string_de_un_bloque_del_archivo_pokemon = array_bloques_del_archivo_pokemon[i];
+
+    	char* path_un_bloque_bin = string_from_format("%s/Blocks/%i.bin", punto_montaje_file_system, atoi(string_de_un_bloque_del_archivo_pokemon));
+
+    	FILE* archivo_bloque_bin = fopen(path_un_bloque_bin, "rb");
+    	free(path_un_bloque_bin);
+
+    	char* contenido_de_un_bloque = malloc(tamanio_bloques_del_file_system);
+
+    	fread(contenido_de_un_bloque, tamanio_bloques_del_file_system, 1, archivo_bloque_bin);
+
+    	string_append_with_format(todo_el_archivo_pokemon_en_un_string, "%s", contenido_de_un_bloque);
+    	free(contenido_de_un_bloque);
+
+    	fclose(archivo_bloque_bin);
+
+	    i++;
+    }
+
+    i = 0;
+    while(array_bloques_del_archivo_pokemon[i] != NULL)
+    {
+    	free(array_bloques_del_archivo_pokemon[i]);
+    	i++;
+    }
+    free(array_bloques_del_archivo_pokemon);
+
+
+    //**** BUSQUEDA DE LAS POSICIONES ****//
+
+    char** array_con_linea_de_posicion_y_cantidad = string_split(todo_el_archivo_pokemon_en_un_string, "\n");
+    free(todo_el_archivo_pokemon_en_un_string);
+    char* posicion_buscada_en_string = string_from_format("%i-%i", posx, posy);
+
+    int i = 0;
+
+    int indice_de_busqueda = -1;
+
+    while(array_con_linea_de_posicion_y_cantidad[i] != NULL)
+    {
+        if(string_starts_with(array_con_linea_de_posicion_y_cantidad[i], posicion_buscada_en_string) == 0)
+        {
+        	indice_de_busqueda = i;
+        	break;
+        }
+
+        i++;
+    }
+
+    i = 0;
+    while(array_con_linea_de_posicion_y_cantidad[i] != NULL)
+    {
+    	free(array_con_linea_de_posicion_y_cantidad[i]);
+    	i++;
+    }
+    free(array_con_linea_de_posicion_y_cantidad);
+    free(posicion_buscada_en_string);
+
+    return indice_de_busqueda;
+}
+
+void reducir_cantidad(t_catch_pokemon* mensaje)
+{
+	char* punto_montaje_file_system = asignar_string_property(CONFIG, "PUNTO_MONTAJE_TALLGRASS");
+	char* path_archivo_pokemon_metadata_bin = string_from_format("%s/Files/%s/Metadata.bin", punto_montaje_file_system, (char*) mensaje->nombre);
+	t_config* archivo_pokemon_metadata_bin = config_create(path_archivo_pokemon_metadata_bin);
+
+	if(archivo_pokemon_metadata_bin == NULL)
+	{
+		char* mensaje_error = string_from_format("No se pudo abrir archivo %s", path_archivo_pokemon_metadata_bin);
+		imprimir_error_y_terminar_programa(mensaje_error);
+		free(mensaje_error); //ESTO NUNCA SE EJECUTA...
+	}
+	free(path_archivo_pokemon_metadata_bin);
+
+	char* bloques_del_archivo_pokemon = asignar_string_property(archivo_pokemon_metadata_bin, "BLOCKS");
+	char** array_bloques_del_archivo_pokemon = string_get_string_as_array(bloques_del_archivo_pokemon);
+
+	int tamanio_bloques_del_file_system = asignar_int_property(METADATA_METADATA_BIN, "BLOCK_SIZE");
+
+
+
+	//**** METO TODA LA INFO DEL ARCHIVO POKEMON (QUE ESTABA SEPARADA EN BLOQUES) EN UN STRING ****//
+
+	char* todo_el_archivo_pokemon_en_un_string = string_new();
+
+    int i = 0;
+    while (array_bloques_del_archivo_pokemon[i] != NULL)
+    {
+    	char* string_de_un_bloque_del_archivo_pokemon = array_bloques_del_archivo_pokemon[i];
+
+    	char* path_un_bloque_bin = string_from_format("%s/Blocks/%i.bin", punto_montaje_file_system, atoi(string_de_un_bloque_del_archivo_pokemon));
+
+    	FILE* archivo_bloque_bin = fopen(path_un_bloque_bin, "rb");
+    	free(path_un_bloque_bin);
+
+    	char* contenido_de_un_bloque = malloc(tamanio_bloques_del_file_system);
+
+    	fread(contenido_de_un_bloque, tamanio_bloques_del_file_system, 1, archivo_bloque_bin);
+
+    	string_append_with_format(todo_el_archivo_pokemon_en_un_string, "%s", contenido_de_un_bloque);
+    	free(contenido_de_un_bloque);
+
+    	fclose(archivo_bloque_bin);
+
+	    i++;
+    }
+
+
+    //**** BUSQUEDA DE LAS POSICIONES ****//
+
+    char** array_con_linea_de_posicion_y_cantidad = string_split(todo_el_archivo_pokemon_en_un_string, "\n");
+    free(todo_el_archivo_pokemon_en_un_string);
+    int posx = mensaje->coordenadas.posx;
+    int posy = mensaje->coordenadas.posy;
+    char* posicion_buscada_en_string = string_from_format("%i-%i", posx, posy);
+
+    int i = 0;
+
+    int indice_de_busqueda = -1;
+
+    while(array_con_linea_de_posicion_y_cantidad[i] != NULL)
+    {
+        if(string_starts_with(array_con_linea_de_posicion_y_cantidad[i], posicion_buscada_en_string) == 0)
+        {
+        	indice_de_busqueda = i;
+        	break;
+        }
+
+        i++;
+    }
+
+
+    //**** SE REDUCE EN 1 LA CANTIDAD EN EL nuevo_archivo_pokemon_en_un_string  ****//
+
+    char* nuevo_archivo_pokemon_en_un_string = string_new();
+
+    int i = 1;
+
+   	char* linea_de_posicion_encontrada = array_con_linea_de_posicion_y_cantidad[indice_de_busqueda];
+    char** key_y_value = string_split(linea_de_posicion_encontrada, "=");
+    char* cantidad_anterior_de_pokemones = key_y_value[1];
+
+    if(atoi(cantidad_anterior_de_pokemones) == 1)
+    {	//ESTO SE EJECUTA SI HAY QUE BORRAR UNA LINEA
+
+    	if(indice_de_busqueda != 0)
+    	{
+    		string_append_with_format(nuevo_archivo_pokemon_en_un_string, "%s", array_con_linea_de_posicion_y_cantidad[0]);
+
+            while(array_con_linea_de_posicion_y_cantidad[i] != NULL)
+            {
+            	if(indice_de_busqueda != i)
+            		string_append_with_format(nuevo_archivo_pokemon_en_un_string, "\n%s", array_con_linea_de_posicion_y_cantidad[i]);
+
+               	i++;
+            }
+    	}
+    	else
+    	{
+    		i = 2;
+
+    		string_append_with_format(nuevo_archivo_pokemon_en_un_string, "%s", array_con_linea_de_posicion_y_cantidad[1]);
+
+            while(array_con_linea_de_posicion_y_cantidad[i] != NULL)
+            {
+               	string_append_with_format(nuevo_archivo_pokemon_en_un_string, "\n%s", array_con_linea_de_posicion_y_cantidad[i]);
+               	i++;
+            }
+    	}
+    }
+    else
+    {	//ESTO SE EJECUTA SI SOLAMENTE HAY QUE REDUCIR LA CANTIDAD EN 1
+        int cantidad_nueva_de_pokemones = atoi(cantidad_anterior_de_pokemones) - 1;
+
+        array_con_linea_de_posicion_y_cantidad[indice_de_busqueda] = string_from_format("%s=%i", posicion_buscada_en_string, cantidad_nueva_de_pokemones);
+
+      	string_append_with_format(nuevo_archivo_pokemon_en_un_string, "%s", array_con_linea_de_posicion_y_cantidad[0]);
+
+        while(array_con_linea_de_posicion_y_cantidad[i] != NULL)
+        {
+           	string_append_with_format(nuevo_archivo_pokemon_en_un_string, "\n%s", array_con_linea_de_posicion_y_cantidad[i]);
+           	i++;
+        }
+    }
+    free(key_y_value[0]);
+    free(key_y_value[1]);
+    free(key_y_value);
+
+	int tamanio_anterior_archivo_pokemon = asignar_int_property(archivo_pokemon_metadata_bin, "SIZE");
+    char* nuevo_value_SIZE_archivo_pokemon = string_from_format("%i", strlen(nuevo_archivo_pokemon_en_un_string));
+    config_set_value(archivo_pokemon_metadata_bin, "SIZE", nuevo_value_SIZE_archivo_pokemon);
+
+    i = 0;
+    while(array_con_linea_de_posicion_y_cantidad[i] != NULL)
+    {
+    	free(array_con_linea_de_posicion_y_cantidad[i]);
+    	i++;
+    }
+    free(array_con_linea_de_posicion_y_cantidad);
+    free(posicion_buscada_en_string);
+
+
+
+    //**** SE INTERPRETA SI HAY QUE ELIMINAR EL ULTIMO BLOQUE  ****//	TODO
+
+    int j = 0;
+    int i = 0;
+
+    while(j < atoi(nuevo_value_SIZE_archivo_pokemon))
+    {
+    	char* cadena_a_grabar = string_substring(nuevo_archivo_pokemon_en_un_string, j, tamanio_bloques_del_file_system);
+
+    	char* path_bloque_bin_nuevo = string_from_format("%s/Blocks/%i.bin", punto_montaje_file_system, atoi(array_bloques_del_archivo_pokemon[i]));
+
+        FILE* archivo_bloque_bin_nuevo = fopen(path_bloque_bin_nuevo, "wb");
+        free(path_bloque_bin_nuevo);
+
+       	fwrite(cadena_a_grabar, tamanio_bloques_del_file_system, 1, archivo_bloque_bin_nuevo);
+        free(cadena_a_grabar);
+
+       	fclose(archivo_bloque_bin_nuevo);
+
+        i++;
+        j = j + tamanio_bloques_del_file_system;
+    }
+
+    int primer_es_division_con_resto = 0;
+    if((tamanio_anterior_archivo_pokemon % tamanio_bloques_del_file_system) != 0) primer_es_division_con_resto = 1;
+    int cantidad_de_bloques_anterior = (tamanio_anterior_archivo_pokemon / tamanio_bloques_del_file_system) + primer_es_division_con_resto;
+
+    int segundo_es_division_con_resto = 0;
+    if((atoi(nuevo_value_SIZE_archivo_pokemon) % tamanio_bloques_del_file_system) != 0) segundo_es_division_con_resto = 1;
+    int cantidad_de_bloques_necesaria = (atoi(nuevo_value_SIZE_archivo_pokemon) / tamanio_bloques_del_file_system) + segundo_es_division_con_resto;
+
+    if(cantidad_de_bloques_anterior != cantidad_de_bloques_necesaria)
+    {	//ESTO SE EJECUTA SI TENGO QUE LIBERAR EL ULTIMO BLOQUE
+
+      	char* bloque_que_se_elimina_en_string = array_bloques_del_archivo_pokemon[cantidad_de_bloques_necesaria];
+    	bitarray_clean_bit(BITMAP, atoi(bloque_que_se_elimina_en_string) - 1);
+
+    	char* nuevo_value_blocks_sin_corchetes = string_new();
+
+    	if(cantidad_de_bloques_necesaria != 0)
+    	{
+        	string_append_with_format(nuevo_value_blocks_sin_corchetes, "%s", array_bloques_del_archivo_pokemon[0]);
+
+        	for(int i = 1; i < cantidad_de_bloques_necesaria; i++)
+        		string_append_with_format(nuevo_value_blocks_sin_corchetes, ",%s", array_bloques_del_archivo_pokemon[i]);
+        		//ESTE FOR FUNCIONA?? O TENGO QUE USAR LLAVES? TODO
+    	}
+
+    	char* nuevo_value_blocks = string_from_format("[%s]", nuevo_value_blocks_sin_corchetes);
+    	free(nuevo_value_blocks_sin_corchetes);
+
+    	config_set_value(archivo_pokemon_metadata_bin, "BLOCKS", nuevo_value_blocks);
+    	free(nuevo_value_blocks);
+    }
+
+    i = 0;
+    while(array_bloques_del_archivo_pokemon[i] != NULL)
+    {
+    	free(array_bloques_del_archivo_pokemon[i]);
+    	i++;
+    }
+    free(array_bloques_del_archivo_pokemon);
+
+    free(nuevo_archivo_pokemon_en_un_string);
+    free(nuevo_value_SIZE_archivo_pokemon);
+
+    config_save(archivo_pokemon_metadata_bin);
+	config_destroy(archivo_pokemon_metadata_bin);
+}
+
+t_list* obtener_todas_las_posiciones(char* nombre_pokemon)
+{
+	char* punto_montaje_file_system = asignar_string_property(CONFIG, "PUNTO_MONTAJE_TALLGRASS");
+	char* path_archivo_pokemon_metadata_bin = string_from_format("%s/Files/%s/Metadata.bin", punto_montaje_file_system, (char*) mensaje->nombre);
+	t_config* archivo_pokemon_metadata_bin = config_create(path_archivo_pokemon_metadata_bin);
+
+	if(archivo_pokemon_metadata_bin == NULL)
+	{
+		char* mensaje_error = string_from_format("No se pudo abrir archivo %s", path_archivo_pokemon_metadata_bin);
+		imprimir_error_y_terminar_programa(mensaje_error);
+		free(mensaje_error); //ESTO NUNCA SE EJECUTA...
+	}
+	free(path_archivo_pokemon_metadata_bin);
+
+	char* bloques_del_archivo_pokemon = asignar_string_property(archivo_pokemon_metadata_bin, "BLOCKS");
+	char** array_bloques_del_archivo_pokemon = string_get_string_as_array(bloques_del_archivo_pokemon);	//REVISAR QUE PASA CON LISTA VACIA TODO
+
+	int tamanio_bloques_del_file_system = asignar_int_property(METADATA_METADATA_BIN, "BLOCK_SIZE");
+
+
+
+	//**** METO TODA LA INFO DEL ARCHIVO POKEMON (QUE ESTABA SEPARADA EN BLOQUES) EN UN STRING ****//
+
+	char* todo_el_archivo_pokemon_en_un_string = string_new();
+
+    int i = 0;
+    while (array_bloques_del_archivo_pokemon[i] != NULL)
+    {
+    	char* string_de_un_bloque_del_archivo_pokemon = array_bloques_del_archivo_pokemon[i];
+
+    	char* path_un_bloque_bin = string_from_format("%s/Blocks/%i.bin", punto_montaje_file_system, atoi(string_de_un_bloque_del_archivo_pokemon));
+
+    	FILE* archivo_bloque_bin = fopen(path_un_bloque_bin, "rb");
+    	free(path_un_bloque_bin);
+
+    	char* contenido_de_un_bloque = malloc(tamanio_bloques_del_file_system);
+
+    	fread(contenido_de_un_bloque, tamanio_bloques_del_file_system, 1, archivo_bloque_bin);
+
+    	string_append_with_format(todo_el_archivo_pokemon_en_un_string, "%s", contenido_de_un_bloque);
+    	free(contenido_de_un_bloque);
+
+    	fclose(archivo_bloque_bin);
+
+	    i++;
+    }
+
+    i = 0;
+    while(array_bloques_del_archivo_pokemon[i] != NULL)
+    {
+    	free(array_bloques_del_archivo_pokemon[i]);
+    	i++;
+    }
+    free(array_bloques_del_archivo_pokemon);
+
+
+    //**** BUSQUEDA DE LAS POSICIONES ****//
+
+    char** array_con_linea_de_posicion_y_cantidad = string_split(todo_el_archivo_pokemon_en_un_string, "\n");
+    free(todo_el_archivo_pokemon_en_un_string);
+
+    t_list* lista_coordenadas = list_create();
+
+    int i = 0;
+
+    while(array_con_linea_de_posicion_y_cantidad[i] != NULL)
+    {
+        char** key_y_value = string_split(array_con_linea_de_posicion_y_cantidad, "=");
+
+        char** pos_x_pos_y = string_split(key_y_value[0], "-");
+
+        int posx = atoi(pos_x_pos_y[0]);		//REVISAR TEMA *INT O *T_COOR TODO TENGO QUE ARREGLARLO EN TODO EL TP....
+        list_add(lista_coordenadas, &posx);
+
+        int posy = atoi(pos_x_pos_y[1]);
+        list_add(lista_coordenadas, &posy);
+
+        i++;
+
+        free(key_y_value[0]);
+        free(key_y_value[1]);
+        free(key_y_value);
+
+        free(pos_x_pos_y[0]);
+        free(pos_x_pos_y[1]);
+        free(pos_x_pos_y);
+    }
+
+    i = 0;
+    while(array_con_linea_de_posicion_y_cantidad[i] != NULL)
+    {
+    	free(array_con_linea_de_posicion_y_cantidad[i]);
+    	i++;
+    }
+    free(array_con_linea_de_posicion_y_cantidad);
+
+	config_destroy(archivo_pokemon_metadata_bin);
+
+    return lista_coordenadas;
 }
 
 void pedir_archivo(char* nombre_pokemon)
