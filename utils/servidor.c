@@ -79,27 +79,15 @@ int enviar_mensaje_a_suscriptores(void* mensaje, int size_mensaje, int socket_cl
 	return estado;
 }
 
-bool es_codigo_operacion_valido(op_code codigo_operacion)
+bool es_un_proceso_esperado(int socket_cliente, char* id_procesos_tp)
 {
-	if(		codigo_operacion == NEW_POKEMON ||
-			codigo_operacion == APPEARED_POKEMON ||
-			codigo_operacion == CATCH_POKEMON ||
-			codigo_operacion == CAUGHT_POKEMON ||
-			codigo_operacion == GET_POKEMON ||
-			codigo_operacion == LOCALIZED_POKEMON ||
-			codigo_operacion == SUBSCRIBE_NEW_POKEMON ||
-			codigo_operacion == SUBSCRIBE_APPEARED_POKEMON ||
-			codigo_operacion == SUBSCRIBE_CATCH_POKEMON ||
-			codigo_operacion == SUBSCRIBE_CAUGHT_POKEMON ||
-			codigo_operacion == SUBSCRIBE_GET_POKEMON ||
-			codigo_operacion == SUBSCRIBE_LOCALIZED_POKEMON ||
-			codigo_operacion == UNSUBSCRIBE_NEW_POKEMON ||
-			codigo_operacion == UNSUBSCRIBE_APPEARED_POKEMON ||
-			codigo_operacion == UNSUBSCRIBE_CATCH_POKEMON ||
-			codigo_operacion == UNSUBSCRIBE_CAUGHT_POKEMON ||
-			codigo_operacion == UNSUBSCRIBE_GET_POKEMON ||
-			codigo_operacion == UNSUBSCRIBE_LOCALIZED_POKEMON
-			) return true;
+	int size = 0;
+
+	if(recv(socket_cliente, &size, sizeof(int), MSG_WAITALL) <= 0) return false;
+	void* cadena_recibida = malloc(size);
+	if(recv(socket_cliente, cadena_recibida, size, MSG_WAITALL) <= 0) return false;
+
+	if(strcmp((char*) cadena_recibida, id_procesos_tp) == 0) return true;
 
 	return false;
 }
@@ -146,7 +134,7 @@ void devolver_mensaje(void* payload, int size, int socket_cliente, op_code opera
 
 	void* a_enviar = serializar_paquete(paquete, &bytes);
 
-	send(socket_cliente, a_enviar, bytes, 0);
+	send(socket_cliente, a_enviar, bytes, MSG_NOSIGNAL);
 
 	free(a_enviar);
 	free(paquete->buffer->stream);

@@ -2,11 +2,11 @@
 
 int main(int argc, char *argv[]) {
 
-	signal(SIGTERM, &ejecutar_antes_de_terminar);
 	signal(SIGINT, &ejecutar_antes_de_terminar);
 
 	CONFIG = leer_config("../game-card.config");
 	LOGGER = generar_logger(CONFIG, "game-card");
+	ID_PROCESOS_TP = asignar_string_property(CONFIG, "ID_PROCESOS_TP");
 
 	log_error(LOGGER, "PROBANDO LOG_ERRROR(). NO PASO NINGUN ERROR");
 
@@ -14,7 +14,7 @@ int main(int argc, char *argv[]) {
 
 	iniciar_file_system();
 
-	pthread_t thread_servidor = iniciar_hilo_para_escuchar_gameboy();	//TODO
+	pthread_t thread_servidor = iniciar_hilo_para_escuchar_gameboy();
 
 	pthread_t thread_new_appeared = iniciar_hilo_de_mensajes("NEW_POKEMON", SUBSCRIBE_NEW_POKEMON);
 
@@ -105,19 +105,15 @@ void* recibir_mensajes_de_gameboy()
 		int id_mensaje_recibido = 0; 	//EL GAMECARD SOLO USA ID MENSAJE
 		op_code codigo_operacion_recibido = 0;
 
-		//queda bloqueado hasta que el gamecard recibe un mensaje del gameboy
-		void* mensaje = recibir_mensaje_como_cliente(&codigo_operacion_recibido, socket_cliente, &id_correlativo, &id_mensaje_recibido);
-		//DEBERIA CAMBIAR EL NOMBRE DE ESTA FUNCION TODO
+		//IDENTIFICA Y RECHAZA PROCESOS QUE NO ESTA ESPERANDO
+		if(es_un_proceso_esperado(socket_cliente, ID_PROCESOS_TP) == false) continue;
 
-		//CAPAZ, ANTES DE RECIBIR TODO EL MENSAJE, DEBERIA REVISAR EL CODIGO DE OPERACION
+		//queda bloqueado hasta que el gamecard recibe un mensaje del gameboy
+		void* mensaje = recibir_mensaje_por_socket(&codigo_operacion_recibido, socket_cliente, &id_correlativo, &id_mensaje_recibido);
+		//DEBERIA CAMBIAR EL NOMBRE DE ESTA FUNCION TODO
 
 		//si se recibe el mensaje de error (que se genera si se CAE EL GAMEBOY O SI HAY UN ERROR), se sale de este while(true) y ESPERA OTRA CONEXION
 		if(mensaje == NULL) break;
-
-		if(es_codigo_operacion_valido(codigo_operacion_recibido) == false) break;
-		//RECHAZA MENSAJES QUE NO ESPERA.. NO SE SI FUNCIONA COMO ESPERO...
-		//CAPAZ DEBERIA ESPERAR UN ID DEL GAMEBOY, UN ID QUE PONGA EN EL .CONFIG TODO
-		//ASI LO IDENTIFICO UNEQUIVOCAMENTE. ASI CON TODOS LOS PROCESOS
 
 		char* mensaje_para_loguear = generar_mensaje_para_loggear(mensaje, codigo_operacion_recibido);
 		log_info(LOGGER, "Se recibio el mensaje <<%s>> del GAMEBOY", mensaje_para_loguear);
@@ -156,6 +152,8 @@ void* conectar_recibir_y_enviar_mensajes(void* argumentos)
 
 		log_info(LOGGER, "Se realizo una conexion con BROKER, para suscribirse a cola %s", cola_a_suscribirse);
 
+		if(enviar_identificacion_general(conexion, ID_PROCESOS_TP) <= 0) continue;
+
 		int estado_envio = enviar_mensaje_de_suscripcion(conexion, codigo_suscripcion, ID_MANUAL_DEL_PROCESO);
 		if(estado_envio <= 0) continue;
 		// || estado_envio != (sizeof(op_code) + sizeof(int)) revisar si tenes tiempo, TODO
@@ -174,7 +172,7 @@ void* conectar_recibir_y_enviar_mensajes(void* argumentos)
 			op_code codigo_operacion_recibido = 0;
 
 			//queda bloqueado hasta que el gameboy recibe un mensaje,
-			void* mensaje = recibir_mensaje_como_cliente(&codigo_operacion_recibido, conexion, &id_correlativo, &id_mensaje_recibido);
+			void* mensaje = recibir_mensaje_por_socket(&codigo_operacion_recibido, conexion, &id_correlativo, &id_mensaje_recibido);
 
 			//si se recibe el mensaje de error (que se genera si se CAE EL BROKER), se sale de este while(true) y reintenta la conexion
 			if(mensaje == NULL) break;
@@ -257,6 +255,8 @@ void* atender_new_pokemon(void* argumentos)
 
 	int conexion = conectar_a_broker_y_reintentar_si_hace_falta("La conexion con el BROKER para enviar APPEARED_POKEMON fallo.");
 	//NO SERIA NECESARIO REINTENTAR CONEXION SI EL TEAM REINTENTA ENVIAR LOS PEDIDOS QUE NO RECIBE. REVISAR TODO
+
+	enviar_identificacion_general(conexion, ID_PROCESOS_TP);
 
 	int estado = generar_y_enviar_appeared_pokemon(conexion, 0, id_mensaje_recibido, mensaje->nombre, mensaje->coordenadas.posx, mensaje->coordenadas.posy);
 
@@ -345,6 +345,8 @@ void conectar_enviar_verificar_caught(int id_mensaje_recibido, int resultado_cau
 	int conexion = conectar_a_broker_y_reintentar_si_hace_falta(mensaje_de_logueo_al_reintentar_conexion);
 	free(mensaje_de_logueo_al_reintentar_conexion);
 
+	enviar_identificacion_general(conexion, ID_PROCESOS_TP);
+
 	int estado = generar_y_enviar_caught_pokemon(conexion, 0, id_mensaje_recibido, resultado_caught);
 
 	verificar_estado_del_envio_y_cerrar_conexion("CAUGHT_POKEMON", estado, conexion);
@@ -364,6 +366,8 @@ void* atender_get_pokemon(void* argumentos)
 		int conexion = conectar_a_broker_y_reintentar_si_hace_falta(mensaje_de_logueo_al_reintentar_conexion);
 		free(mensaje_de_logueo_al_reintentar_conexion);
 
+		enviar_identificacion_general(conexion, ID_PROCESOS_TP);
+
 		int estado = generar_y_enviar_localized_pokemon(conexion, 0, id_mensaje_recibido, mensaje->nombre, NULL);
 		//VERIFICAR QUE TEAM SABE ENTENDER UNA LISTA NULL. TODO
 
@@ -381,6 +385,8 @@ void* atender_get_pokemon(void* argumentos)
 	char* mensaje_de_logueo_al_reintentar_conexion = string_from_format("La conexion con el BROKER para enviar LOCALIZED_POKEMON fallo.");
 	int conexion = conectar_a_broker_y_reintentar_si_hace_falta(mensaje_de_logueo_al_reintentar_conexion);
 	free(mensaje_de_logueo_al_reintentar_conexion);
+
+	enviar_identificacion_general(conexion, ID_PROCESOS_TP);
 
 	int estado = generar_y_enviar_localized_pokemon(conexion, 0, id_mensaje_recibido, mensaje->nombre, lista_posiciones);
 
@@ -972,7 +978,7 @@ void reducir_cantidad(t_catch_pokemon* mensaje)
 
 
 
-    //**** SE INTERPRETA SI HAY QUE ELIMINAR EL ULTIMO BLOQUE  ****//	TODO
+    //**** SE INTERPRETA SI HAY QUE ELIMINAR EL ULTIMO BLOQUE  ****//
 
     int j = 0;
     i = 0;
@@ -1016,8 +1022,9 @@ void reducir_cantidad(t_catch_pokemon* mensaje)
         	string_append_with_format(&nuevo_value_blocks_sin_corchetes, "%s", array_bloques_del_archivo_pokemon[0]);
 
         	for(int i = 1; i < cantidad_de_bloques_necesaria; i++)
+        	{
         		string_append_with_format(&nuevo_value_blocks_sin_corchetes, ",%s", array_bloques_del_archivo_pokemon[i]);
-        		//ESTE FOR FUNCIONA?? O TENGO QUE USAR LLAVES? TODO
+        	}
     	}
 
     	char* nuevo_value_blocks = string_from_format("[%s]", nuevo_value_blocks_sin_corchetes);

@@ -7,46 +7,61 @@ bool imprimir_con_printf = true; //si se pone false
 
 int main(int argc, char *argv[]) {
 
-	int conexion = 0;
-	t_config* config = leer_config("../game-boy.config");
-	t_log* logger = generar_logger(config, "game-boy");
+	signal(SIGINT, &ejecutar_antes_de_terminar);
+
+	CONFIG = leer_config("../game-boy.config");
+	LOGGER = generar_logger(CONFIG, "game-boy");
+	ID_PROCESOS_TP = asignar_string_property(CONFIG, "ID_PROCESOS_TP");
 
 	//verifico que lo ingresado por consola sea correcto
 	verificar_Entrada(argc, argv);
 
 	if(strcmp(argv[1],"SUSCRIPTOR")==0){	// lo de aca se ejecuta si estamos en modo SUSCRIPTOR
 
-		conexion = iniciar_conexion_como_cliente("BROKER", config);
+		CONEXION = iniciar_conexion_como_cliente("BROKER", CONFIG);
 
-		if(conexion <= 0) imprimir_error_y_terminar_programa("Error de conexion con BROKER");
+		if(CONEXION <= 0) imprimir_error_y_terminar_programa("Error de conexion con BROKER");
 
-		char *orden_de_suscripcion = string_from_format("SUBSCRIBE_%s", argv[2]);
-		log_info(logger, "Se realizo una conexion con BROKER, para enviar el mensaje %s", orden_de_suscripcion);
-		free(orden_de_suscripcion);
+		log_info(LOGGER, "Se realizo una conexion con BROKER, para suscribirse a la cola de mensajes %s", argv[2]);
 
-		iniciar_modo_suscriptor(conexion, logger, argv[2], atoi(argv[3]));
+		if(enviar_identificacion_general(CONEXION, ID_PROCESOS_TP) <= 0) imprimir_error_y_terminar_programa("Error en enviar_identificacion_general()");
 
-	}else{	// esto se ejecuta si estamos en MODO NORMAL / MODO NO SUSCRIPTOR
-		conexion = iniciar_conexion_como_cliente(argv[1], config);
+		iniciar_modo_suscriptor(CONEXION, argv[2], atoi(argv[3]));
 
-		if(conexion <= 0) imprimir_error_y_terminar_programa("Error de conexion");
+	}
+	else
+	{	// esto se ejecuta si estamos en MODO NORMAL / MODO NO SUSCRIPTOR
+		CONEXION = iniciar_conexion_como_cliente(argv[1], CONFIG);
 
-		log_info(logger, "Se realizo una conexion con %s, para enviar el mensaje %s", argv[1], argv[2]);
+		if(CONEXION <= 0) imprimir_error_y_terminar_programa("Error de conexion");
+
+		log_info(LOGGER, "Se realizo una conexion con %s, para enviar un mensaje %s", argv[1], argv[2]);
+
+		if(enviar_identificacion_general(CONEXION, ID_PROCESOS_TP) <= 0) imprimir_error_y_terminar_programa("Error en enviar_identificacion_general()");
 
 		//se interpretan los argumentos ingresados por consola y se envia el mensaje correspondiente
-		int estado = despachar_Mensaje(conexion, argv);
+		int estado = despachar_Mensaje(CONEXION, argv);
 		if(estado <= 0) imprimir_error_y_terminar_programa("Error al enviar mensaje al BROKER");
 
 		if(strcmp(argv[1],"BROKER") == 0){
-			int id_mensaje_enviado = esperar_id_mensaje_enviado(conexion);	//EL GAMEBOY NO HACE NADA CON ESTO
+			int id_mensaje_enviado = esperar_id_mensaje_enviado(CONEXION);	//EL GAMEBOY NO HACE NADA CON ESTO
 			//SE VA A QUEDAR BLOQUEADO SI EL BROKER SE CAE...PERO NO CREO QUE PASE JUSTO CUANDO LE ENVIAMOS UN MENSAJE
 			if(id_mensaje_enviado <= 0) imprimir_error_y_terminar_programa("Error al recibir id_mensaje_enviado del BROKER");
 		}
 	}
 
-	terminar_programa(conexion, logger, config);
+	terminar_programa(CONEXION, LOGGER, CONFIG);
 	printf("\nEl Game-Boy finalizo correctamente.\n\n");
 	return EXIT_SUCCESS;
+}
+
+void ejecutar_antes_de_terminar(int numero_senial)
+{
+	log_info(LOGGER, "Se recibio la senial : %i  -- terminando programa", numero_senial);
+
+	terminar_programa(CONEXION, LOGGER, CONFIG);
+
+	exit(0);
 }
 
 void verificar_Entrada(int argc, char *argv[]){
@@ -181,22 +196,23 @@ void verificar_Entrada(int argc, char *argv[]){
 	}
 }
 
-void iniciar_modo_suscriptor(int conexion, t_log* logger, char* cola_a_suscribirse, int tiempo_suscripcion)
+void iniciar_modo_suscriptor(int conexion, char* cola_a_suscribirse, int tiempo_suscripcion)
 {
-	op_code codigo_suscripcion = 0;
-	op_code codigo_desuscripcion = 0;
-	obtener_codigos(cola_a_suscribirse, &codigo_suscripcion, &codigo_desuscripcion);
+	op_code codigo_suscripcion = obtener_codigo_suscripcion(cola_a_suscribirse);
 
-	//envio mensaje a BROKER para suscribirme a una cola
-	if(enviar_mensaje_de_suscripcion(conexion, codigo_suscripcion, 0) <= 0)
+	ID_MANUAL_DEL_PROCESO = asignar_int_property(CONFIG, "ID_MANUAL_DEL_PROCESO");
+
+	//envio mensaje a BROKER para suscribirme a una cola. COMO EN ID_MANUAL_DEL_PROCESO LE PONGO 0, EL BROKER ME DESUSCRIBE DE LA COLA DE MENSAJES
+	//CUANDO SE DA CUENTA QUE EL SOCKET YA NO SIRVE
+	if(enviar_mensaje_de_suscripcion(conexion, codigo_suscripcion, ID_MANUAL_DEL_PROCESO) <= 0)
 		imprimir_error_y_terminar_programa("No se pudo enviar mensaje de suscripcion a BROKER");
 
-	//HACE FALTA RECIBIR ACK DEL MENSAJE DE SUSCRIPCION?? TODO
+	//HACE FALTA RECIBIR ACK DEL MENSAJE DE SUSCRIPCION?? TODO	por ahora no lo voy a hacer
 
-	log_info(logger, "Se realizo una suscripcion a la cola de mensajes %s", cola_a_suscribirse);
+	log_info(LOGGER, "Se realizo una suscripcion a la cola de mensajes %s", cola_a_suscribirse);
 
 	//este hilo cierra el socket cuando se acabe el tiempo de suscripcion
-	iniciar_hilo_para_desuscripcion(tiempo_suscripcion, conexion, codigo_desuscripcion);
+	iniciar_hilo_para_desuscripcion(tiempo_suscripcion, conexion);
 
 	int id_correlativo = 0;		//EL GAMEBOY NO USA NINGUNO DE LOS 2 IDs
 	int id_mensaje_recibido = 0;
@@ -206,7 +222,7 @@ void iniciar_modo_suscriptor(int conexion, t_log* logger, char* cola_a_suscribir
 	while(true)
 	{
 		//queda bloqueado hasta que el gameboy recibe un mensaje,
-		void* mensaje = recibir_mensaje_como_cliente(&codigo_operacion_recibido, conexion, &id_correlativo, &id_mensaje_recibido);
+		void* mensaje = recibir_mensaje_por_socket(&codigo_operacion_recibido, conexion, &id_correlativo, &id_mensaje_recibido);
 
 		//si se recibe el mensaje de error (que se genera si se acaba el tiempo de suscripcion), se sale de este while(true)
 		if(mensaje == NULL)break;
@@ -222,46 +238,32 @@ void iniciar_modo_suscriptor(int conexion, t_log* logger, char* cola_a_suscribir
 		char* mensaje_para_loguear = generar_mensaje_para_loggear(mensaje, codigo_suscripcion);
 
 		//se loguea el mensaje y vuelve a empezar el bucle
-		log_info(logger, "Se recibio el mensaje <<%s>> de la cola %s", mensaje_para_loguear, cola_a_suscribirse);
+		log_info(LOGGER, "Se recibio el mensaje <<%s>> de la cola %s", mensaje_para_loguear, cola_a_suscribirse);
 
 		free(mensaje_para_loguear);
 	}
 }
 
-void obtener_codigos(char* cola_a_suscribirse, op_code* codigo_suscripcion, op_code* codigo_desuscripcion)
+op_code obtener_codigo_suscripcion(char* cola_a_suscribirse)
 {
-	if(strcmp(cola_a_suscribirse,"NEW_POKEMON")==0){
-		*codigo_suscripcion = SUBSCRIBE_NEW_POKEMON;
-		*codigo_desuscripcion = UNSUBSCRIBE_NEW_POKEMON;
-	}
-	if(strcmp(cola_a_suscribirse,"APPEARED_POKEMON")==0){
-		*codigo_suscripcion = SUBSCRIBE_APPEARED_POKEMON;
-		*codigo_desuscripcion = UNSUBSCRIBE_APPEARED_POKEMON;
-	}
-	if(strcmp(cola_a_suscribirse,"CATCH_POKEMON")==0){
-		*codigo_suscripcion = SUBSCRIBE_CATCH_POKEMON;
-		*codigo_desuscripcion = UNSUBSCRIBE_CATCH_POKEMON;
-	}
-	if(strcmp(cola_a_suscribirse,"CAUGHT_POKEMON")==0){
-		*codigo_suscripcion = SUBSCRIBE_CAUGHT_POKEMON;
-		*codigo_desuscripcion = UNSUBSCRIBE_CAUGHT_POKEMON;
-	}
-	if(strcmp(cola_a_suscribirse,"GET_POKEMON")==0){
-		*codigo_suscripcion = SUBSCRIBE_GET_POKEMON;
-		*codigo_desuscripcion = UNSUBSCRIBE_GET_POKEMON;
-	}
-	if(strcmp(cola_a_suscribirse,"LOCALIZED_POKEMON")==0){
-		*codigo_suscripcion = SUBSCRIBE_LOCALIZED_POKEMON;
-		*codigo_desuscripcion = UNSUBSCRIBE_LOCALIZED_POKEMON;
-	}
+	if(strcmp(cola_a_suscribirse,"NEW_POKEMON")==0) return SUBSCRIBE_NEW_POKEMON;
+
+	if(strcmp(cola_a_suscribirse,"APPEARED_POKEMON")==0) return SUBSCRIBE_APPEARED_POKEMON;
+
+	if(strcmp(cola_a_suscribirse,"CATCH_POKEMON")==0) return SUBSCRIBE_CATCH_POKEMON;
+
+	if(strcmp(cola_a_suscribirse,"CAUGHT_POKEMON")==0) return SUBSCRIBE_CAUGHT_POKEMON;
+
+	if(strcmp(cola_a_suscribirse,"GET_POKEMON")==0) return SUBSCRIBE_GET_POKEMON;
+
+	return SUBSCRIBE_LOCALIZED_POKEMON;	//SI NO SE CUMPLE NINGUNO ANTERIOR, DEBERIA RETORNAR ESTO
 }
 
-void iniciar_hilo_para_desuscripcion(int tiempo_suscripcion, int conexion_con_broker, op_code codigo_desuscripcion)
+void iniciar_hilo_para_desuscripcion(int tiempo_suscripcion, int conexion_con_broker)
 {
 	argumentos_contador_de_tiempo* arg = malloc(sizeof(argumentos_contador_de_tiempo));
 	arg->tiempo_suscripcion = tiempo_suscripcion;
 	arg->conexion_con_broker = conexion_con_broker;
-	arg->codigo_desuscripcion = codigo_desuscripcion;
 
 	pthread_t thread;
 	if(0 != pthread_create(&thread, NULL, (void*) contador_de_tiempo, (void*)arg))
@@ -276,15 +278,8 @@ void* contador_de_tiempo(void* argumentos)
 
 	int tiempo_suscripcion = args->tiempo_suscripcion;
 	int conexion_con_broker = args->conexion_con_broker;
-	op_code codigo_desuscripcion = args->codigo_desuscripcion;
 
-	//el hilo espera el tiempo de suscripcion
 	sleep(tiempo_suscripcion);
-
-	//se envia mensaje a BROKER para que este deje de enviarnos mensajes
-	//hay que cambiar esto del lado del BROKER, no deberia ser necesario hacer esto porque el GAMEBOY podria cortarse abruptamente
-	//TODO
-	enviar_mensaje_de_suscripcion(conexion_con_broker, codigo_desuscripcion, 0);
 
 	//con esta funcion se corta la conexion, asi se corta el bucle de iniciar_modo_suscriptor()
 	shutdown(conexion_con_broker, SHUT_RDWR);
@@ -542,44 +537,5 @@ int despachar_Get(int conexion, char *argv[])
 	if(strcmp(argv[1],"GAMECARD")==0) id_mensaje = atoi(argv[4]); //SE ENVIO EL MENSAJE PARA GAMECARD
 
 	return generar_y_enviar_get_pokemon(conexion, id_mensaje, id_correlativo, argv[3]);
-}
-
-int despachar_Localized(int conexion, int argc, char *argv[])
-{
-	//nunca se va a usar esta funcion desde gameboy
-	//la dejo aca para que nos sirva para despues, en el gamecard creo que se usa
-	//TODO
-	//esta funcion no es llamada desde despacharMensaje() ni de verificarEntrada()
-	//cuando la quiera sacar solo tengo que sacar esta funcion
-
-	if(argc < 4)imprimir_error_y_terminar_programa("Para LOCALIZED_POKEMON debe ingresar los argumentos con el siguiente formato:\n"
-				"./gameboy [PROCESO] LOCALIZED_POKEMON [PARES DE COORDENADAS]*");
-		//y el id_correlativo?..
-
-	if(argc%2 == 1)	imprimir_error_y_terminar_programa("No ingresaste bien las coordenadas. Deben ser grupos de 2 numeros");
-
-	int cantidad_pares_de_coordenadas = (argc - 3) / 2;
-	t_list* lista_coordenadas = list_create();
-	int posicion_argc = 3;
-
-	for(int i = 0 ; i < cantidad_pares_de_coordenadas ; i++)
-	{
-		t_coordenadas* coordenadas = malloc(sizeof(t_coordenadas));
-		coordenadas->posx = atoi(argv[posicion_argc]);
-		posicion_argc++;
-		coordenadas->posy = atoi(argv[posicion_argc]);
-		posicion_argc++;
-		list_add(lista_coordenadas, coordenadas);
-		//no hago free() porque eso lo hace list_destroy_and_destroy_elements()
-		//eso estendi segun el codigo de list.c
-	}
-
-	int id_mensaje = 0;
-	int id_correlativo = 0;
-
-	int estado = generar_y_enviar_localized_pokemon(conexion, id_mensaje, id_correlativo, argv[3], lista_coordenadas);
-	list_destroy_and_destroy_elements(lista_coordenadas, free);
-
-	return estado;
 }
 

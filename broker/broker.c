@@ -19,6 +19,8 @@ int socket_a_desuscribir = 0;
 
 int main(void)
 {
+	signal(SIGINT, &ejecutar_antes_de_terminar);
+
 	pthread_mutex_init(&mutex_para_desuscribir, NULL);
 
 	t_config* config;
@@ -43,6 +45,9 @@ int main(void)
 	   	argumentos_leer_mensajes* arg = malloc(sizeof(argumentos_leer_mensajes));
     	arg->socket = aceptar_una_conexion(socket_servidor);
 
+    	//DEBERIA ESPERAR EL ID_PROCESO_TP Y RECHARZARLO SI NO ES IGUAL AL DEL .CONFIG
+    	//PODES COPIARLO DEL GAMECARD TODO
+
     	pthread_create(&thread,NULL,(void*)leer_mensajes, (void*)arg);
     	pthread_detach(thread);
     	//pthread_mutex_unlock(&mutex_conexion);
@@ -58,6 +63,15 @@ int main(void)
     terminar_programa(socket_servidor, NULL, config);
 
 	return EXIT_SUCCESS;
+}
+
+void ejecutar_antes_de_terminar(int numero_senial)
+{
+	//log_info(LOGGER, "Se recibio la senial : %i  -- terminando programa", numero_senial);
+	//TODO
+	//terminar_programa(0, LOGGER, CONFIG);
+
+	exit(0);
 }
 
 void leer_mensajes(void* argumentos)
@@ -101,24 +115,6 @@ void thread_process_request(int cod_op, int cliente_fd)
 			break;
 		case SUBSCRIBE_LOCALIZED_POKEMON:
 			suscribir(cliente_fd, &suscribers_localized_pokemon);
-			break;
-		case UNSUBSCRIBE_NEW_POKEMON:
-			desuscribir(cliente_fd, &suscribers_new_pokemon);
-			break;
-		case UNSUBSCRIBE_APPEARED_POKEMON:
-			desuscribir(cliente_fd, &suscribers_appeared_pokemon);
-			break;
-		case UNSUBSCRIBE_CATCH_POKEMON:
-			desuscribir(cliente_fd, &suscribers_catch_pokemon);
-			break;
-		case UNSUBSCRIBE_CAUGHT_POKEMON:
-			desuscribir(cliente_fd, &suscribers_caught_pokemon);
-			break;
-		case UNSUBSCRIBE_GET_POKEMON:
-			desuscribir(cliente_fd, &suscribers_get_pokemon);
-			break;
-		case UNSUBSCRIBE_LOCALIZED_POKEMON:
-			desuscribir(cliente_fd, &suscribers_localized_pokemon);
 			break;
 		case NEW_POKEMON:
 			dar_aviso(cliente_fd,&suscribers_new_pokemon, NEW_POKEMON);
@@ -165,7 +161,7 @@ void suscribir(int cliente_fd, t_list *lista){
 
 	int id_manual_del_proceso = 0;	// ESTO TAMBIEN SE DEBERIA GUARDAR EN LA LISTA TODO
 	//SI ES == 0, ENTONCES TENDRIA UN COMPORTAMIENTO POR DEFAULT --> NO LE ENVIA NADA SI EL PROCESO SE CAE Y SE RECONECTA, POR EJ TODO
-	recv(cliente_fd, &id_manual_del_proceso, sizeof(int), 0);
+	recv(cliente_fd, &id_manual_del_proceso, sizeof(int), MSG_WAITALL);
 
 
 	//HACE FALTA ENVIAR ACK DEL MENSAJE DE SUSCRIPCION?? TODO
@@ -178,7 +174,12 @@ void desuscribir(int cliente_fd, t_list *lista){
 	int* puntero = list_remove_by_condition(lista, es_igual_a_socket_a_desuscribir);
 	free(puntero);
 	pthread_mutex_unlock(&mutex_para_desuscribir);
-}
+}	//EN VES DE DESUSCRIBIR, EL BROKER DEBERIA VERIFICAR CADA VES QUE QUIERE REENVIAR UN MENSAJE A UN SUSCRIPTOR, SI SU SOCKET SIGUE ABIERTO
+// SI LLEGARA A ESTAR CERRADO O TIRA ERROR, SE PODRIA "DESUSCRIBIR" TODO ... O NO.. CAPAS LO PUEDO DEJAR IGUAL
+// ASI, MIENTRAS GUARDO LOS MENSAJES QUE NO LE LLEGARON AL SUSCRIPTOR QUE SE FUE, CUANDO ESTE INTENTE VOLVERSE A SUSCRIBIR, LE ACTUALIZO EL SOCKET
+
+//LO QUE SI SEGURO, ES QUE SI ALGUN PROCESO SE SUSCRIBE A ALGUNA COLA CON ID_MANUAL_PROCESO == 0, EL BROKER LO DEBE DESUSCRIBIR APENAS SE DE CUENTA QUE
+//EL SOCKET NO SIRVE (CUANDO INTENTE MANDARLE ALGO Y VEA QUE NO PUEDE). COMO SE EL CASO DEL GAMEBOY
 
 bool es_igual_a_socket_a_desuscribir(void* elemento_de_lista)
 {
@@ -191,10 +192,10 @@ void dar_aviso(int cliente_fd, t_list *listaDeSuscriptores, int op_code){
 	printf("Dando aviso\n");
 
 	int id_correlativo = 0;
-	recv(cliente_fd, &id_correlativo, sizeof(int), 0);
+	recv(cliente_fd, &id_correlativo, sizeof(int), MSG_WAITALL);
 
 	int id_mensaje = 0;	//EL BROKER DEBERIA GENERAR UN ID Y GUARDARLO EN ALGUNA PARTE. TAMBIEN DEBERIA MANDAR ESE ID AL EMISOR DEL MENSAJE TODO
-	recv(cliente_fd, &id_mensaje, sizeof(int), 0);
+	recv(cliente_fd, &id_mensaje, sizeof(int), MSG_WAITALL);
 
 	int size_buffer = 0;
 	void* mensaje = recibir_buffer(cliente_fd, &size_buffer);

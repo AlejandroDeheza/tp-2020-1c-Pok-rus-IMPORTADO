@@ -29,6 +29,7 @@ t_bitarray* BITMAP = NULL;
 t_config* METADATA_METADATA_BIN = NULL;
 
 int ID_MANUAL_DEL_PROCESO = 0;
+char* ID_PROCESOS_TP;
 
 typedef struct
 {

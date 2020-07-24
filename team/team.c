@@ -22,6 +22,8 @@ const int RAFAGAS_CATCH = 1;
 
 int main(int argc, char *argv[]) {
 
+	signal(SIGINT, &ejecutar_antes_de_terminar);
+
 	verificar_e_interpretar_entrada(argc, argv);
 
 	CONFIG = leer_config("../team.config");
@@ -80,6 +82,15 @@ int main(int argc, char *argv[]) {
 
 	exit(0);
 
+}
+
+void ejecutar_antes_de_terminar(int numero_senial)
+{
+	log_info(LOGGER, "Se recibio la senial : %i  -- terminando programa", numero_senial);
+
+	terminar_programa(0, LOGGER, CONFIG);	//TODO
+
+	exit(0);
 }
 
 void verificar_e_interpretar_entrada(int argc, char *argv[])
@@ -580,7 +591,7 @@ void recibir_con_semaforo(int socket_cliente, pthread_mutex_t mutex, op_code tip
 	op_code codigo_operacion_recibido = 0;
 
 	pthread_mutex_lock(&mutex);
-	void* response = recibir_mensaje_como_cliente(&codigo_operacion_recibido, socket_cliente, &id_correlativo, &id_mensaje);
+	void* response = recibir_mensaje_por_socket(&codigo_operacion_recibido, socket_cliente, &id_correlativo, &id_mensaje);
 	pthread_mutex_unlock(&mutex);
 
 	if(response == NULL){

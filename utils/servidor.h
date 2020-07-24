@@ -22,6 +22,8 @@ int enviar_mensaje_a_suscriptores(void* mensaje, int size_mensaje, int socket_cl
 
 bool es_codigo_operacion_valido(op_code codigo_operacion);
 
+bool es_un_proceso_esperado(int socket_cliente, char* id_procesos_tp);
+
 /**************vv funciones anteriores vv*****************/
 void* recibir_buffer(int socket_cliente, int* size);
 void* recibir_mensaje_desde_cliente(int socket_cliente);

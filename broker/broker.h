@@ -13,10 +13,15 @@
 #include "../utils/servidor.h"
 #include "../utils/config.h"
 
+int ID_MANUAL_DEL_PROCESO = 0;
+char* ID_PROCESOS_TP;
+
 typedef struct
 {
 	int socket;
 } argumentos_leer_mensajes;
+
+void ejecutar_antes_de_terminar(int numero_senial);
 
 void leer_mensajes(void* socket);
 void thread_process_request(int codigo_operacion, int cliente_fd);

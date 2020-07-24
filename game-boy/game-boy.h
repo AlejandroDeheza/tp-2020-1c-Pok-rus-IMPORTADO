@@ -13,20 +13,28 @@
 #include <cliente.h>
 #include "../utils/config.h"
 
+int CONEXION = 0;
+t_config* CONFIG = NULL;
+t_log* LOGGER = NULL;
+
+int ID_MANUAL_DEL_PROCESO = 0;
+char* ID_PROCESOS_TP;
+
 typedef struct
 {
 	int tiempo_suscripcion;
 	int conexion_con_broker;
-	op_code codigo_desuscripcion;
 } argumentos_contador_de_tiempo;
+
+void ejecutar_antes_de_terminar(int numero_senial)
 
 void verificar_Entrada(int argc, char *argv[]);
 
 /* MODO SUSCRIPTOR  */
-void iniciar_modo_suscriptor(int conexion, t_log* logger, char* cola_a_suscribirse, int tiempo_suscripcion);
+void iniciar_modo_suscriptor(int conexion, char* cola_a_suscribirse, int tiempo_suscripcion);
 
-void obtener_codigos(char* cola_a_suscribirse, op_code* codigo_suscripcion, op_code* codigo_desuscripcion);
-void iniciar_hilo_para_desuscripcion(int tiempo_suscripcion, int conexion_con_broker, op_code codigo_desuscripcion);
+op_code obtener_codigo_suscripcion(char* cola_a_suscribirse);
+void iniciar_hilo_para_desuscripcion(int tiempo_suscripcion, int conexion_con_broker);
 void* contador_de_tiempo(void* argumentos);
 
 /* IMPRIMIR MENSAJES  */

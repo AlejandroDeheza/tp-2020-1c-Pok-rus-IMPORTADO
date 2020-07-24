@@ -76,7 +76,7 @@ int enviar_mensaje_como_cliente(void* mensaje, int socket_cliente, op_code codig
 	void* aEnviar = serializar_paquete(paquete, &bytes);
 	printf("EnviarMensaje -> Paquete Serializado - Tamaño Total: %d Bytes.\n", bytes);	//PARA LAS PRUEBAS COMENTAR ESTO TODO
 
-	int estado = send(socket_cliente, aEnviar, bytes, 0);
+	int estado = send(socket_cliente, aEnviar, bytes, MSG_NOSIGNAL);
 	verificar_estado(estado);	//PARA LAS PRUEBAS COMENTAR ESTO TODO
 	free(aEnviar);
 	free(paquete->buffer->stream);		//HACE FALTA ESTE FREE()?? NO HAGO EL FREE() EN GENERAR_Y_ENVIAR_T_ALGO() ??? TODO
@@ -191,18 +191,33 @@ void verificar_estado(int estado) {
 	}
 }
 
-int enviar_mensaje_de_suscripcion(int socket_cliente, op_code codigo_operacion, int id_manual_del_proceso)
+int enviar_identificacion_general(int socket, char* id_procesos_tp)
+{
+	int size = strlen(id_procesos_tp) + 1;
+	void* aEnviar = malloc(size);
+	int desplazamiento = 0;
+
+	memcpy(aEnviar + desplazamiento, &size, sizeof(int));
+	desplazamiento+= sizeof(int);
+	memcpy(aEnviar + desplazamiento, id_procesos_tp, size);
+
+	int estado = send(socket, aEnviar, sizeof(int) + size, MSG_NOSIGNAL);
+
+	return estado;
+}
+
+int enviar_mensaje_de_suscripcion(int socket_cliente, op_code codigo_suscripcion, int id_manual_del_proceso)
 {	//si id_manual_del_proceso == 0, entonces el BROKER lo setea en 0
 	int estado = 0;
 
 	void* aEnviar = malloc(sizeof(op_code) + sizeof(int));
 	int desplazamiento = 0;
 
-	memcpy(aEnviar + desplazamiento, &(codigo_operacion), sizeof(op_code));
+	memcpy(aEnviar + desplazamiento, &(codigo_suscripcion), sizeof(op_code));
 	desplazamiento+= sizeof(int);
 	memcpy(aEnviar + desplazamiento, &(id_manual_del_proceso), sizeof(int));
 
-	estado = send(socket_cliente, aEnviar, sizeof(sizeof(op_code) + sizeof(int)), 0);
+	estado = send(socket_cliente, aEnviar, sizeof(sizeof(op_code) + sizeof(int)), MSG_NOSIGNAL);
 	verificar_estado(estado);
 
 	return estado;
@@ -211,38 +226,31 @@ int enviar_mensaje_de_suscripcion(int socket_cliente, op_code codigo_operacion, 
 int esperar_id_mensaje_enviado(int socket_cliente)
 {
 	int id_mensaje_enviado = 0;
-	if(recv(socket_cliente, &id_mensaje_enviado, sizeof(int), 0) <= 0)return 0;
+	if(recv(socket_cliente, &id_mensaje_enviado, sizeof(int), MSG_WAITALL) <= 0)return 0;
 
 	return id_mensaje_enviado;
 }
 
-// es practiamente igual a mensaje_de_suscripcion() pero bueno.. asi deberia ser el ack?
 int enviar_ack(int socket_cliente, int id_mensaje_recibido){
 	int estado = 0;
-	estado = send(socket_cliente, &id_mensaje_recibido, sizeof(int), 0);
+	estado = send(socket_cliente, &id_mensaje_recibido, sizeof(int), MSG_NOSIGNAL);
 	verificar_estado(estado);
 
 	return estado;
 }
 
-//saco los mutex porque eso se deberia manejar por afuera de la funcion
-//no necesitan estar aca adentro
-//asi podemos reutilizar esta funcion
-void* recibir_mensaje_como_cliente(op_code* codigo_operacion, int socket_cliente, int* id_correlativo, int* id_mensaje)
+void* recibir_mensaje_por_socket(op_code* codigo_operacion, int socket_cliente, int* id_correlativo, int* id_mensaje)
 {
-	//POR COMO MODELAMOS EL TP, LOS CLIENTES NO NECESITAN EL CODIGO OPERACION... O NO? TODO
-	if(recv(socket_cliente, codigo_operacion, sizeof(op_code), 0) <= 0)return NULL;
-	//SI SE RECIBEN MENOS BYTES DE LOS PEDIDOS, DEBERIA TIRAR ERROR... TODO EL RECV() NO ERA BLOQUEANTE?
-	//SI CAMBIO ESO ACA, TENGO QUE CAMBIARLO EN TODOS LOS RECV() DEL TP...
+	if(recv(socket_cliente, codigo_operacion, sizeof(op_code), MSG_WAITALL) <= 0)return NULL;
 
-	if(recv(socket_cliente, id_correlativo, sizeof(int), 0) <= 0)return NULL;
+	if(recv(socket_cliente, id_correlativo, sizeof(int), MSG_WAITALL) <= 0)return NULL;
 
-	if(recv(socket_cliente, id_mensaje, sizeof(int), 0) <= 0)return NULL;
+	if(recv(socket_cliente, id_mensaje, sizeof(int), MSG_WAITALL) <= 0)return NULL;
 	int size;
-	if(recv(socket_cliente,&size, sizeof(int), 0) <= 0)return NULL;
+	if(recv(socket_cliente,&size, sizeof(int), MSG_WAITALL) <= 0)return NULL;
 
 	void* mensaje = malloc(size);
-	if(recv(socket_cliente,mensaje, size, 0) <= 0)return NULL;
+	if(recv(socket_cliente,mensaje, size, MSG_WAITALL) <= 0)return NULL;
 
 	void* response;
 
@@ -277,10 +285,5 @@ void* recibir_mensaje_como_cliente(op_code* codigo_operacion, int socket_cliente
 
 	free(mensaje);
 	return response;
-}
-
-void liberar_conexion(int socket_cliente)
-{
-	close(socket_cliente);
 }
 
