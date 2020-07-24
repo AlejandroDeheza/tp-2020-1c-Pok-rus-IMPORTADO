@@ -14,13 +14,13 @@ int main(int argc, char *argv[]) {
 
 	iniciar_file_system();
 
-	pthread_t thread_servidor = iniciar_hilo_para_escuchar_gameboy();
+	pthread_t thread_servidor = iniciar_hilo_para_recibir_conexiones();
 
-	pthread_t thread_new_appeared = iniciar_hilo_de_mensajes("NEW_POKEMON", SUBSCRIBE_NEW_POKEMON);
+	pthread_t thread_new_appeared = iniciar_hilo_para_comunicarse_con_broker("NEW_POKEMON", SUBSCRIBE_NEW_POKEMON);
 
-	pthread_t thread_catch_caught = iniciar_hilo_de_mensajes("CATCH_POKEMON", SUBSCRIBE_CATCH_POKEMON);
+	pthread_t thread_catch_caught = iniciar_hilo_para_comunicarse_con_broker("CATCH_POKEMON", SUBSCRIBE_CATCH_POKEMON);
 
-	pthread_t thread_get_localized = iniciar_hilo_de_mensajes("GET_POKEMON", SUBSCRIBE_GET_POKEMON);
+	pthread_t thread_get_localized = iniciar_hilo_para_comunicarse_con_broker("GET_POKEMON", SUBSCRIBE_GET_POKEMON);
 
 	pthread_join(thread_servidor, NULL);
 	pthread_join(thread_new_appeared, NULL);
@@ -40,34 +40,31 @@ int main(int argc, char *argv[]) {
 
 
 
-	config_destroy(METADATA_METADATA_BIN);
-
-    int retorno = msync(BITMAP->bitarray, BITMAP->size, MS_SYNC);
-
-    if(retorno == -1) log_error(LOGGER, "Ocurrio un error al usar mysinc()");
-
-	munmap(BITMAP->bitarray, BITMAP->size);
-
-	terminar_programa(0, LOGGER, CONFIG);
+	finalizar_gamecard();
 
 	return EXIT_SUCCESS;
 }
 
 void ejecutar_antes_de_terminar(int numero_senial)
 {
-	config_destroy(METADATA_METADATA_BIN);
-
 	log_info(LOGGER, "Se recibio la senial : %i  -- terminando programa", numero_senial);
 
-    int retorno = msync(BITMAP->bitarray, BITMAP->size, MS_SYNC);
-
-    if(retorno == -1) log_error(LOGGER, "Ocurrio un error al usar mysinc()");
-
-	munmap(BITMAP->bitarray, BITMAP->size);
-
-	terminar_programa(0, LOGGER, CONFIG);
+	finalizar_gamecard();
 
 	exit(0);
+}
+
+void finalizar_gamecard()
+{
+    if(msync(BITMAP->bitarray, BITMAP->size, MS_SYNC) == -1) log_error(LOGGER, "Ocurrio un error al usar mysinc()");
+
+    if(munmap(BITMAP->bitarray, BITMAP->size) == -1) log_error(LOGGER, "Ocurrio un error al usar munmap()");
+
+	bitarray_destroy(BITMAP);
+
+	config_destroy(METADATA_METADATA_BIN);
+
+	terminar_programa(0, LOGGER, CONFIG);
 }
 
 void verificar_e_interpretar_entrada(int argc, char *argv[])
@@ -82,16 +79,189 @@ void verificar_e_interpretar_entrada(int argc, char *argv[])
 	if(argc == 1) ID_MANUAL_DEL_PROCESO = atoi(argv[1]);
 }
 
-pthread_t iniciar_hilo_para_escuchar_gameboy()
+void iniciar_file_system()
+{
+	char* punto_montaje_file_system = asignar_string_property(CONFIG, "PUNTO_MONTAJE_TALLGRASS");
+	if(punto_montaje_file_system == NULL) imprimir_error_y_terminar_programa("Parece que PUNTO_MONTAJE_TALLGRASS no esta en game-card.config");
+
+	generar_estructura_file_system_si_hace_falta(punto_montaje_file_system);
+
+	METADATA_METADATA_BIN = config_para_file_system(punto_montaje_file_system, "/Metadata/Metadata.bin");
+
+	int cant_max_bloques = asignar_int_property(METADATA_METADATA_BIN, "BLOCKS");
+
+	char* path_metadata_bitmap_bin = string_from_format("%s/Metadata/Bitmap.bin", punto_montaje_file_system);
+
+	BITMAP = mapear_bitmap_en_memoria(path_metadata_bitmap_bin, cant_max_bloques/8);
+	free(path_metadata_bitmap_bin);
+}
+
+void generar_estructura_file_system_si_hace_falta(char* punto_montaje_file_system)
+{
+	/* SE CREA CARPETA DE PUNTO DE MONTAJE */
+	crear_carpeta_si_no_existe(punto_montaje_file_system);
+
+	/* SE CREA CARPETA METADATA */
+	char* path_metadata = string_from_format("%s/Metadata", punto_montaje_file_system);
+	crear_carpeta_si_no_existe(path_metadata);
+
+	/* SE CREA ARCHIVO METADATA/METADATA.BIN */
+	string_append_with_format(&path_metadata, "/Metadata.bin");
+
+	char* block_size = asignar_string_property(CONFIG, "DEFAULT_BLOCK_SIZE");
+	char* blocks = asignar_string_property(CONFIG, "DEFAULT_BLOCKS");
+	char* magic_number = asignar_string_property(CONFIG, "DEFAULT_MAGIC_NUMBER");
+	char* datos_metadata_metadata_bin = string_from_format("BLOCK_SIZE=%s\nBLOCKS=%s\nMAGIC_NUMBER=%s", block_size, blocks, magic_number);
+
+	escribir_y_cerrar_archivo_si_no_existe(path_metadata, datos_metadata_metadata_bin, strlen(datos_metadata_metadata_bin));
+	free(datos_metadata_metadata_bin);
+	free(path_metadata);
+
+	/* SE CREA CARPETA BLOCKS */
+	char* path_blocks = string_from_format("%s/Blocks", punto_montaje_file_system);
+	crear_carpeta_si_no_existe(path_blocks);
+	free(path_blocks);
+
+	/* SE CREA ARCHIVO METADATA/BITMAP.BIN ---- ADEMAS ---- SE CREAN ARCHIVOS BLOCKS/NUMERO.BIN */
+	t_config* config_metadata_metadata_bin = config_para_file_system(punto_montaje_file_system, "/Metadata/Metadata.bin");
+	int cantidad_bloques = asignar_int_property(config_metadata_metadata_bin, "BLOCKS");
+	config_destroy(config_metadata_metadata_bin);
+	int cantidad_bytes = cantidad_bloques/ 8;
+
+	char* path_metadata_bitmap_bin = string_from_format("%s/Metadata/Bitmap.bin", punto_montaje_file_system);
+	struct stat datos_bitmap_bin;
+	t_bitarray* bitarray = NULL;
+
+	if(stat(path_metadata_bitmap_bin, &datos_bitmap_bin) == 0)
+	{	// ESTO SE EJECUTA SI EL ARCHIVO EN path_metadata_bitmap_bin EXISTE
+		//N0 IMPORTA SI EL BITMAP.BIN TIENE DATOS ADENTRO O ESTA VACIO
+		bitarray = mapear_bitmap_en_memoria(path_metadata_bitmap_bin, cantidad_bytes);
+		generar_bloques_bin_que_hagan_falta(punto_montaje_file_system, cantidad_bloques, bitarray);
+
+	    if(msync(bitarray->bitarray, bitarray->size, MS_SYNC) == -1) imprimir_error_y_terminar_programa("Ocurrio un error al usar mysinc()");
+
+		munmap(bitarray->bitarray, bitarray->size);
+
+	}else{
+		char* bytes = calloc(cantidad_bytes, sizeof(char));
+		bitarray = bitarray_create_with_mode(bytes, cantidad_bytes, LSB_FIRST);
+		generar_bloques_bin_que_hagan_falta(punto_montaje_file_system, cantidad_bloques, bitarray);
+		sobrescribir_y_cerrar_archivo(path_metadata_bitmap_bin, bitarray->bitarray, cantidad_bytes);
+		free(bytes);
+	}
+	free(path_metadata_bitmap_bin);
+	bitarray_destroy(bitarray);
+
+	/* SE CREA CARPETA FILES */
+	char* path_files = string_from_format("%s/Files", punto_montaje_file_system);
+	crear_carpeta_si_no_existe(path_files);
+
+	/* SE CREA ARCHIVO FILES/METADATA.BIN */
+	string_append_with_format(&path_files, "/Metadata.bin");
+	escribir_y_cerrar_archivo_si_no_existe(path_files, "DIRECTORY=Y", strlen("DIRECTORY=Y"));
+	free(path_files);
+}
+
+t_bitarray* mapear_bitmap_en_memoria(char* archivo, size_t size_memoria_a_mapear){
+
+	int fd = open(archivo, O_RDWR);
+	if (fd == -1)imprimir_error_y_terminar_programa("No se pudo abrir el archivo en mapear_bitmap_en_memoria()");
+
+	if (ftruncate(fd, size_memoria_a_mapear) == -1)imprimir_error_y_terminar_programa("No se pudo truncar el archivo en mapear_bitmap_en_memoria()");
+
+	void* memoria_mapeada = mmap(NULL, size_memoria_a_mapear, PROT_READ | PROT_WRITE, MAP_SHARED, fd, 0);
+
+	if (close(fd) == -1)imprimir_error_y_terminar_programa("No se pudo cerrar el archivo en mapear_bitmap_en_memoria()");
+
+	if (memoria_mapeada == MAP_FAILED) imprimir_error_y_terminar_programa("No se pudo realizar el mapeo en memoria del BITMAP");
+
+	log_info(LOGGER, "Se realizo con exito el mapeado en memoria de : %s", archivo);
+
+	return bitarray_create_with_mode((char*) memoria_mapeada, size_memoria_a_mapear, LSB_FIRST);
+}
+
+void generar_bloques_bin_que_hagan_falta(char* punto_montaje_file_system, int cantidad_bloques_del_fs, t_bitarray* bitarray)
+{
+	for(int i = 1; i < (cantidad_bloques_del_fs + 1); i++){
+
+		char* un_path_bloque = string_from_format("%s/Blocks/%i.bin", punto_montaje_file_system, i);
+
+		struct stat datos_bloque_bin;
+
+		if(stat(un_path_bloque, &datos_bloque_bin) == -1){
+			sobrescribir_y_cerrar_archivo(un_path_bloque, "", 0);
+		}else{
+
+			if(datos_bloque_bin.st_size != 0) bitarray_set_bit(bitarray, i - 1);
+		}
+		free(un_path_bloque);
+	}
+}
+
+t_config* config_para_file_system(char* punto_montaje_file_system, char* path_archivo)
+{
+	char* archivo = string_from_format("%s%s", punto_montaje_file_system, path_archivo);
+	t_config* config = leer_config(archivo);
+	free(archivo);
+
+	return config;
+}
+
+void crear_carpeta_si_no_existe(char* path_carpeta_con_nombre)
+{
+	DIR* carpeta = opendir(path_carpeta_con_nombre);
+
+	if(carpeta == NULL)
+	{
+		mkdir(path_carpeta_con_nombre, 0777);
+		log_info(LOGGER, "Creando carpeta : %s", path_carpeta_con_nombre);
+	}else
+	{
+		closedir(carpeta);
+	}
+}
+
+void escribir_y_cerrar_archivo_si_no_existe(char* path_archivo_con_nombre, char* datos_a_grabar, int tamanio_datos_a_grabar)
+{
+	FILE* archivo = fopen(path_archivo_con_nombre, "rb");
+
+	if(archivo == NULL)
+	{
+		sobrescribir_y_cerrar_archivo(path_archivo_con_nombre, datos_a_grabar, tamanio_datos_a_grabar);
+		log_info(LOGGER, "Creando archivo : %s  --  Bytes escritos : %i", path_archivo_con_nombre, tamanio_datos_a_grabar);
+
+	}else{
+		fclose(archivo);
+	}
+}
+
+void sobrescribir_y_cerrar_archivo(char* path_archivo_con_nombre, char* datos_a_grabar, int tamanio_datos_a_grabar)
+{
+	FILE* archivo = fopen(path_archivo_con_nombre, "wb");
+
+	if(archivo == NULL)
+	{
+		char* mensaje = string_from_format("No se pudo crear archivo %s", path_archivo_con_nombre);
+		imprimir_error_y_terminar_programa(mensaje);
+		free(mensaje); //ESTO NUNCA SE EJECUTA...
+	}
+
+	//fprintf(metadata_bin, "%s", datos_metadata_bin);
+	fwrite(datos_a_grabar, tamanio_datos_a_grabar, 1, archivo);
+
+	if (fclose(archivo) != 0)imprimir_error_y_terminar_programa("No se pudo cerrar el archivo en sobrescribir_y_cerrar_archivo()");
+}
+
+pthread_t iniciar_hilo_para_recibir_conexiones()
 {
 	pthread_t thread;
-	if(0 != pthread_create(&thread, NULL, recibir_mensajes_de_gameboy, NULL))
+	if(0 != pthread_create(&thread, NULL, recibir_conexiones, NULL))
 		imprimir_error_y_terminar_programa("No se pudo crear hilo recibir_mensajes_de_gameboy()");
 
 	return thread;
 }
 
-void* recibir_mensajes_de_gameboy()
+void* recibir_conexiones()
 {
 	char* ip = asignar_string_property(CONFIG, "IP_GAMECARD");
 	char* puerto = asignar_string_property(CONFIG, "PUERTO_GAMECARD");
@@ -110,7 +280,6 @@ void* recibir_mensajes_de_gameboy()
 
 		//queda bloqueado hasta que el gamecard recibe un mensaje del gameboy
 		void* mensaje = recibir_mensaje_por_socket(&codigo_operacion_recibido, socket_cliente, &id_correlativo, &id_mensaje_recibido);
-		//DEBERIA CAMBIAR EL NOMBRE DE ESTA FUNCION TODO
 
 		//si se recibe el mensaje de error (que se genera si se CAE EL GAMEBOY O SI HAY UN ERROR), se sale de este while(true) y ESPERA OTRA CONEXION
 		if(mensaje == NULL) break;
@@ -125,7 +294,7 @@ void* recibir_mensajes_de_gameboy()
 	return NULL;
 }
 
-pthread_t iniciar_hilo_de_mensajes(char* cola_a_suscribirse, op_code codigo_suscripcion)
+pthread_t iniciar_hilo_para_comunicarse_con_broker(char* cola_a_suscribirse, op_code codigo_suscripcion)
 {
 	argumentos_de_hilo* arg = malloc(sizeof(argumentos_de_hilo));
 	arg->stream = cola_a_suscribirse;
@@ -143,6 +312,7 @@ void* conectar_recibir_y_enviar_mensajes(void* argumentos)
 	argumentos_de_hilo* args = argumentos;
 	char* cola_a_suscribirse = args->stream;
 	op_code codigo_suscripcion = args->entero;
+	free(args);
 
 	while(true)
 	{
@@ -151,8 +321,6 @@ void* conectar_recibir_y_enviar_mensajes(void* argumentos)
 		free(mensaje_de_logueo_al_reintentar_conexion);
 
 		log_info(LOGGER, "Se realizo una conexion con BROKER, para suscribirse a cola %s", cola_a_suscribirse);
-
-		if(enviar_identificacion_general(conexion, ID_PROCESOS_TP) <= 0) continue;
 
 		int estado_envio = enviar_mensaje_de_suscripcion(conexion, codigo_suscripcion, ID_MANUAL_DEL_PROCESO);
 		if(estado_envio <= 0) continue;
@@ -194,7 +362,6 @@ void* conectar_recibir_y_enviar_mensajes(void* argumentos)
 int conectar_a_broker_y_reintentar_si_hace_falta(char* mensaje_de_logueo_al_reintentar_conexion)
 {
 	int conexion = iniciar_conexion_como_cliente("BROKER", CONFIG);
-
 	int tiempo_de_reintento_conexion = asignar_int_property(CONFIG, "TIEMPO_DE_REINTENTO_CONEXION");
 
 	while(conexion <= 0)
@@ -204,9 +371,26 @@ int conectar_a_broker_y_reintentar_si_hace_falta(char* mensaje_de_logueo_al_rein
 		sleep(tiempo_de_reintento_conexion);
 
 		conexion = iniciar_conexion_como_cliente("BROKER", CONFIG);
+
+		if( conexion > 0)
+		{
+			if(enviar_identificacion_general(conexion, ID_PROCESOS_TP) <= 0) conexion = -1;
+			//SI FALLA LA IDENTIFICACIOJN, ENTONCES SE INTENTA RECONECTAR DEVUELTA
+		}
 	}
 
 	return conexion;
+}
+
+void verificar_estado_del_envio_y_cerrar_conexion(char* tipo_mensaje, int estado, int conexion)
+{
+	if(estado <= 0){
+		log_error(LOGGER, "No se pudo enviar %s al BROKER. Continuando operacion del GAME CARD", tipo_mensaje);
+	}else{
+		esperar_id_mensaje_enviado(conexion);	//EL GAMECARD NO HACE NADA CON EL ID, SOLO TIENE QUE ESPERARLO
+	}
+
+	close(conexion);
 }
 
 void iniciar_hilo_para_tratar_y_responder_mensaje(int id_mensaje_recibido, void* mensaje, op_code codigo_suscripcion)
@@ -244,36 +428,42 @@ void* atender_new_pokemon(void* argumentos)
 	argumentos_de_hilo* args = argumentos;
 	int id_mensaje_recibido = args->entero;
 	t_new_pokemon* mensaje = args->stream;
+	free(args);
 
-	if(verificar_si_existe(mensaje->nombre) == false) crear_archivo(mensaje->nombre);
+	if(verificar_si_existe_archivo_pokemon(mensaje->nombre) == false) crear_archivo_pokemon(mensaje->nombre);
 
-	pedir_archivo(mensaje->nombre);
+	pedir_archivo_pokemon(mensaje->nombre);
 
-	agregar_cantidad(mensaje);
+    char** array_de_todo_el_archivo_pokemon_con_posiciones_y_cantidades = generar_array_de_todo_el_archivo_pokemon_con_posiciones_y_cantidades((char*) mensaje->nombre);
+    char* posicion_buscada_en_string = string_from_format("%i-%i", mensaje->coordenadas.posx, mensaje->coordenadas.posy);
 
-	retener_un_rato_y_liberar_archivo(mensaje->nombre);
+	agregar_cantidad_en_archivo_pokemon(mensaje, array_de_todo_el_archivo_pokemon_con_posiciones_y_cantidades, posicion_buscada_en_string);
+
+	retener_un_rato_y_liberar_archivo_pokemon(mensaje->nombre);
 
 	int conexion = conectar_a_broker_y_reintentar_si_hace_falta("La conexion con el BROKER para enviar APPEARED_POKEMON fallo.");
 	//NO SERIA NECESARIO REINTENTAR CONEXION SI EL TEAM REINTENTA ENVIAR LOS PEDIDOS QUE NO RECIBE. REVISAR TODO
+	//FIJATE, CAPAZ NO PIDEN REINTENTAR CONEXION PARA ENVIAR MENSAJES TODO
+	//DIRIA QUE NOP HAY QUE REINTENTAR, LOGUEAR EN CASO DE NO PODER Y SEGUIR CON EJECUCION NORMAL
+	//ESTO CON LOS 3 TIPOS DE MENSAJES
 
-	enviar_identificacion_general(conexion, ID_PROCESOS_TP);
+	//enviar_identificacion_general(conexion, ID_PROCESOS_TP);	//SI NO INTENTO RECONECTARME, TENGO QUE USAR ESTO
 
 	int estado = generar_y_enviar_appeared_pokemon(conexion, 0, id_mensaje_recibido, mensaje->nombre, mensaje->coordenadas.posx, mensaje->coordenadas.posy);
 
 	verificar_estado_del_envio_y_cerrar_conexion("APPEARED_POKEMON", estado, conexion);
 
-	/*
-	Verificar si el Pokémon existe dentro de nuestro Filesystem. Para esto se deberá buscar dentro del directorio Pokemon si existe el archivo con el nombre de nuestro pokémon. En caso de no existir se deberá crear.
-	Verificar si se puede abrir el archivo (si no hay otro proceso que lo esté abriendo). En caso que el archivo se encuentre abierto se deberá reintentar la operación luego de un tiempo definido en el archivo de configuración.
-	Verificar si las posiciones ya existen dentro del archivo. En caso de existir, se deben agregar la cantidad pasada por parámetro a la actual. En caso de no existir se debe agregar al final del archivo una nueva línea indicando la cantidad de pokémon pasadas.
-	Esperar la cantidad de segundos definidos por archivo de configuración
-	Cerrar el archivo.
-	Conectarse al Broker y enviar el mensaje a la Cola de Mensajes APPEARED_POKEMON con los los datos:
-	ID del mensaje recibido.
-	Pokemon.
-	Posición del mapa.
-	En caso que no se pueda realizar la conexión con el Broker se debe informar por logs y continuar la ejecución.
-	*/
+    int i = 0;
+    while(array_de_todo_el_archivo_pokemon_con_posiciones_y_cantidades[i] != NULL)
+    {
+    	free(array_de_todo_el_archivo_pokemon_con_posiciones_y_cantidades[i]);
+    	i++;
+    }
+    free(array_de_todo_el_archivo_pokemon_con_posiciones_y_cantidades);
+    free(posicion_buscada_en_string);
+
+	free(mensaje->nombre);
+	free(mensaje);
 
 	return NULL;
 }
@@ -283,60 +473,112 @@ void* atender_catch_pokemon(void* argumentos)
 	argumentos_de_hilo* args = argumentos;
 	int id_mensaje_recibido = args->entero;
 	t_catch_pokemon* mensaje = args->stream;
+	free(args);
 
-	int resultado_caught = 0;
-
-	if(verificar_si_existe(mensaje->nombre) == false)
+	if(verificar_si_existe_archivo_pokemon(mensaje->nombre) == false)
 	{
 		log_error(LOGGER, "Se recibio CATCH_POKEMON. No existe pokemon solicitado en file system. Nombre del pokemon: %s", mensaje->nombre);
 
-		conectar_enviar_verificar_caught(id_mensaje_recibido, resultado_caught);
+		conectar_enviar_verificar_caught(id_mensaje_recibido, 0);
 
 		pthread_exit(NULL);	//ASI SE HACE PARA TERMINAR UN HILO?? REVISAR TODO
 	}
 
-	pedir_archivo(mensaje->nombre);
+	pedir_archivo_pokemon(mensaje->nombre);
 
-	if(verificar_si_existen_posiciones(mensaje->nombre, mensaje->coordenadas.posx, mensaje->coordenadas.posy) == -1)
+    char** array_de_todo_el_archivo_pokemon_con_posiciones_y_cantidades = generar_array_de_todo_el_archivo_pokemon_con_posiciones_y_cantidades((char*) mensaje->nombre);
+    char* posicion_buscada_en_string = string_from_format("%i-%i", mensaje->coordenadas.posx, mensaje->coordenadas.posy);
+    int indice_de_busqueda = buscar_posicion_en_archivo_pokemon(array_de_todo_el_archivo_pokemon_con_posiciones_y_cantidades, posicion_buscada_en_string);
+
+	if(indice_de_busqueda == -1)
 	{
-		retener_un_rato_y_liberar_archivo(mensaje->nombre);
-
 		log_error(LOGGER, "Se recibio CATCH_POKEMON. No existe pokemon en ubicacion solicitada en file system. "
 				"Nombre del pokemon: %s posx: %i posy %i", mensaje->nombre, mensaje->coordenadas.posx, mensaje->coordenadas.posy);
 
-		conectar_enviar_verificar_caught(id_mensaje_recibido, resultado_caught);
+		retener_conectar_librerar_recursos_caught(mensaje, id_mensaje_recibido, 0, posicion_buscada_en_string,
+				array_de_todo_el_archivo_pokemon_con_posiciones_y_cantidades);
 
 		pthread_exit(NULL);	//ASI SE HACE PARA TERMINAR UN HILO?? REVISAR TODO
 	}
 
-	reducir_cantidad(mensaje);
+	reducir_cantidad_en_archivo_pokemon(mensaje->nombre, indice_de_busqueda, array_de_todo_el_archivo_pokemon_con_posiciones_y_cantidades, posicion_buscada_en_string);
 
-	resultado_caught = 1;
+	retener_conectar_librerar_recursos_caught(mensaje, id_mensaje_recibido, 1, posicion_buscada_en_string,
+			array_de_todo_el_archivo_pokemon_con_posiciones_y_cantidades);
 
-	retener_un_rato_y_liberar_archivo(mensaje->nombre);
+	return NULL;
+}
+
+void* atender_get_pokemon(void* argumentos)
+{
+	argumentos_de_hilo* args = argumentos;
+	int id_mensaje_recibido = args->entero;
+	t_get_pokemon* mensaje = args->stream;
+	free(args);
+
+	if(verificar_si_existe_archivo_pokemon(mensaje->nombre) == false)
+	{
+		log_error(LOGGER, "Se recibio GET_POKEMON. No existe pokemon solicitado en file system. Nombre del pokemon: %s", mensaje->nombre);
+
+		char* mensaje_de_logueo_al_reintentar_conexion = string_from_format("La conexion con el BROKER para enviar LOCALIZED_POKEMON fallo.");
+		int conexion = conectar_a_broker_y_reintentar_si_hace_falta(mensaje_de_logueo_al_reintentar_conexion);
+		free(mensaje_de_logueo_al_reintentar_conexion);
+
+		//enviar_identificacion_general(conexion, ID_PROCESOS_TP);	//SI NO INTENTO RECONECTARME, TENGO QUE USAR ESTO
+
+		int estado = generar_y_enviar_localized_pokemon(conexion, 0, id_mensaje_recibido, mensaje->nombre, NULL);
+		//VERIFICAR QUE TEAM SABE ENTENDER UNA LISTA NULL. TODO
+		//DEBERIA MANDAR ESTE MENSAJE? O NO MANDO NADA Y TERMINO EL HILO ACTUAL? TODO
+
+		verificar_estado_del_envio_y_cerrar_conexion("LOCALIZED_POKEMON", estado, conexion);
+
+		pthread_exit(NULL);	//ASI SE HACE PARA TERMINAR UN HILO?? REVISAR TODO
+	}
+
+	pedir_archivo_pokemon(mensaje->nombre);
+
+	t_list* lista_posiciones = obtener_todas_las_posiciones_de_archivo_pokemon(mensaje->nombre);
+	//segun el anexo 2, no tengo que indicar la cantidad de pokemones en cada posicion
+
+	retener_un_rato_y_liberar_archivo_pokemon(mensaje->nombre);
+
+	char* mensaje_de_logueo_al_reintentar_conexion = string_from_format("La conexion con el BROKER para enviar LOCALIZED_POKEMON fallo.");
+	int conexion = conectar_a_broker_y_reintentar_si_hace_falta(mensaje_de_logueo_al_reintentar_conexion);
+	free(mensaje_de_logueo_al_reintentar_conexion);
+
+	//enviar_identificacion_general(conexion, ID_PROCESOS_TP);	//SI NO INTENTO RECONECTARME, TENGO QUE USAR ESTO
+
+	int estado = generar_y_enviar_localized_pokemon(conexion, 0, id_mensaje_recibido, mensaje->nombre, lista_posiciones);
+	//DEBERIA MANDAR ESTE MENSAJE SI LA LISTA ESTA VACIA? O NO MANDO NADA Y TERMINO EL HILO ACTUAL? TODO
+	//DEBERIA REVISAR EL TEAM
+
+	verificar_estado_del_envio_y_cerrar_conexion("LOCALIZED_POKEMON", estado, conexion);
+
+	list_destroy_and_destroy_elements(lista_posiciones, free);
+	free(mensaje->nombre);
+	free(mensaje);
+
+	return NULL;
+}
+
+void retener_conectar_librerar_recursos_caught(t_catch_pokemon* mensaje, int id_mensaje_recibido, int resultado_caught, char* posicion_buscada_en_string,
+		char** array_de_todo_el_archivo_pokemon_con_posiciones_y_cantidades)
+{
+	retener_un_rato_y_liberar_archivo_pokemon(mensaje->nombre);
 
 	conectar_enviar_verificar_caught(id_mensaje_recibido, resultado_caught);
 
-	/*
-	Este mensaje cumplirá la función de indicar si es posible capturar un Pokemon, y capturarlo en tal caso. Para esto se recibirán los siguientes parámetros:
-	ID del mensaje recibido.
-	Pokemon a atrapar.
-	Posición del mapa.
+    int i = 0;
+    while(array_de_todo_el_archivo_pokemon_con_posiciones_y_cantidades[i] != NULL)
+    {
+    	free(array_de_todo_el_archivo_pokemon_con_posiciones_y_cantidades[i]);
+    	i++;
+    }
+    free(array_de_todo_el_archivo_pokemon_con_posiciones_y_cantidades);
+    free(posicion_buscada_en_string);
 
-	Verificar si el Pokémon existe dentro de nuestro Filesystem. Para esto se deberá buscar dentro del directorio Pokemon, si existe el archivo con el nombre de nuestro pokémon. En caso de no existir se deberá informar un error.
-	Verificar si se puede abrir el archivo (si no hay otro proceso que lo esté abriendo). En caso que el archivo se encuentre abierto se deberá reintentar la operación luego de un tiempo definido en el archivo de configuración.
-	Verificar si las posiciones ya existen dentro del archivo. En caso de no existir se debe informar un error.
-	En caso que la cantidad del Pokémon sea “1”, se debe eliminar la línea. En caso contrario se debe decrementar la cantidad en uno.
-	Esperar la cantidad de segundos definidos por archivo de configuración
-	Cerrar el archivo.
-	Conectarse al Broker y enviar el mensaje indicando el resultado correcto.
-	Todo resultado, sea correcto o no, deberá realizarse conectandose al Broker y enviando un mensaje a la Cola de Mensajes CAUGHT_POKEMON indicando:
-	ID del mensaje recibido originalmente.
-	Resultado.
-	En caso que no se pueda realizar la conexión con el Broker se debe informar por logs y continuar la ejecución.
-	*/
-
-	return NULL;
+	free(mensaje->nombre);
+	free(mensaje);
 }
 
 void conectar_enviar_verificar_caught(int id_mensaje_recibido, int resultado_caught)
@@ -345,82 +587,24 @@ void conectar_enviar_verificar_caught(int id_mensaje_recibido, int resultado_cau
 	int conexion = conectar_a_broker_y_reintentar_si_hace_falta(mensaje_de_logueo_al_reintentar_conexion);
 	free(mensaje_de_logueo_al_reintentar_conexion);
 
-	enviar_identificacion_general(conexion, ID_PROCESOS_TP);
+	//enviar_identificacion_general(conexion, ID_PROCESOS_TP);	//SI NO INTENTO RECONECTARME, TENGO QUE USAR ESTO
 
 	int estado = generar_y_enviar_caught_pokemon(conexion, 0, id_mensaje_recibido, resultado_caught);
 
 	verificar_estado_del_envio_y_cerrar_conexion("CAUGHT_POKEMON", estado, conexion);
 }
 
-void* atender_get_pokemon(void* argumentos)
-{
-	argumentos_de_hilo* args = argumentos;
-	int id_mensaje_recibido = args->entero;
-	t_get_pokemon* mensaje = args->stream;
-
-	if(verificar_si_existe(mensaje->nombre) == false)
-	{
-		log_error(LOGGER, "Se recibio GET_POKEMON. No existe pokemon solicitado en file system. Nombre del pokemon: %s", mensaje->nombre);
-
-		char* mensaje_de_logueo_al_reintentar_conexion = string_from_format("La conexion con el BROKER para enviar LOCALIZED_POKEMON fallo.");
-		int conexion = conectar_a_broker_y_reintentar_si_hace_falta(mensaje_de_logueo_al_reintentar_conexion);
-		free(mensaje_de_logueo_al_reintentar_conexion);
-
-		enviar_identificacion_general(conexion, ID_PROCESOS_TP);
-
-		int estado = generar_y_enviar_localized_pokemon(conexion, 0, id_mensaje_recibido, mensaje->nombre, NULL);
-		//VERIFICAR QUE TEAM SABE ENTENDER UNA LISTA NULL. TODO
-
-		verificar_estado_del_envio_y_cerrar_conexion("LOCALIZED_POKEMON", estado, conexion);
-
-		pthread_exit(NULL);	//ASI SE HACE PARA TERMINAR UN HILO?? REVISAR TODO
-	}
-
-	pedir_archivo(mensaje->nombre);
-
-	t_list* lista_posiciones = obtener_todas_las_posiciones(mensaje->nombre);
-
-	retener_un_rato_y_liberar_archivo(mensaje->nombre);
-
-	char* mensaje_de_logueo_al_reintentar_conexion = string_from_format("La conexion con el BROKER para enviar LOCALIZED_POKEMON fallo.");
-	int conexion = conectar_a_broker_y_reintentar_si_hace_falta(mensaje_de_logueo_al_reintentar_conexion);
-	free(mensaje_de_logueo_al_reintentar_conexion);
-
-	enviar_identificacion_general(conexion, ID_PROCESOS_TP);
-
-	int estado = generar_y_enviar_localized_pokemon(conexion, 0, id_mensaje_recibido, mensaje->nombre, lista_posiciones);
-
-	verificar_estado_del_envio_y_cerrar_conexion("LOCALIZED_POKEMON", estado, conexion);
-
-	/*
-	Este mensaje cumplirá la función de obtener todas las posiciones y su cantidad de un Pokémon específico. Para esto recibirá:
-	El identificador del mensaje recibido.
-	Pokémon a devolver.
-
-	Verificar si el Pokémon existe dentro de nuestro Filesystem. Para esto se deberá buscar dentro del directorio Pokemon, si existe el archivo con el nombre de nuestro pokémon. En caso de no existir se deberá informar el mensaje sin posiciones ni cantidades.
-	Verificar si se puede abrir el archivo (si no hay otro proceso que lo esté abriendo). En caso que el archivo se encuentre abierto se deberá reintentar la operación luego de un tiempo definido por configuración.
-	Obtener todas las posiciones y cantidades de Pokemon requerido.
-	Esperar la cantidad de segundos definidos por archivo de configuración
-	Cerrar el archivo.
-	Conectarse al Broker y enviar el mensaje con todas las posiciones y su cantidad.
-	En caso que se encuentre por lo menos una posición para el Pokémon solicitado se deberá enviar un mensaje al Broker a la Cola de Mensajes LOCALIZED_POKEMON indicando:
-	ID del mensaje recibido originalmente.
-	El Pokémon solicitado.
-	La lista de posiciones y la cantidad de posiciones X e Y de cada una de ellas en el mapa.
-	En caso que no se pueda realizar la conexión con el Broker se debe informar por logs y continuar la ejecución.
-	*/
-	return NULL;
-}
-
-bool verificar_si_existe(char* nombre_pokemon)
+bool verificar_si_existe_archivo_pokemon(char* nombre_pokemon)
 {
 	char* punto_montaje_file_system = asignar_string_property(CONFIG, "PUNTO_MONTAJE_TALLGRASS");
-
 	char* path_carpeta_con_nombre = string_from_format("%s/Files/%s", punto_montaje_file_system, nombre_pokemon);
-
 	DIR* carpeta = opendir(path_carpeta_con_nombre);
 
-	if(carpeta == NULL) return false;
+	if(carpeta == NULL)
+	{
+		free(path_carpeta_con_nombre);
+		return false;
+	}
 
 	closedir(carpeta);
 
@@ -429,8 +613,8 @@ bool verificar_si_existe(char* nombre_pokemon)
 
 	struct stat datos_archivo;
 
-	if(stat(path_archivo_con_nombre, &datos_archivo) == -1){
-
+	if(stat(path_archivo_con_nombre, &datos_archivo) == -1)
+	{
 		free(path_archivo_con_nombre);
 		return false;
 	}
@@ -442,63 +626,160 @@ bool verificar_si_existe(char* nombre_pokemon)
 	return true;	//DEBERIA MIRAR SI EL CONTENIDO ADENTRO DEL ARCHIVO ME SIRVE... TODO . por ahora no lo mires...no creo que me den archivos asi
 }
 
-void crear_archivo(char* nombre_pokemon)
+void crear_archivo_pokemon(char* nombre_pokemon)
 {
 	char* punto_montaje_file_system = asignar_string_property(CONFIG, "PUNTO_MONTAJE_TALLGRASS");
-
 	char* path_carpeta_con_nombre = string_from_format("%s/Files/%s", punto_montaje_file_system, nombre_pokemon);
-
 	crear_carpeta_si_no_existe(path_carpeta_con_nombre);
 
 	char* path_archivo_con_nombre = string_from_format("%s/Metadata.bin", path_carpeta_con_nombre);
 
-	struct stat datos_archivo;
-
-	if(stat(path_archivo_con_nombre, &datos_archivo) != 0){
-
-		FILE* archivo = fopen(path_archivo_con_nombre, "wb");
-
-		if(archivo == NULL)
-		{
-			char* mensaje = string_from_format("No se pudo crear archivo %s", path_archivo_con_nombre);
-			imprimir_error_y_terminar_programa(mensaje);
-			free(mensaje); //ESTO NUNCA SE EJECUTA...
-		}
-
-		//fprintf(metadata_bin, "%s", datos_metadata_bin);
-		fwrite("DIRECTORY=N\nSIZE=0\nBLOCKS=[0]\nOPEN=N", strlen("DIRECTORY=N\nSIZE=0\nBLOCKS=[0]\nOPEN=N"), 1, archivo);
-
-		fclose(archivo);
-	}else
-	{
-		if(datos_archivo.st_size == 0)
-		{
-			FILE* archivo = fopen(path_archivo_con_nombre, "wb");
-
-			if(archivo == NULL)
-			{
-				char* mensaje = string_from_format("No se pudo crear archivo %s", path_archivo_con_nombre);
-				imprimir_error_y_terminar_programa(mensaje);
-				free(mensaje); //ESTO NUNCA SE EJECUTA...
-			}
-
-			//fprintf(metadata_bin, "%s", datos_metadata_bin);
-			fwrite("DIRECTORY=N\nSIZE=0\nBLOCKS=[]\nOPEN=N", strlen("DIRECTORY=N\nSIZE=0\nBLOCKS=[0]\nOPEN=N"), 1, archivo);
-			//DEBERIA PONER BLOCK=[0] ? O DEJARLO ASI? REVISAR TODO
-
-			fclose(archivo);
-		}
-	}
+	sobrescribir_y_cerrar_archivo(path_archivo_con_nombre, "DIRECTORY=N\nSIZE=0\nBLOCKS=[]\nOPEN=N", strlen("DIRECTORY=N\nSIZE=0\nBLOCKS=[0]\nOPEN=N"));
+	//DEBERIA PONER BLOCK=[0] ? O DEJARLO ASI? REVISAR TODO
 
 	log_info(LOGGER, "Nuevo archivo pokemon creado : %s", path_carpeta_con_nombre);
 	free(path_carpeta_con_nombre);
 	free(path_archivo_con_nombre);
 }
 
-void agregar_cantidad(t_new_pokemon* mensaje)
+void pedir_archivo_pokemon(char* nombre_pokemon)
+{
+	int tiempo_de_reintento_operacion = asignar_int_property(CONFIG, "TIEMPO_DE_REINTENTO_OPERACION");
+
+	bool se_pudo_abrir = intentar_abrir_archivo_pokemon(nombre_pokemon);
+
+	while(se_pudo_abrir == false)
+	{
+		sleep(tiempo_de_reintento_operacion);
+
+		se_pudo_abrir = intentar_abrir_archivo_pokemon(nombre_pokemon);
+	}
+}
+
+bool intentar_abrir_archivo_pokemon(char* nombre_pokemon)
 {
 	char* punto_montaje_file_system = asignar_string_property(CONFIG, "PUNTO_MONTAJE_TALLGRASS");
-	char* path_archivo_pokemon_metadata_bin = string_from_format("%s/Files/%s/Metadata.bin", punto_montaje_file_system, (char*) mensaje->nombre);
+	char* path_archivo_pokemon_metadata_bin = string_from_format("%s/Files/%s/Metadata.bin", punto_montaje_file_system, nombre_pokemon);
+	t_config* archivo_pokemon_metadata_bin = config_create(path_archivo_pokemon_metadata_bin);
+
+	if(archivo_pokemon_metadata_bin == NULL)
+	{
+		char* mensaje_error = string_from_format("No se pudo abrir archivo %s", path_archivo_pokemon_metadata_bin);
+		imprimir_error_y_terminar_programa(mensaje_error);
+		free(mensaje_error); //ESTO NUNCA SE EJECUTA...
+	}
+	free(path_archivo_pokemon_metadata_bin);
+
+	char* estado_apertura = asignar_string_property(archivo_pokemon_metadata_bin, "OPEN");
+
+	if(strcmp(estado_apertura,"N") == 0)
+	{
+		config_set_value(archivo_pokemon_metadata_bin, "OPEN", "Y");
+		config_save(archivo_pokemon_metadata_bin);
+		config_destroy(archivo_pokemon_metadata_bin);
+		return true;
+	}
+
+	config_destroy(archivo_pokemon_metadata_bin);
+	return false;
+}
+
+void retener_un_rato_y_liberar_archivo_pokemon(char* nombre_pokemon)
+{
+	int tiempo_de_retardo_operacion = asignar_int_property(CONFIG, "TIEMPO_RETARDO_OPERACION");
+
+	sleep(tiempo_de_retardo_operacion);
+
+	liberar_archivo_pokemon(nombre_pokemon);
+}
+
+void liberar_archivo_pokemon(char* nombre_pokemon)
+{
+	char* punto_montaje_file_system = asignar_string_property(CONFIG, "PUNTO_MONTAJE_TALLGRASS");
+	char* path_archivo_pokemon_metadata_bin = string_from_format("%s/Files/%s/Metadata.bin", punto_montaje_file_system, nombre_pokemon);
+	t_config* archivo_pokemon_metadata_bin = config_create(path_archivo_pokemon_metadata_bin);
+
+	if(archivo_pokemon_metadata_bin == NULL)
+	{
+		char* mensaje_error = string_from_format("No se pudo abrir archivo %s", path_archivo_pokemon_metadata_bin);
+		imprimir_error_y_terminar_programa(mensaje_error);
+		free(mensaje_error); //ESTO NUNCA SE EJECUTA...
+	}
+	free(path_archivo_pokemon_metadata_bin);
+
+	config_set_value(archivo_pokemon_metadata_bin, "OPEN", "N");
+	config_save(archivo_pokemon_metadata_bin);
+	config_destroy(archivo_pokemon_metadata_bin);
+}
+
+int buscar_posicion_en_archivo_pokemon(char** array_de_todo_el_archivo_pokemon_con_posiciones_y_cantidades, char* posicion_buscada_en_string)
+{
+    //**** BUSQUEDA DE LAS POSICIONES ****//	--->   SI NO SE ENCONTRO LA POSICION BUSCADA, DEVUELVE -1. SI LO ENCUENTRA, DEVUELVE EL INDICE DEL ARRAY EN DONDE SE ENCUENTRA
+    int i = 0;
+
+    int indice_de_busqueda = -1;
+
+    while(array_de_todo_el_archivo_pokemon_con_posiciones_y_cantidades[i] != NULL)
+    {
+        if(string_starts_with(array_de_todo_el_archivo_pokemon_con_posiciones_y_cantidades[i], posicion_buscada_en_string) == 0)
+        {
+        	indice_de_busqueda = i;
+        	break;
+        }
+
+        i++;
+    }
+
+    return indice_de_busqueda;
+}
+
+t_list* obtener_todas_las_posiciones_de_archivo_pokemon(char* nombre_pokemon)
+{
+    //**** BUSQUEDA DE LAS POSICIONES ****//
+
+    char** array_de_todo_el_archivo_pokemon_con_posiciones_y_cantidades = generar_array_de_todo_el_archivo_pokemon_con_posiciones_y_cantidades(nombre_pokemon);
+
+    t_list* lista_coordenadas = list_create();
+
+    int i = 0;
+
+    while(array_de_todo_el_archivo_pokemon_con_posiciones_y_cantidades[i] != NULL)
+    {
+        char** key_y_value = string_split(array_de_todo_el_archivo_pokemon_con_posiciones_y_cantidades[i], "=");
+
+        char** pos_x_pos_y = string_split(key_y_value[0], "-");
+
+        t_coordenadas* coordenadas = malloc(sizeof(t_coordenadas));
+
+        coordenadas->posx = atoi(pos_x_pos_y[0]);
+        coordenadas->posy = atoi(pos_x_pos_y[1]);
+
+        list_add(lista_coordenadas, coordenadas);
+
+        i++;
+
+        free(key_y_value[0]);
+        free(key_y_value[1]);
+        free(key_y_value);
+
+        free(pos_x_pos_y);
+    }
+
+    i = 0;
+    while(array_de_todo_el_archivo_pokemon_con_posiciones_y_cantidades[i] != NULL)
+    {
+    	free(array_de_todo_el_archivo_pokemon_con_posiciones_y_cantidades[i]);
+    	i++;
+    }
+    free(array_de_todo_el_archivo_pokemon_con_posiciones_y_cantidades);
+
+    return lista_coordenadas;
+}
+
+char** generar_array_de_todo_el_archivo_pokemon_con_posiciones_y_cantidades(char* nombre_pokemon)
+{
+	char* punto_montaje_file_system = asignar_string_property(CONFIG, "PUNTO_MONTAJE_TALLGRASS");
+	char* path_archivo_pokemon_metadata_bin = string_from_format("%s/Files/%s/Metadata.bin", punto_montaje_file_system, nombre_pokemon);
 	t_config* archivo_pokemon_metadata_bin = config_create(path_archivo_pokemon_metadata_bin);
 
 	if(archivo_pokemon_metadata_bin == NULL)
@@ -513,7 +794,6 @@ void agregar_cantidad(t_new_pokemon* mensaje)
 	char** array_bloques_del_archivo_pokemon = string_get_string_as_array(bloques_del_archivo_pokemon);	//REVISAR QUE PASA CON LISTA VACIA TODO
 
 	int tamanio_bloques_del_file_system = asignar_int_property(METADATA_METADATA_BIN, "BLOCK_SIZE");
-
 
 
 	//**** METO TODA LA INFO DEL ARCHIVO POKEMON (QUE ESTABA SEPARADA EN BLOQUES) EN UN STRING ****//
@@ -542,68 +822,64 @@ void agregar_cantidad(t_new_pokemon* mensaje)
 	    i++;
     }
 
-
-    //**** BUSQUEDA DE LAS POSICIONES ****//
-
-    char** array_con_linea_de_posicion_y_cantidad = string_split(todo_el_archivo_pokemon_en_un_string, "\n");
+    char** array_de_todo_el_archivo_pokemon_con_posiciones_y_cantidades = string_split(todo_el_archivo_pokemon_en_un_string, "\n");
     free(todo_el_archivo_pokemon_en_un_string);
-    int posx = mensaje->coordenadas.posx;
-    int posy = mensaje->coordenadas.posy;
-    char* posicion_buscada_en_string = string_from_format("%i-%i", posx, posy);
 
     i = 0;
-
-    int indice_de_busqueda = -1;
-
-    while(array_con_linea_de_posicion_y_cantidad[i] != NULL)
+    while(array_bloques_del_archivo_pokemon[i] != NULL)
     {
-        if(string_starts_with(array_con_linea_de_posicion_y_cantidad[i], posicion_buscada_en_string) == 0)
-        {
-        	indice_de_busqueda = i;
-        	break;
-        }
-
-        i++;
+    	free(array_bloques_del_archivo_pokemon[i]);
+    	i++;
     }
+    free(array_bloques_del_archivo_pokemon);
 
+    config_destroy(archivo_pokemon_metadata_bin);
+
+    return array_de_todo_el_archivo_pokemon_con_posiciones_y_cantidades;
+}
+
+void agregar_cantidad_en_archivo_pokemon(t_new_pokemon* mensaje, char** array_de_todo_el_archivo_pokemon_con_posiciones_y_cantidades, char* posicion_buscada_en_string)
+{
+    int indice_de_busqueda = buscar_posicion_en_archivo_pokemon(array_de_todo_el_archivo_pokemon_con_posiciones_y_cantidades, posicion_buscada_en_string);
 
     //**** SE AGREGA CANTIDAD EN EL nuevo_archivo_pokemon_en_un_string  ****//
 
     char* nuevo_archivo_pokemon_en_un_string = string_new();
 
-    i = 1;
+    int i = 1;
 
     if(indice_de_busqueda != -1)
     {	//  SI ESTO SE EJECUTA, REPRESENTA UN --->  agregar_cantidad_en_linea();
-    	char* linea_de_posicion_encontrada = array_con_linea_de_posicion_y_cantidad[indice_de_busqueda];
+    	char* linea_de_posicion_encontrada = array_de_todo_el_archivo_pokemon_con_posiciones_y_cantidades[indice_de_busqueda];
         char** key_y_value = string_split(linea_de_posicion_encontrada, "=");
         char* cantidad_anterior_de_pokemones = key_y_value[1];
         int cantidad_nueva_de_pokemones = atoi(cantidad_anterior_de_pokemones) + mensaje->cantidad;
 
-        array_con_linea_de_posicion_y_cantidad[indice_de_busqueda] = string_from_format("%s=%i", posicion_buscada_en_string, cantidad_nueva_de_pokemones);
+        array_de_todo_el_archivo_pokemon_con_posiciones_y_cantidades[indice_de_busqueda] = string_from_format("%s=%i", posicion_buscada_en_string, cantidad_nueva_de_pokemones);
 
-    	string_append_with_format(&nuevo_archivo_pokemon_en_un_string, "%s", array_con_linea_de_posicion_y_cantidad[0]);
-
-        while(array_con_linea_de_posicion_y_cantidad[i] != NULL)
-        {
-        	string_append_with_format(&nuevo_archivo_pokemon_en_un_string, "\n%s", array_con_linea_de_posicion_y_cantidad[i]);
-
-        	i++;
-        }
-
+        free(linea_de_posicion_encontrada);
         free(key_y_value[0]);
         free(key_y_value[1]);
         free(key_y_value);
+
+    	string_append_with_format(&nuevo_archivo_pokemon_en_un_string, "%s", array_de_todo_el_archivo_pokemon_con_posiciones_y_cantidades[0]);
+
+        while(array_de_todo_el_archivo_pokemon_con_posiciones_y_cantidades[i] != NULL)
+        {
+        	string_append_with_format(&nuevo_archivo_pokemon_en_un_string, "\n%s", array_de_todo_el_archivo_pokemon_con_posiciones_y_cantidades[i]);
+
+        	i++;
+        }
     }
     else
     {	//  SI ESTO SE EJECUTA, REPRESENTA UN --->   agregar_cantidad_al_final();
         char* posicion_para_agregar_al_final = string_from_format("%s=%i", posicion_buscada_en_string, mensaje->cantidad);
 
-    	string_append_with_format(&nuevo_archivo_pokemon_en_un_string, "%s", array_con_linea_de_posicion_y_cantidad[0]);
+    	string_append_with_format(&nuevo_archivo_pokemon_en_un_string, "%s", array_de_todo_el_archivo_pokemon_con_posiciones_y_cantidades[0]);
 
-        while(array_con_linea_de_posicion_y_cantidad[i] != NULL)
+        while(array_de_todo_el_archivo_pokemon_con_posiciones_y_cantidades[i] != NULL)
         {
-        	string_append_with_format(&nuevo_archivo_pokemon_en_un_string, "\n%s", array_con_linea_de_posicion_y_cantidad[i]);
+        	string_append_with_format(&nuevo_archivo_pokemon_en_un_string, "\n%s", array_de_todo_el_archivo_pokemon_con_posiciones_y_cantidades[i]);
 
         	i++;
         }
@@ -611,22 +887,26 @@ void agregar_cantidad(t_new_pokemon* mensaje)
         free(posicion_para_agregar_al_final);
     }
 
+
+    //**** SE INTERPRETA SI HAY QUE AGREGAR UN BLOQUE MAS  ****//
+
+	char* punto_montaje_file_system = asignar_string_property(CONFIG, "PUNTO_MONTAJE_TALLGRASS");
+	char* path_archivo_pokemon_metadata_bin = string_from_format("%s/Files/%s/Metadata.bin", punto_montaje_file_system, (char*) mensaje->nombre);
+	t_config* archivo_pokemon_metadata_bin = config_create(path_archivo_pokemon_metadata_bin);
+
+	if(archivo_pokemon_metadata_bin == NULL)
+	{
+		char* mensaje_error = string_from_format("No se pudo abrir archivo %s", path_archivo_pokemon_metadata_bin);
+		imprimir_error_y_terminar_programa(mensaje_error);
+		free(mensaje_error); //ESTO NUNCA SE EJECUTA...
+	}
+	free(path_archivo_pokemon_metadata_bin);
+
 	int tamanio_anterior_archivo_pokemon = asignar_int_property(archivo_pokemon_metadata_bin, "SIZE");
     char* nuevo_value_SIZE_archivo_pokemon = string_from_format("%i", strlen(nuevo_archivo_pokemon_en_un_string));
     config_set_value(archivo_pokemon_metadata_bin, "SIZE", nuevo_value_SIZE_archivo_pokemon);
 
-    i = 0;
-    while(array_con_linea_de_posicion_y_cantidad[i] != NULL)
-    {
-    	free(array_con_linea_de_posicion_y_cantidad[i]);
-    	i++;
-    }
-    free(array_con_linea_de_posicion_y_cantidad);
-    free(posicion_buscada_en_string);
-
-
-
-    //**** SE INTERPRETA SI HAY QUE AGREGAR UN BLOQUE MAS  ****//
+	int tamanio_bloques_del_file_system = asignar_int_property(METADATA_METADATA_BIN, "BLOCK_SIZE");
 
     int primer_es_division_con_resto = 0;
     if((tamanio_anterior_archivo_pokemon % tamanio_bloques_del_file_system) != 0) primer_es_division_con_resto = 1;
@@ -635,6 +915,9 @@ void agregar_cantidad(t_new_pokemon* mensaje)
     int segundo_es_division_con_resto = 0;
     if((atoi(nuevo_value_SIZE_archivo_pokemon) % tamanio_bloques_del_file_system) != 0) segundo_es_division_con_resto = 1;
     int cantidad_de_bloques_necesaria = (atoi(nuevo_value_SIZE_archivo_pokemon) / tamanio_bloques_del_file_system) + segundo_es_division_con_resto;
+
+	char* bloques_del_archivo_pokemon = asignar_string_property(archivo_pokemon_metadata_bin, "BLOCKS");
+	char** array_bloques_del_archivo_pokemon = string_get_string_as_array(bloques_del_archivo_pokemon);	//REVISAR QUE PASA CON LISTA VACIA TODO
 
     int j = 0;
     i = 0;
@@ -690,7 +973,7 @@ void agregar_cantidad(t_new_pokemon* mensaje)
 
        			if(se_encontro_bit == -1)
        				imprimir_error_y_terminar_programa("NO SE ENCONTRARON MAS BLOQUES LIBRES EN EL FILE SYSTEM. "
-       						"TERMINANDO PROGRAMA PARA EVITAR UN ESTADO INCONSISTENTE");
+       						"TERMINANDO PROGRAMA");
 
    				bitarray_set_bit(BITMAP, se_encontro_bit);
 
@@ -707,9 +990,9 @@ void agregar_cantidad(t_new_pokemon* mensaje)
                	free(path_bloque_con_nombre_nuevo);
 
                	fwrite(cadena_a_grabar, tamanio_bloques_del_file_system, 1, archivo_bloque_nuevo);
-
                	fclose(archivo_bloque_nuevo);
 
+                free(cadena_a_grabar);
        			break;
        		}
 
@@ -746,8 +1029,69 @@ void agregar_cantidad(t_new_pokemon* mensaje)
 	config_destroy(archivo_pokemon_metadata_bin);
 }
 
-int verificar_si_existen_posiciones(char* nombre_pokemon, int posx, int posy)
+void reducir_cantidad_en_archivo_pokemon(char* nombre_pokemon, int indice_de_busqueda, char** array_de_todo_el_archivo_pokemon_con_posiciones_y_cantidades, char* posicion_buscada_en_string)
 {
+    //**** SE REDUCE EN 1 LA CANTIDAD EN EL nuevo_archivo_pokemon_en_un_string  ****//
+
+    char* nuevo_archivo_pokemon_en_un_string = string_new();
+
+    int i = 1;
+
+   	char* linea_de_posicion_encontrada = array_de_todo_el_archivo_pokemon_con_posiciones_y_cantidades[indice_de_busqueda];
+    char** key_y_value = string_split(linea_de_posicion_encontrada, "=");
+    char* cantidad_anterior_de_pokemones = key_y_value[1];
+
+    if(atoi(cantidad_anterior_de_pokemones) == 1)
+    {	//ESTO SE EJECUTA SI HAY QUE BORRAR UNA LINEA
+
+    	if(indice_de_busqueda != 0)
+    	{
+    		string_append_with_format(&nuevo_archivo_pokemon_en_un_string, "%s", array_de_todo_el_archivo_pokemon_con_posiciones_y_cantidades[0]);
+
+            while(array_de_todo_el_archivo_pokemon_con_posiciones_y_cantidades[i] != NULL)
+            {
+            	if(indice_de_busqueda != i)
+            		string_append_with_format(&nuevo_archivo_pokemon_en_un_string, "\n%s", array_de_todo_el_archivo_pokemon_con_posiciones_y_cantidades[i]);
+
+               	i++;
+            }
+    	}
+    	else
+    	{
+    		i = 2;
+
+    		string_append_with_format(&nuevo_archivo_pokemon_en_un_string, "%s", array_de_todo_el_archivo_pokemon_con_posiciones_y_cantidades[1]);
+
+            while(array_de_todo_el_archivo_pokemon_con_posiciones_y_cantidades[i] != NULL)
+            {
+               	string_append_with_format(&nuevo_archivo_pokemon_en_un_string, "\n%s", array_de_todo_el_archivo_pokemon_con_posiciones_y_cantidades[i]);
+               	i++;
+            }
+    	}
+    }
+    else
+    {	//ESTO SE EJECUTA SI SOLAMENTE HAY QUE REDUCIR LA CANTIDAD EN 1
+        int cantidad_nueva_de_pokemones = atoi(cantidad_anterior_de_pokemones) - 1;
+
+        free(array_de_todo_el_archivo_pokemon_con_posiciones_y_cantidades[indice_de_busqueda]);
+
+        array_de_todo_el_archivo_pokemon_con_posiciones_y_cantidades[indice_de_busqueda] = string_from_format("%s=%i", posicion_buscada_en_string, cantidad_nueva_de_pokemones);
+
+      	string_append_with_format(&nuevo_archivo_pokemon_en_un_string, "%s", array_de_todo_el_archivo_pokemon_con_posiciones_y_cantidades[0]);
+
+        while(array_de_todo_el_archivo_pokemon_con_posiciones_y_cantidades[i] != NULL)
+        {
+           	string_append_with_format(&nuevo_archivo_pokemon_en_un_string, "\n%s", array_de_todo_el_archivo_pokemon_con_posiciones_y_cantidades[i]);
+           	i++;
+        }
+    }
+    free(key_y_value[0]);
+    free(key_y_value[1]);
+    free(key_y_value);
+
+
+    //**** SE INTERPRETA SI HAY QUE ELIMINAR EL ULTIMO BLOQUE  ****//
+
 	char* punto_montaje_file_system = asignar_string_property(CONFIG, "PUNTO_MONTAJE_TALLGRASS");
 	char* path_archivo_pokemon_metadata_bin = string_from_format("%s/Files/%s/Metadata.bin", punto_montaje_file_system, nombre_pokemon);
 	t_config* archivo_pokemon_metadata_bin = config_create(path_archivo_pokemon_metadata_bin);
@@ -760,225 +1104,14 @@ int verificar_si_existen_posiciones(char* nombre_pokemon, int posx, int posy)
 	}
 	free(path_archivo_pokemon_metadata_bin);
 
-	char* bloques_del_archivo_pokemon = asignar_string_property(archivo_pokemon_metadata_bin, "BLOCKS");
-	config_destroy(archivo_pokemon_metadata_bin);
-	char** array_bloques_del_archivo_pokemon = string_get_string_as_array(bloques_del_archivo_pokemon);
-
-	int tamanio_bloques_del_file_system = asignar_int_property(METADATA_METADATA_BIN, "BLOCK_SIZE");
-
-
-	//**** METO TODA LA INFO DEL ARCHIVO POKEMON (QUE ESTABA SEPARADA EN BLOQUES) EN UN STRING ****//
-
-	char* todo_el_archivo_pokemon_en_un_string = string_new();
-
-    int i = 0;
-    while (array_bloques_del_archivo_pokemon[i] != NULL)
-    {
-    	char* string_de_un_bloque_del_archivo_pokemon = array_bloques_del_archivo_pokemon[i];
-
-    	char* path_un_bloque_bin = string_from_format("%s/Blocks/%i.bin", punto_montaje_file_system, atoi(string_de_un_bloque_del_archivo_pokemon));
-
-    	FILE* archivo_bloque_bin = fopen(path_un_bloque_bin, "rb");
-    	free(path_un_bloque_bin);
-
-    	char* contenido_de_un_bloque = malloc(tamanio_bloques_del_file_system);
-
-    	fread(contenido_de_un_bloque, tamanio_bloques_del_file_system, 1, archivo_bloque_bin);
-
-    	string_append_with_format(&todo_el_archivo_pokemon_en_un_string, "%s", contenido_de_un_bloque);
-    	free(contenido_de_un_bloque);
-
-    	fclose(archivo_bloque_bin);
-
-	    i++;
-    }
-
-    i = 0;
-    while(array_bloques_del_archivo_pokemon[i] != NULL)
-    {
-    	free(array_bloques_del_archivo_pokemon[i]);
-    	i++;
-    }
-    free(array_bloques_del_archivo_pokemon);
-
-
-    //**** BUSQUEDA DE LAS POSICIONES ****//
-
-    char** array_con_linea_de_posicion_y_cantidad = string_split(todo_el_archivo_pokemon_en_un_string, "\n");
-    free(todo_el_archivo_pokemon_en_un_string);
-    char* posicion_buscada_en_string = string_from_format("%i-%i", posx, posy);
-
-    i = 0;
-
-    int indice_de_busqueda = -1;
-
-    while(array_con_linea_de_posicion_y_cantidad[i] != NULL)
-    {
-        if(string_starts_with(array_con_linea_de_posicion_y_cantidad[i], posicion_buscada_en_string) == 0)
-        {
-        	indice_de_busqueda = i;
-        	break;
-        }
-
-        i++;
-    }
-
-    i = 0;
-    while(array_con_linea_de_posicion_y_cantidad[i] != NULL)
-    {
-    	free(array_con_linea_de_posicion_y_cantidad[i]);
-    	i++;
-    }
-    free(array_con_linea_de_posicion_y_cantidad);
-    free(posicion_buscada_en_string);
-
-    return indice_de_busqueda;
-}
-
-void reducir_cantidad(t_catch_pokemon* mensaje)
-{
-	char* punto_montaje_file_system = asignar_string_property(CONFIG, "PUNTO_MONTAJE_TALLGRASS");
-	char* path_archivo_pokemon_metadata_bin = string_from_format("%s/Files/%s/Metadata.bin", punto_montaje_file_system, (char*) mensaje->nombre);
-	t_config* archivo_pokemon_metadata_bin = config_create(path_archivo_pokemon_metadata_bin);
-
-	if(archivo_pokemon_metadata_bin == NULL)
-	{
-		char* mensaje_error = string_from_format("No se pudo abrir archivo %s", path_archivo_pokemon_metadata_bin);
-		imprimir_error_y_terminar_programa(mensaje_error);
-		free(mensaje_error); //ESTO NUNCA SE EJECUTA...
-	}
-	free(path_archivo_pokemon_metadata_bin);
-
-	char* bloques_del_archivo_pokemon = asignar_string_property(archivo_pokemon_metadata_bin, "BLOCKS");
-	char** array_bloques_del_archivo_pokemon = string_get_string_as_array(bloques_del_archivo_pokemon);
-
-	int tamanio_bloques_del_file_system = asignar_int_property(METADATA_METADATA_BIN, "BLOCK_SIZE");
-
-
-
-	//**** METO TODA LA INFO DEL ARCHIVO POKEMON (QUE ESTABA SEPARADA EN BLOQUES) EN UN STRING ****//
-
-	char* todo_el_archivo_pokemon_en_un_string = string_new();
-
-    int i = 0;
-    while (array_bloques_del_archivo_pokemon[i] != NULL)
-    {
-    	char* string_de_un_bloque_del_archivo_pokemon = array_bloques_del_archivo_pokemon[i];
-
-    	char* path_un_bloque_bin = string_from_format("%s/Blocks/%i.bin", punto_montaje_file_system, atoi(string_de_un_bloque_del_archivo_pokemon));
-
-    	FILE* archivo_bloque_bin = fopen(path_un_bloque_bin, "rb");
-    	free(path_un_bloque_bin);
-
-    	char* contenido_de_un_bloque = malloc(tamanio_bloques_del_file_system);
-
-    	fread(contenido_de_un_bloque, tamanio_bloques_del_file_system, 1, archivo_bloque_bin);
-
-    	string_append_with_format(&todo_el_archivo_pokemon_en_un_string, "%s", contenido_de_un_bloque);
-    	free(contenido_de_un_bloque);
-
-    	fclose(archivo_bloque_bin);
-
-	    i++;
-    }
-
-
-    //**** BUSQUEDA DE LAS POSICIONES ****//
-
-    char** array_con_linea_de_posicion_y_cantidad = string_split(todo_el_archivo_pokemon_en_un_string, "\n");
-    free(todo_el_archivo_pokemon_en_un_string);
-    int posx = mensaje->coordenadas.posx;
-    int posy = mensaje->coordenadas.posy;
-    char* posicion_buscada_en_string = string_from_format("%i-%i", posx, posy);
-
-    i = 0;
-
-    int indice_de_busqueda = -1;
-
-    while(array_con_linea_de_posicion_y_cantidad[i] != NULL)
-    {
-        if(string_starts_with(array_con_linea_de_posicion_y_cantidad[i], posicion_buscada_en_string) == 0)
-        {
-        	indice_de_busqueda = i;
-        	break;
-        }
-
-        i++;
-    }
-
-
-    //**** SE REDUCE EN 1 LA CANTIDAD EN EL nuevo_archivo_pokemon_en_un_string  ****//
-
-    char* nuevo_archivo_pokemon_en_un_string = string_new();
-
-    i = 1;
-
-   	char* linea_de_posicion_encontrada = array_con_linea_de_posicion_y_cantidad[indice_de_busqueda];
-    char** key_y_value = string_split(linea_de_posicion_encontrada, "=");
-    char* cantidad_anterior_de_pokemones = key_y_value[1];
-
-    if(atoi(cantidad_anterior_de_pokemones) == 1)
-    {	//ESTO SE EJECUTA SI HAY QUE BORRAR UNA LINEA
-
-    	if(indice_de_busqueda != 0)
-    	{
-    		string_append_with_format(&nuevo_archivo_pokemon_en_un_string, "%s", array_con_linea_de_posicion_y_cantidad[0]);
-
-            while(array_con_linea_de_posicion_y_cantidad[i] != NULL)
-            {
-            	if(indice_de_busqueda != i)
-            		string_append_with_format(&nuevo_archivo_pokemon_en_un_string, "\n%s", array_con_linea_de_posicion_y_cantidad[i]);
-
-               	i++;
-            }
-    	}
-    	else
-    	{
-    		i = 2;
-
-    		string_append_with_format(&nuevo_archivo_pokemon_en_un_string, "%s", array_con_linea_de_posicion_y_cantidad[1]);
-
-            while(array_con_linea_de_posicion_y_cantidad[i] != NULL)
-            {
-               	string_append_with_format(&nuevo_archivo_pokemon_en_un_string, "\n%s", array_con_linea_de_posicion_y_cantidad[i]);
-               	i++;
-            }
-    	}
-    }
-    else
-    {	//ESTO SE EJECUTA SI SOLAMENTE HAY QUE REDUCIR LA CANTIDAD EN 1
-        int cantidad_nueva_de_pokemones = atoi(cantidad_anterior_de_pokemones) - 1;
-
-        array_con_linea_de_posicion_y_cantidad[indice_de_busqueda] = string_from_format("%s=%i", posicion_buscada_en_string, cantidad_nueva_de_pokemones);
-
-      	string_append_with_format(&nuevo_archivo_pokemon_en_un_string, "%s", array_con_linea_de_posicion_y_cantidad[0]);
-
-        while(array_con_linea_de_posicion_y_cantidad[i] != NULL)
-        {
-           	string_append_with_format(&nuevo_archivo_pokemon_en_un_string, "\n%s", array_con_linea_de_posicion_y_cantidad[i]);
-           	i++;
-        }
-    }
-    free(key_y_value[0]);
-    free(key_y_value[1]);
-    free(key_y_value);
-
 	int tamanio_anterior_archivo_pokemon = asignar_int_property(archivo_pokemon_metadata_bin, "SIZE");
     char* nuevo_value_SIZE_archivo_pokemon = string_from_format("%i", strlen(nuevo_archivo_pokemon_en_un_string));
     config_set_value(archivo_pokemon_metadata_bin, "SIZE", nuevo_value_SIZE_archivo_pokemon);
 
-    i = 0;
-    while(array_con_linea_de_posicion_y_cantidad[i] != NULL)
-    {
-    	free(array_con_linea_de_posicion_y_cantidad[i]);
-    	i++;
-    }
-    free(array_con_linea_de_posicion_y_cantidad);
-    free(posicion_buscada_en_string);
+	char* bloques_del_archivo_pokemon = asignar_string_property(archivo_pokemon_metadata_bin, "BLOCKS");
+	char** array_bloques_del_archivo_pokemon = string_get_string_as_array(bloques_del_archivo_pokemon);
 
-
-
-    //**** SE INTERPRETA SI HAY QUE ELIMINAR EL ULTIMO BLOQUE  ****//
+	int tamanio_bloques_del_file_system = asignar_int_property(METADATA_METADATA_BIN, "BLOCK_SIZE");
 
     int j = 0;
     i = 0;
@@ -1048,361 +1181,3 @@ void reducir_cantidad(t_catch_pokemon* mensaje)
     config_save(archivo_pokemon_metadata_bin);
 	config_destroy(archivo_pokemon_metadata_bin);
 }
-
-t_list* obtener_todas_las_posiciones(char* nombre_pokemon)
-{
-	char* punto_montaje_file_system = asignar_string_property(CONFIG, "PUNTO_MONTAJE_TALLGRASS");
-	char* path_archivo_pokemon_metadata_bin = string_from_format("%s/Files/%s/Metadata.bin", punto_montaje_file_system, nombre_pokemon);
-	t_config* archivo_pokemon_metadata_bin = config_create(path_archivo_pokemon_metadata_bin);
-
-	if(archivo_pokemon_metadata_bin == NULL)
-	{
-		char* mensaje_error = string_from_format("No se pudo abrir archivo %s", path_archivo_pokemon_metadata_bin);
-		imprimir_error_y_terminar_programa(mensaje_error);
-		free(mensaje_error); //ESTO NUNCA SE EJECUTA...
-	}
-	free(path_archivo_pokemon_metadata_bin);
-
-	char* bloques_del_archivo_pokemon = asignar_string_property(archivo_pokemon_metadata_bin, "BLOCKS");
-	char** array_bloques_del_archivo_pokemon = string_get_string_as_array(bloques_del_archivo_pokemon);	//REVISAR QUE PASA CON LISTA VACIA TODO
-
-	int tamanio_bloques_del_file_system = asignar_int_property(METADATA_METADATA_BIN, "BLOCK_SIZE");
-
-
-
-	//**** METO TODA LA INFO DEL ARCHIVO POKEMON (QUE ESTABA SEPARADA EN BLOQUES) EN UN STRING ****//
-
-	char* todo_el_archivo_pokemon_en_un_string = string_new();
-
-    int i = 0;
-    while (array_bloques_del_archivo_pokemon[i] != NULL)
-    {
-    	char* string_de_un_bloque_del_archivo_pokemon = array_bloques_del_archivo_pokemon[i];
-
-    	char* path_un_bloque_bin = string_from_format("%s/Blocks/%i.bin", punto_montaje_file_system, atoi(string_de_un_bloque_del_archivo_pokemon));
-
-    	FILE* archivo_bloque_bin = fopen(path_un_bloque_bin, "rb");
-    	free(path_un_bloque_bin);
-
-    	char* contenido_de_un_bloque = malloc(tamanio_bloques_del_file_system);
-
-    	fread(contenido_de_un_bloque, tamanio_bloques_del_file_system, 1, archivo_bloque_bin);
-
-    	string_append_with_format(&todo_el_archivo_pokemon_en_un_string, "%s", contenido_de_un_bloque);
-    	free(contenido_de_un_bloque);
-
-    	fclose(archivo_bloque_bin);
-
-	    i++;
-    }
-
-    i = 0;
-    while(array_bloques_del_archivo_pokemon[i] != NULL)
-    {
-    	free(array_bloques_del_archivo_pokemon[i]);
-    	i++;
-    }
-    free(array_bloques_del_archivo_pokemon);
-
-
-    //**** BUSQUEDA DE LAS POSICIONES ****//
-
-    char** array_con_linea_de_posicion_y_cantidad = string_split(todo_el_archivo_pokemon_en_un_string, "\n");
-    free(todo_el_archivo_pokemon_en_un_string);
-
-    t_list* lista_coordenadas = list_create();
-
-    i = 0;
-
-    while(array_con_linea_de_posicion_y_cantidad[i] != NULL)
-    {
-        char** key_y_value = string_split(array_con_linea_de_posicion_y_cantidad[i], "=");
-
-        char** pos_x_pos_y = string_split(key_y_value[0], "-");
-
-        t_coordenadas* coordenadas = malloc(sizeof(t_coordenadas));
-
-        coordenadas->posx = atoi(pos_x_pos_y[0]);
-        coordenadas->posy = atoi(pos_x_pos_y[1]);
-
-        list_add(lista_coordenadas, coordenadas);
-
-        i++;
-
-        free(key_y_value[0]);
-        free(key_y_value[1]);
-        free(key_y_value);
-
-        free(pos_x_pos_y[0]);
-        free(pos_x_pos_y[1]);
-        free(pos_x_pos_y);
-    }
-
-    i = 0;
-    while(array_con_linea_de_posicion_y_cantidad[i] != NULL)
-    {
-    	free(array_con_linea_de_posicion_y_cantidad[i]);
-    	i++;
-    }
-    free(array_con_linea_de_posicion_y_cantidad);
-
-	config_destroy(archivo_pokemon_metadata_bin);
-
-    return lista_coordenadas;
-}
-
-void pedir_archivo(char* nombre_pokemon)
-{
-	int tiempo_de_reintento_operacion = asignar_int_property(CONFIG, "TIEMPO_DE_REINTENTO_OPERACION");
-
-	bool se_puede_abrir = verificar_si_se_puede_abrir(nombre_pokemon);
-
-	while(se_puede_abrir == false)
-	{
-		sleep(tiempo_de_reintento_operacion);
-
-		se_puede_abrir = verificar_si_se_puede_abrir(nombre_pokemon);
-	}
-}
-
-bool verificar_si_se_puede_abrir(char* nombre_pokemon)
-{
-	char* punto_montaje_file_system = asignar_string_property(CONFIG, "PUNTO_MONTAJE_TALLGRASS");
-	char* path_archivo_pokemon_metadata_bin = string_from_format("%s/Files/%s/Metadata.bin", punto_montaje_file_system, nombre_pokemon);
-	t_config* archivo_pokemon_metadata_bin = config_create(path_archivo_pokemon_metadata_bin);
-
-	if(archivo_pokemon_metadata_bin == NULL)
-	{
-		char* mensaje_error = string_from_format("No se pudo abrir archivo %s", path_archivo_pokemon_metadata_bin);
-		imprimir_error_y_terminar_programa(mensaje_error);
-		free(mensaje_error); //ESTO NUNCA SE EJECUTA...
-	}
-	free(path_archivo_pokemon_metadata_bin);
-
-	char* esta_abierto = asignar_string_property(archivo_pokemon_metadata_bin, "OPEN");
-
-	if(strcmp(esta_abierto,"N") == 0)
-	{
-		config_set_value(archivo_pokemon_metadata_bin, "OPEN", "Y");
-		config_save(archivo_pokemon_metadata_bin);
-		config_destroy(archivo_pokemon_metadata_bin);
-		return true;
-	}
-
-	config_destroy(archivo_pokemon_metadata_bin);
-	return false;
-}
-
-void retener_un_rato_y_liberar_archivo(char* nombre_pokemon)
-{
-	int tiempo_de_retardo_operacion = asignar_int_property(CONFIG, "TIEMPO_RETARDO_OPERACION");
-
-	sleep(tiempo_de_retardo_operacion);
-
-	liberar_archivo(nombre_pokemon);
-}
-
-void liberar_archivo(char* nombre_pokemon)
-{
-	char* punto_montaje_file_system = asignar_string_property(CONFIG, "PUNTO_MONTAJE_TALLGRASS");
-	char* path_archivo_pokemon_metadata_bin = string_from_format("%s/Files/%s/Metadata.bin", punto_montaje_file_system, nombre_pokemon);
-	t_config* archivo_pokemon_metadata_bin = config_create(path_archivo_pokemon_metadata_bin);
-
-	if(archivo_pokemon_metadata_bin == NULL)
-	{
-		char* mensaje_error = string_from_format("No se pudo abrir archivo %s", path_archivo_pokemon_metadata_bin);
-		imprimir_error_y_terminar_programa(mensaje_error);
-		free(mensaje_error); //ESTO NUNCA SE EJECUTA...
-	}
-	free(path_archivo_pokemon_metadata_bin);
-
-	config_set_value(archivo_pokemon_metadata_bin, "OPEN", "N");
-	config_save(archivo_pokemon_metadata_bin);
-	config_destroy(archivo_pokemon_metadata_bin);
-}
-
-void verificar_estado_del_envio_y_cerrar_conexion(char* tipo_mensaje, int estado, int conexion)
-{
-	if(estado <= 0){
-		log_error(LOGGER, "No se pudo enviar %s al BROKER. Continuando operacion del GAME CARD", tipo_mensaje);
-	}else{
-		esperar_id_mensaje_enviado(conexion);	//EL GAMECARD NO HACE NADA CON EL ID, SOLO TIENE QUE ESPERARLO
-	}
-
-	close(conexion);
-}
-
-void iniciar_file_system()
-{
-	char* punto_montaje_file_system = asignar_string_property(CONFIG, "PUNTO_MONTAJE_TALLGRASS");
-	if(punto_montaje_file_system == NULL) imprimir_error_y_terminar_programa("Parece que PUNTO_MONTAJE_TALLGRASS no esta en game-card.config");
-
-	generar_estructura_file_system_si_hace_falta(punto_montaje_file_system);
-
-	METADATA_METADATA_BIN = config_para_file_system(punto_montaje_file_system, "/Metadata/Metadata.bin");
-
-	int cant_max_bloques = asignar_int_property(METADATA_METADATA_BIN, "BLOCKS");
-
-	char* path_metadata_bitmap_bin = string_from_format("%s/Metadata/Bitmap.bin", punto_montaje_file_system);
-
-	BITMAP = mapear_bitmap_en_memoria(path_metadata_bitmap_bin, cant_max_bloques/8);
-	free(path_metadata_bitmap_bin);
-}
-
-t_config* config_para_file_system(char* punto_montaje_file_system, char* path_archivo)
-{
-	char* archivo = string_from_format("%s%s", punto_montaje_file_system, path_archivo);
-	t_config* config = leer_config(archivo);
-	free(archivo);
-
-	return config;
-}
-
-void generar_estructura_file_system_si_hace_falta(char* punto_montaje_file_system)
-{
-	/* SE CREA CARPETA DE PUNTO DE MONTAJE */
-	crear_carpeta_si_no_existe(punto_montaje_file_system);
-
-	/* SE CREA CARPETA METADATA */
-	char* path_metadata = string_from_format("%s/Metadata", punto_montaje_file_system);
-	crear_carpeta_si_no_existe(path_metadata);
-
-	/* SE CREA ARCHIVO METADATA/METADATA.BIN */
-	string_append_with_format(&path_metadata, "/Metadata.bin");
-
-	char* block_size = asignar_string_property(CONFIG, "DEFAULT_BLOCK_SIZE");
-	char* blocks = asignar_string_property(CONFIG, "DEFAULT_BLOCKS");
-	char* magic_number = asignar_string_property(CONFIG, "DEFAULT_MAGIC_NUMBER");
-	char* datos_metadata_metadata_bin = string_from_format("BLOCK_SIZE=%s\nBLOCKS=%s\nMAGIC_NUMBER=%s", block_size, blocks, magic_number);
-
-	escribir_y_cerrar_archivo_si_no_existe(path_metadata, datos_metadata_metadata_bin, strlen(datos_metadata_metadata_bin));
-	free(datos_metadata_metadata_bin);
-	free(path_metadata);
-
-	/* SE CREA CARPETA BLOCKS */
-	char* path_blocks = string_from_format("%s/Blocks", punto_montaje_file_system);
-	crear_carpeta_si_no_existe(path_blocks);
-	free(path_blocks);
-
-	/* SE CREA ARCHIVO METADATA/BITMAP.BIN ---- ADEMAS ---- SE CREAN ARCHIVOS BLOCKS/NUMERO.BIN */
-	t_config* config_metadata_metadata_bin = config_para_file_system(punto_montaje_file_system, "/Metadata/Metadata.bin");
-	int cantidad_bloques = asignar_int_property(config_metadata_metadata_bin, "BLOCKS");
-	config_destroy(config_metadata_metadata_bin);
-	int cantidad_bytes = cantidad_bloques/ 8;
-
-	char* path_metadata_bitmap_bin = string_from_format("%s/Metadata/Bitmap.bin", punto_montaje_file_system);
-	struct stat datos_bitmap_bin;
-	t_bitarray* bitarray = NULL;
-
-	if(stat(path_metadata_bitmap_bin, &datos_bitmap_bin) == 0)
-	{	// ESTO SE EJECUTA SI EL ARCHIVO EN path_metadata_bitmap_bin EXISTE
-		//N0 IMPORTA SI EL BITMAP.BIN TIENE DATOS ADENTRO O ESTA VACIO
-		bitarray = mapear_bitmap_en_memoria(path_metadata_bitmap_bin, cantidad_bytes);
-		generar_bloques_bin_que_hagan_falta(punto_montaje_file_system, cantidad_bloques, bitarray);
-
-	    int retorno = msync(bitarray->bitarray, bitarray->size, MS_SYNC);
-	    if(retorno == -1) imprimir_error_y_terminar_programa("Ocurrio un error al usar mysinc()");
-
-		munmap(bitarray->bitarray, bitarray->size);
-
-	}else{
-		char* bytes = calloc(cantidad_bytes, sizeof(char));
-		bitarray = bitarray_create_with_mode(bytes, cantidad_bytes, LSB_FIRST);
-		generar_bloques_bin_que_hagan_falta(punto_montaje_file_system, cantidad_bloques, bitarray);
-		sobrescribir_y_cerrar_archivo(path_metadata_bitmap_bin, bitarray->bitarray, cantidad_bytes);
-		free(bytes);
-	}
-	free(path_metadata_bitmap_bin);
-	bitarray_destroy(bitarray);
-
-	/* SE CREA CARPETA FILES */
-	char* path_files = string_from_format("%s/Files", punto_montaje_file_system);
-	crear_carpeta_si_no_existe(path_files);
-
-	/* SE CREA ARCHIVO FILES/METADATA.BIN */
-	string_append_with_format(&path_files, "/Metadata.bin");
-	escribir_y_cerrar_archivo_si_no_existe(path_files, "DIRECTORY=Y", strlen("DIRECTORY=Y"));
-	free(path_files);
-}
-
-void crear_carpeta_si_no_existe(char* path_carpeta_con_nombre)
-{
-	DIR* carpeta = opendir(path_carpeta_con_nombre);
-
-	if(carpeta == NULL)
-	{
-		mkdir(path_carpeta_con_nombre, 0777);
-		log_info(LOGGER, "Creando carpeta : %s", path_carpeta_con_nombre);
-	}else
-	{
-		closedir(carpeta);
-	}
-}
-
-void escribir_y_cerrar_archivo_si_no_existe(char* path_archivo_con_nombre, char* datos_a_grabar, int tamanio_datos_a_grabar)
-{
-	FILE* archivo = fopen(path_archivo_con_nombre, "rb");
-
-	if(archivo == NULL)
-	{
-		sobrescribir_y_cerrar_archivo(path_archivo_con_nombre, datos_a_grabar, tamanio_datos_a_grabar);
-		log_info(LOGGER, "Creando archivo : %s  --  Bytes escritos : %i", path_archivo_con_nombre, tamanio_datos_a_grabar);
-
-	}else{
-		fclose(archivo);
-	}
-}
-
-void sobrescribir_y_cerrar_archivo(char* path_archivo_con_nombre, char* datos_a_grabar, int tamanio_datos_a_grabar)
-{
-	FILE* archivo = fopen(path_archivo_con_nombre, "wb");
-
-	if(archivo == NULL)
-	{
-		char* mensaje = string_from_format("No se pudo crear archivo %s", path_archivo_con_nombre);
-		imprimir_error_y_terminar_programa(mensaje);
-		free(mensaje); //ESTO NUNCA SE EJECUTA...
-	}
-
-	//fprintf(metadata_bin, "%s", datos_metadata_bin);
-	fwrite(datos_a_grabar, tamanio_datos_a_grabar, 1, archivo);
-
-	fclose(archivo);
-}
-
-t_bitarray* mapear_bitmap_en_memoria(char* archivo, size_t size_memoria_a_mapear){
-
-	int fd = open(archivo, O_RDWR);
-	if (fd == -1)imprimir_error_y_terminar_programa("No se pudo abrir el archivo en mapear_bitmap_en_memoria()");
-
-	ftruncate(fd, size_memoria_a_mapear);
-
-	void* memoria_mapeada = mmap(NULL, size_memoria_a_mapear, PROT_READ | PROT_WRITE, MAP_SHARED, fd, 0);
-
-	close(fd);
-
-	if (memoria_mapeada == MAP_FAILED) imprimir_error_y_terminar_programa("No se pudo realizar el mapeo en memoria del BITMAP");
-
-	log_info(LOGGER, "Se realizo con exito el mapeado en memoria de : %s", archivo);
-
-	return bitarray_create_with_mode((char*) memoria_mapeada, size_memoria_a_mapear, LSB_FIRST);
-}
-
-void generar_bloques_bin_que_hagan_falta(char* punto_montaje_file_system, int cantidad_bloques_del_fs, t_bitarray* bitarray)
-{
-	for(int i = 1; i < (cantidad_bloques_del_fs + 1); i++){
-
-		char* un_path_bloque = string_from_format("%s/Blocks/%i.bin", punto_montaje_file_system, i);
-
-		struct stat datos_bloque_bin;
-
-		if(stat(un_path_bloque, &datos_bloque_bin) == -1){
-			sobrescribir_y_cerrar_archivo(un_path_bloque, "", 0);
-		}else{
-
-			if(datos_bloque_bin.st_size != 0) bitarray_set_bit(bitarray, i - 1);
-		}
-		free(un_path_bloque);
-	}
-}
-

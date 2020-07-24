@@ -311,16 +311,16 @@ void terminar_proceso()
 	}
 
 	if (socket_appeared != 0) {
-		liberar_conexion(socket_caught);
+		close(socket_caught);
 	}
 
 	if (socket_localized != 0) {
-		liberar_conexion(socket_localized);
+		close(socket_localized);
 
 	}
 
 	if (socket_caught != 0) {
-		liberar_conexion(socket_caught);
+		close(socket_caught);
 	}
 
 	printf("Finalizo programa.\n");
@@ -399,7 +399,7 @@ void conexion_inicial(){
 		log_info(LOGGER, "Estado de conexion inicial con Broker: DESCONECTADO");
 	}
 
-	liberar_conexion(conexion);
+	close(conexion);
 }
 
 //----------------------------------------------------------------------------------------------------------
@@ -442,7 +442,7 @@ void enviar_get_pokemones_requeridos(){
 		if((conexion_con_broker == CONECTADO) && (!envie_pokemon(especie_pokemon, get_enviados))){
 			log_info(LOGGER, "Envio GET para la especie %s", especie_pokemon);
 			generar_y_enviar_get_pokemon(conexion, 0, 0, especie_pokemon);
-			liberar_conexion(conexion);
+			close(conexion);
 			log_info(LOGGER, "Libero conexion");
 			list_add(get_enviados, especie_pokemon);
 			solicitados++;

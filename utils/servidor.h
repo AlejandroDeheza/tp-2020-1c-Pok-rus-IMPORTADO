@@ -25,8 +25,5 @@ bool es_codigo_operacion_valido(op_code codigo_operacion);
 bool es_un_proceso_esperado(int socket_cliente, char* id_procesos_tp);
 
 /**************vv funciones anteriores vv*****************/
-void* recibir_buffer(int socket_cliente, int* size);
-void* recibir_mensaje_desde_cliente(int socket_cliente);
-void devolver_mensaje(void* payload, int size, int socket_cliente, op_code operacion);
 
 #endif /* SERVIDOR_H_ */

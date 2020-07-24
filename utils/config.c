@@ -58,7 +58,7 @@ void configuracion_inicial_planificador(t_config* config, int* retardo_cliclo, c
 	*algoritmo = asignar_string_property(config, "ALGORITMO_PLANIFICACION");
 }
 
-void imprimir_error_y_terminar_programa(const char* mensaje)
+void imprimir_error_y_terminar_programa(char* mensaje)
 {
 	printf("\n");
 	error_show(" %s\n", mensaje);

@@ -203,6 +203,8 @@ int enviar_identificacion_general(int socket, char* id_procesos_tp)
 
 	int estado = send(socket, aEnviar, sizeof(int) + size, MSG_NOSIGNAL);
 
+	free(aEnviar);
+
 	return estado;
 }
 
@@ -219,6 +221,8 @@ int enviar_mensaje_de_suscripcion(int socket_cliente, op_code codigo_suscripcion
 
 	estado = send(socket_cliente, aEnviar, sizeof(sizeof(op_code) + sizeof(int)), MSG_NOSIGNAL);
 	verificar_estado(estado);
+
+	free(aEnviar);
 
 	return estado;
 }

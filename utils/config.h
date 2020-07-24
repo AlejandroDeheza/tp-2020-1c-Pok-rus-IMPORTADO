@@ -21,7 +21,7 @@ int asignar_int_property(t_config* config, char* property);
 
 void configuracion_inicial_planificador(t_config* config, int* retardo_cliclo, char** algoritmo);
 
-void imprimir_error_y_terminar_programa(const char* mensaje);
+void imprimir_error_y_terminar_programa(char* mensaje);
 
 char* generar_mensaje_para_loggear(void* mensaje, op_code codigo_operacion);
 char* generar_new_pokemon_para_loguear(void* mensaje_a_imprimir);

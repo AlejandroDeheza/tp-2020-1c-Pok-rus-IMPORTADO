@@ -66,7 +66,7 @@ t_list* entrenadores_blocked_sin_espera;
 t_list* entrenadores_exec;
 t_list* pokemones_recibidos;
 
-
+void ejecutar_antes_de_terminar(int numero_senial);
 void verificar_e_interpretar_entrada(int argc, char *argv[]);
 
 //--------------------------------------------------------------------------
