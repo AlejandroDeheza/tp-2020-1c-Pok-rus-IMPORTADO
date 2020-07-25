@@ -93,7 +93,10 @@ void iniciar_file_system()
 	char* path_metadata_bitmap_bin = string_from_format("%s/Metadata/Bitmap.bin", punto_montaje_file_system);
 
 	BITMAP = mapear_bitmap_en_memoria(path_metadata_bitmap_bin, cant_max_bloques/8);
+	log_info(LOGGER, "Se realizo con exito el mapeado en memoria de : %s", path_metadata_bitmap_bin);
 	free(path_metadata_bitmap_bin);
+
+	log_info(LOGGER, "El File System se inicio correctamente");
 }
 
 void generar_estructura_file_system_si_hace_falta(char* punto_montaje_file_system)
@@ -138,7 +141,7 @@ void generar_estructura_file_system_si_hace_falta(char* punto_montaje_file_syste
 		bitarray = mapear_bitmap_en_memoria(path_metadata_bitmap_bin, cantidad_bytes);
 		generar_bloques_bin_que_hagan_falta(punto_montaje_file_system, cantidad_bloques, bitarray);
 
-	    if(msync(bitarray->bitarray, bitarray->size, MS_SYNC) == -1) imprimir_error_y_terminar_programa("Ocurrio un error al usar mysinc()");
+	    if(msync(bitarray->bitarray, bitarray->size, MS_SYNC) == -1) imprimir_error_y_terminar_programa("Ocurrio un error al usar mysinc() en generar_estructura_file_system_si_hace_falta");
 
 		munmap(bitarray->bitarray, bitarray->size);
 
@@ -174,8 +177,6 @@ t_bitarray* mapear_bitmap_en_memoria(char* archivo, size_t size_memoria_a_mapear
 	if (close(fd) == -1)imprimir_error_y_terminar_programa("No se pudo cerrar el archivo en mapear_bitmap_en_memoria()");
 
 	if (memoria_mapeada == MAP_FAILED) imprimir_error_y_terminar_programa("No se pudo realizar el mapeo en memoria del BITMAP");
-
-	log_info(LOGGER, "Se realizo con exito el mapeado en memoria de : %s", archivo);
 
 	return bitarray_create_with_mode((char*) memoria_mapeada, size_memoria_a_mapear, LSB_FIRST);
 }
@@ -228,7 +229,6 @@ void escribir_y_cerrar_archivo_si_no_existe(char* path_archivo_con_nombre, char*
 	if(archivo == NULL)
 	{
 		sobrescribir_y_cerrar_archivo(path_archivo_con_nombre, datos_a_grabar, tamanio_datos_a_grabar);
-		log_info(LOGGER, "Creando archivo : %s  --  Bytes escritos : %i", path_archivo_con_nombre, tamanio_datos_a_grabar);
 
 	}else{
 		fclose(archivo);
@@ -248,6 +248,7 @@ void sobrescribir_y_cerrar_archivo(char* path_archivo_con_nombre, char* datos_a_
 
 	//fprintf(metadata_bin, "%s", datos_metadata_bin);
 	fwrite(datos_a_grabar, tamanio_datos_a_grabar, 1, archivo);
+	log_info(LOGGER, "Creando archivo : %s  --  Bytes escritos : %i", path_archivo_con_nombre, tamanio_datos_a_grabar);
 
 	if (fclose(archivo) != 0)imprimir_error_y_terminar_programa("No se pudo cerrar el archivo en sobrescribir_y_cerrar_archivo()");
 }
@@ -256,7 +257,7 @@ pthread_t iniciar_hilo_para_recibir_conexiones()
 {
 	pthread_t thread;
 	if(0 != pthread_create(&thread, NULL, recibir_conexiones, NULL))
-		imprimir_error_y_terminar_programa("No se pudo crear hilo recibir_mensajes_de_gameboy()");
+		imprimir_error_y_terminar_programa("No se pudo crear hilo recibir_conexiones()");
 
 	return thread;
 }
@@ -302,7 +303,7 @@ pthread_t iniciar_hilo_para_comunicarse_con_broker(char* cola_a_suscribirse, op_
 
 	pthread_t thread;
 	if(0 != pthread_create(&thread, NULL, conectar_recibir_y_enviar_mensajes, (void*)arg))
-		imprimir_error_y_terminar_programa("No se pudo crear hilo conectar_recibir_y_enviar_mensaje()");
+		imprimir_error_y_terminar_programa("No se pudo crear hilo conectar_recibir_y_enviar_mensajes()");
 
 	return thread;
 }
@@ -319,8 +320,6 @@ void* conectar_recibir_y_enviar_mensajes(void* argumentos)
 		char* mensaje_de_logueo_al_reintentar_conexion = string_from_format("La conexion con el BROKER para suscribirse a cola %s fallo.", cola_a_suscribirse);
 		int conexion = conectar_a_broker_y_reintentar_si_hace_falta(mensaje_de_logueo_al_reintentar_conexion);
 		free(mensaje_de_logueo_al_reintentar_conexion);
-
-		log_info(LOGGER, "Se realizo una conexion con BROKER, para suscribirse a cola %s", cola_a_suscribirse);
 
 		int estado_envio = enviar_mensaje_de_suscripcion(conexion, codigo_suscripcion, ID_MANUAL_DEL_PROCESO);
 		if(estado_envio <= 0) continue;
@@ -379,6 +378,8 @@ int conectar_a_broker_y_reintentar_si_hace_falta(char* mensaje_de_logueo_al_rein
 		}
 	}
 
+	log_info(LOGGER, "Conexion con BROKER exitosa");
+
 	return conexion;
 }
 
@@ -388,9 +389,13 @@ void verificar_estado_del_envio_y_cerrar_conexion(char* tipo_mensaje, int estado
 		log_error(LOGGER, "No se pudo enviar %s al BROKER. Continuando operacion del GAME CARD", tipo_mensaje);
 	}else{
 		esperar_id_mensaje_enviado(conexion);	//EL GAMECARD NO HACE NADA CON EL ID, SOLO TIENE QUE ESPERARLO
+
+		log_error(LOGGER, "Mensaje %s enviado al BROKER correctamente", tipo_mensaje);
 	}
 
 	close(conexion);
+
+	pthread_exit(NULL);
 }
 
 void iniciar_hilo_para_tratar_y_responder_mensaje(int id_mensaje_recibido, void* mensaje, op_code codigo_suscripcion)
@@ -437,7 +442,7 @@ void* atender_new_pokemon(void* argumentos)
     char** array_de_todo_el_archivo_pokemon_con_posiciones_y_cantidades = generar_array_de_todo_el_archivo_pokemon_con_posiciones_y_cantidades((char*) mensaje->nombre);
     char* posicion_buscada_en_string = string_from_format("%i-%i", mensaje->coordenadas.posx, mensaje->coordenadas.posy);
 
-	agregar_cantidad_en_archivo_pokemon(mensaje, array_de_todo_el_archivo_pokemon_con_posiciones_y_cantidades, posicion_buscada_en_string);
+	int retorno_agregar = agregar_cantidad_en_archivo_pokemon(mensaje, array_de_todo_el_archivo_pokemon_con_posiciones_y_cantidades, posicion_buscada_en_string);
 
 	retener_un_rato_y_liberar_archivo_pokemon(mensaje->nombre);
 
@@ -449,9 +454,12 @@ void* atender_new_pokemon(void* argumentos)
 
 	//enviar_identificacion_general(conexion, ID_PROCESOS_TP);	//SI NO INTENTO RECONECTARME, TENGO QUE USAR ESTO
 
-	int estado = generar_y_enviar_appeared_pokemon(conexion, 0, id_mensaje_recibido, mensaje->nombre, mensaje->coordenadas.posx, mensaje->coordenadas.posy);
+	int estado;
 
-	verificar_estado_del_envio_y_cerrar_conexion("APPEARED_POKEMON", estado, conexion);
+	if(retorno_agregar != -1)
+		estado = generar_y_enviar_appeared_pokemon(conexion, 0, id_mensaje_recibido, mensaje->nombre, mensaje->coordenadas.posx, mensaje->coordenadas.posy);
+
+	if(retorno_agregar == -1) estado = 0;
 
     int i = 0;
     while(array_de_todo_el_archivo_pokemon_con_posiciones_y_cantidades[i] != NULL)
@@ -464,6 +472,8 @@ void* atender_new_pokemon(void* argumentos)
 
 	free(mensaje->nombre);
 	free(mensaje);
+
+	verificar_estado_del_envio_y_cerrar_conexion("APPEARED_POKEMON", estado, conexion);
 
 	return NULL;
 }
@@ -480,8 +490,6 @@ void* atender_catch_pokemon(void* argumentos)
 		log_error(LOGGER, "Se recibio CATCH_POKEMON. No existe pokemon solicitado en file system. Nombre del pokemon: %s", mensaje->nombre);
 
 		conectar_enviar_verificar_caught(id_mensaje_recibido, 0);
-
-		pthread_exit(NULL);	//ASI SE HACE PARA TERMINAR UN HILO?? REVISAR TODO
 	}
 
 	pedir_archivo_pokemon(mensaje->nombre);
@@ -497,8 +505,6 @@ void* atender_catch_pokemon(void* argumentos)
 
 		retener_conectar_librerar_recursos_caught(mensaje, id_mensaje_recibido, 0, posicion_buscada_en_string,
 				array_de_todo_el_archivo_pokemon_con_posiciones_y_cantidades);
-
-		pthread_exit(NULL);	//ASI SE HACE PARA TERMINAR UN HILO?? REVISAR TODO
 	}
 
 	reducir_cantidad_en_archivo_pokemon(mensaje->nombre, indice_de_busqueda, array_de_todo_el_archivo_pokemon_con_posiciones_y_cantidades, posicion_buscada_en_string);
@@ -531,8 +537,6 @@ void* atender_get_pokemon(void* argumentos)
 		//DEBERIA MANDAR ESTE MENSAJE? O NO MANDO NADA Y TERMINO EL HILO ACTUAL? TODO
 
 		verificar_estado_del_envio_y_cerrar_conexion("LOCALIZED_POKEMON", estado, conexion);
-
-		pthread_exit(NULL);	//ASI SE HACE PARA TERMINAR UN HILO?? REVISAR TODO
 	}
 
 	pedir_archivo_pokemon(mensaje->nombre);
@@ -552,11 +556,11 @@ void* atender_get_pokemon(void* argumentos)
 	//DEBERIA MANDAR ESTE MENSAJE SI LA LISTA ESTA VACIA? O NO MANDO NADA Y TERMINO EL HILO ACTUAL? TODO
 	//DEBERIA REVISAR EL TEAM
 
-	verificar_estado_del_envio_y_cerrar_conexion("LOCALIZED_POKEMON", estado, conexion);
-
 	list_destroy_and_destroy_elements(lista_posiciones, free);
 	free(mensaje->nombre);
 	free(mensaje);
+
+	verificar_estado_del_envio_y_cerrar_conexion("LOCALIZED_POKEMON", estado, conexion);
 
 	return NULL;
 }
@@ -565,8 +569,6 @@ void retener_conectar_librerar_recursos_caught(t_catch_pokemon* mensaje, int id_
 		char** array_de_todo_el_archivo_pokemon_con_posiciones_y_cantidades)
 {
 	retener_un_rato_y_liberar_archivo_pokemon(mensaje->nombre);
-
-	conectar_enviar_verificar_caught(id_mensaje_recibido, resultado_caught);
 
     int i = 0;
     while(array_de_todo_el_archivo_pokemon_con_posiciones_y_cantidades[i] != NULL)
@@ -579,6 +581,8 @@ void retener_conectar_librerar_recursos_caught(t_catch_pokemon* mensaje, int id_
 
 	free(mensaje->nombre);
 	free(mensaje);
+
+	conectar_enviar_verificar_caught(id_mensaje_recibido, resultado_caught);
 }
 
 void conectar_enviar_verificar_caught(int id_mensaje_recibido, int resultado_caught)
@@ -664,7 +668,7 @@ bool intentar_abrir_archivo_pokemon(char* nombre_pokemon)
 
 	if(archivo_pokemon_metadata_bin == NULL)
 	{
-		char* mensaje_error = string_from_format("No se pudo abrir archivo %s", path_archivo_pokemon_metadata_bin);
+		char* mensaje_error = string_from_format("No se pudo abrir archivo %s en intentar_abrir_archivo_pokemon()", path_archivo_pokemon_metadata_bin);
 		imprimir_error_y_terminar_programa(mensaje_error);
 		free(mensaje_error); //ESTO NUNCA SE EJECUTA...
 	}
@@ -701,7 +705,7 @@ void liberar_archivo_pokemon(char* nombre_pokemon)
 
 	if(archivo_pokemon_metadata_bin == NULL)
 	{
-		char* mensaje_error = string_from_format("No se pudo abrir archivo %s", path_archivo_pokemon_metadata_bin);
+		char* mensaje_error = string_from_format("No se pudo abrir archivo %s en liberar_archivo_pokemon()", path_archivo_pokemon_metadata_bin);
 		imprimir_error_y_terminar_programa(mensaje_error);
 		free(mensaje_error); //ESTO NUNCA SE EJECUTA...
 	}
@@ -784,7 +788,8 @@ char** generar_array_de_todo_el_archivo_pokemon_con_posiciones_y_cantidades(char
 
 	if(archivo_pokemon_metadata_bin == NULL)
 	{
-		char* mensaje_error = string_from_format("No se pudo abrir archivo %s", path_archivo_pokemon_metadata_bin);
+		char* mensaje_error = string_from_format("No se pudo abrir archivo %s en "
+				"generar_array_de_todo_el_archivo_pokemon_con_posiciones_y_cantidades()", path_archivo_pokemon_metadata_bin);
 		imprimir_error_y_terminar_programa(mensaje_error);
 		free(mensaje_error); //ESTO NUNCA SE EJECUTA...
 	}
@@ -838,7 +843,7 @@ char** generar_array_de_todo_el_archivo_pokemon_con_posiciones_y_cantidades(char
     return array_de_todo_el_archivo_pokemon_con_posiciones_y_cantidades;
 }
 
-void agregar_cantidad_en_archivo_pokemon(t_new_pokemon* mensaje, char** array_de_todo_el_archivo_pokemon_con_posiciones_y_cantidades, char* posicion_buscada_en_string)
+int agregar_cantidad_en_archivo_pokemon(t_new_pokemon* mensaje, char** array_de_todo_el_archivo_pokemon_con_posiciones_y_cantidades, char* posicion_buscada_en_string)
 {
     int indice_de_busqueda = buscar_posicion_en_archivo_pokemon(array_de_todo_el_archivo_pokemon_con_posiciones_y_cantidades, posicion_buscada_en_string);
 
@@ -896,7 +901,7 @@ void agregar_cantidad_en_archivo_pokemon(t_new_pokemon* mensaje, char** array_de
 
 	if(archivo_pokemon_metadata_bin == NULL)
 	{
-		char* mensaje_error = string_from_format("No se pudo abrir archivo %s", path_archivo_pokemon_metadata_bin);
+		char* mensaje_error = string_from_format("No se pudo abrir archivo %s en agregar_cantidad_en_archivo_pokemon()", path_archivo_pokemon_metadata_bin);
 		imprimir_error_y_terminar_programa(mensaje_error);
 		free(mensaje_error); //ESTO NUNCA SE EJECUTA...
 	}
@@ -921,6 +926,8 @@ void agregar_cantidad_en_archivo_pokemon(t_new_pokemon* mensaje, char** array_de
 
     int j = 0;
     i = 0;
+
+    int valor_retorno_funcion = 0;
 
     if(cantidad_de_bloques_anterior == cantidad_de_bloques_necesaria)
     {	//ESTO SE EJECUTA SI ME ALCANZA CON LOS BLOQUES QUE TENGO
@@ -972,8 +979,13 @@ void agregar_cantidad_en_archivo_pokemon(t_new_pokemon* mensaje, char** array_de
        			}
 
        			if(se_encontro_bit == -1)
+       			{
        				imprimir_error_y_terminar_programa("NO SE ENCONTRARON MAS BLOQUES LIBRES EN EL FILE SYSTEM. "
-       						"TERMINANDO PROGRAMA");
+       				       						"TERMINANDO PROGRAMA");
+                    free(cadena_a_grabar);
+                    valor_retorno_funcion = -1;
+                    break;
+       			}
 
    				bitarray_set_bit(BITMAP, se_encontro_bit);
 
@@ -1027,6 +1039,8 @@ void agregar_cantidad_en_archivo_pokemon(t_new_pokemon* mensaje, char** array_de
 
     config_save(archivo_pokemon_metadata_bin);
 	config_destroy(archivo_pokemon_metadata_bin);
+
+	return valor_retorno_funcion;
 }
 
 void reducir_cantidad_en_archivo_pokemon(char* nombre_pokemon, int indice_de_busqueda, char** array_de_todo_el_archivo_pokemon_con_posiciones_y_cantidades, char* posicion_buscada_en_string)
@@ -1098,7 +1112,7 @@ void reducir_cantidad_en_archivo_pokemon(char* nombre_pokemon, int indice_de_bus
 
 	if(archivo_pokemon_metadata_bin == NULL)
 	{
-		char* mensaje_error = string_from_format("No se pudo abrir archivo %s", path_archivo_pokemon_metadata_bin);
+		char* mensaje_error = string_from_format("No se pudo abrir archivo %s en reducir_cantidad_en_archivo_pokemon()", path_archivo_pokemon_metadata_bin);
 		imprimir_error_y_terminar_programa(mensaje_error);
 		free(mensaje_error); //ESTO NUNCA SE EJECUTA...
 	}

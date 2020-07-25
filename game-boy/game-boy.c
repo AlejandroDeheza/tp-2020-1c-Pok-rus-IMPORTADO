@@ -15,11 +15,11 @@ int main(int argc, char *argv[]) {
 
 		CONEXION = iniciar_conexion_como_cliente("BROKER", CONFIG);
 
-		if(CONEXION <= 0) imprimir_error_y_terminar_programa("Error de conexion con BROKER");
+		if(CONEXION == 0) imprimir_error_y_terminar_programa("Error de conexion con BROKER");
 
 		log_info(LOGGER, "Se realizo una conexion con BROKER, para suscribirse a la cola de mensajes %s", argv[2]);
 
-		if(enviar_identificacion_general(CONEXION, ID_PROCESOS_TP) <= 0) imprimir_error_y_terminar_programa("Error en enviar_identificacion_general()");
+		if(enviar_identificacion_general(CONEXION, ID_PROCESOS_TP) == 0) imprimir_error_y_terminar_programa("Error en enviar_identificacion_general()");
 
 		iniciar_modo_suscriptor(CONEXION, argv[2], atoi(argv[3]));
 
@@ -28,20 +28,20 @@ int main(int argc, char *argv[]) {
 	{	// esto se ejecuta si estamos en MODO NORMAL / MODO NO SUSCRIPTOR
 		CONEXION = iniciar_conexion_como_cliente(argv[1], CONFIG);
 
-		if(CONEXION <= 0) imprimir_error_y_terminar_programa("Error de conexion");
+		if(CONEXION == 0) imprimir_error_y_terminar_programa("Error de conexion");
 
 		log_info(LOGGER, "Se realizo una conexion con %s, para enviar un mensaje %s", argv[1], argv[2]);
 
-		if(enviar_identificacion_general(CONEXION, ID_PROCESOS_TP) <= 0) imprimir_error_y_terminar_programa("Error en enviar_identificacion_general()");
+		if(enviar_identificacion_general(CONEXION, ID_PROCESOS_TP) == 0) imprimir_error_y_terminar_programa("Error en enviar_identificacion_general()");
 
 		//se interpretan los argumentos ingresados por consola y se envia el mensaje correspondiente
 		int estado = despachar_Mensaje(CONEXION, argv);
-		if(estado <= 0) imprimir_error_y_terminar_programa("Error al enviar mensaje al BROKER");
+		if(estado == 0) imprimir_error_y_terminar_programa("Error al enviar mensaje al BROKER");
 
 		if(strcmp(argv[1],"BROKER") == 0){
 			int id_mensaje_enviado = esperar_id_mensaje_enviado(CONEXION);	//EL GAMEBOY NO HACE NADA CON ESTO
 			//SE VA A QUEDAR BLOQUEADO SI EL BROKER SE CAE...PERO NO CREO QUE PASE JUSTO CUANDO LE ENVIAMOS UN MENSAJE
-			if(id_mensaje_enviado <= 0) imprimir_error_y_terminar_programa("Error al recibir id_mensaje_enviado del BROKER");
+			if(id_mensaje_enviado == 0) imprimir_error_y_terminar_programa("Error al recibir id_mensaje_enviado del BROKER");
 		}
 	}
 
@@ -223,8 +223,8 @@ void iniciar_modo_suscriptor(int conexion, char* cola_a_suscribirse, int tiempo_
 		if(mensaje == NULL)break;
 
 		//si no hay error, se envia ACK al BROKER
-		if(enviar_ack(conexion, id_mensaje_recibido) <= 0)
-			imprimir_error_y_terminar_programa("No se pudo enviar ACK al BROKER del mensaje recibido ");
+		if(enviar_ack(conexion, id_mensaje_recibido) == 0)
+			imprimir_error_y_terminar_programa("No se pudo enviar ACK al BROKER del mensaje recibido");
 		//COMO EL ENUNCIADO NO ME PIDE QUE INTENTE RECONECTAR, TIRO ERROR
 
 		//se imprime por pantalla el mensaje recibido

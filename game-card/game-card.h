@@ -85,7 +85,7 @@ void liberar_archivo_pokemon(char* nombre_pokemon);
 int buscar_posicion_en_archivo_pokemon(char** array_de_todo_el_archivo_pokemon_con_posiciones_y_cantidades, char* posicion_buscada_en_string);
 t_list* obtener_todas_las_posiciones_de_archivo_pokemon(char* nombre_pokemon);
 char** generar_array_de_todo_el_archivo_pokemon_con_posiciones_y_cantidades(char* nombre_pokemon);
-void agregar_cantidad_en_archivo_pokemon(t_new_pokemon* mensaje, char** array_de_todo_el_archivo_pokemon_con_posiciones_y_cantidades, char* posicion_buscada_en_string);
+int agregar_cantidad_en_archivo_pokemon(t_new_pokemon* mensaje, char** array_de_todo_el_archivo_pokemon_con_posiciones_y_cantidades, char* posicion_buscada_en_string);
 void reducir_cantidad_en_archivo_pokemon(char* nombre_pokemon, int indice_de_busqueda, char** array_de_todo_el_archivo_pokemon_con_posiciones_y_cantidades, char* posicion_buscada_en_string);
 
 #endif

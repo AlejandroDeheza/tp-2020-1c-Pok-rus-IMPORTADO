@@ -67,6 +67,7 @@ int enviar_mensaje_a_suscriptores(void* mensaje, int size_mensaje, int socket_cl
 
 	int estado = send(socket_cliente, aEnviar, bytes, MSG_NOSIGNAL);
 	//agrego el flag "MSG_NOSIGNAL" por lo que decian en este issue: https://github.com/sisoputnfrba/foro/issues/1707
+	if(estado == -1) imprimir_error_y_terminar_programa("Error al usar send() en enviar_mensaje_a_suscriptores()");
 
 	verificar_estado(estado);
 
@@ -82,9 +83,14 @@ bool es_un_proceso_esperado(int socket_cliente, char* id_procesos_tp)
 {
 	int size = 0;
 
-	if(recv(socket_cliente, &size, sizeof(int), MSG_WAITALL) <= 0) return false;
+	int primer_retorno = recv(socket_cliente, &size, sizeof(int), MSG_WAITALL);
+	if(primer_retorno == 0) return false;
+	if(primer_retorno == -1) imprimir_error_y_terminar_programa("Error al usar recv() en es_un_proceso_esperado()");
+
 	void* cadena_recibida = malloc(size);
-	if(recv(socket_cliente, cadena_recibida, size, MSG_WAITALL) <= 0) return false;
+	int segundo_retorno = recv(socket_cliente, cadena_recibida, size, MSG_WAITALL);
+	if(segundo_retorno == 0) return false;
+	if(segundo_retorno == -1) imprimir_error_y_terminar_programa("Error al usar recv() en es_un_proceso_esperado()");
 
 	if(strcmp((char*) cadena_recibida, id_procesos_tp) == 0)
 	{

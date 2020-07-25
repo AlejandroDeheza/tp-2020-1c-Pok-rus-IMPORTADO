@@ -58,17 +58,6 @@ void configuracion_inicial_planificador(t_config* config, int* retardo_cliclo, c
 	*algoritmo = asignar_string_property(config, "ALGORITMO_PLANIFICACION");
 }
 
-void imprimir_error_y_terminar_programa(char* mensaje)
-{
-	printf("\n");
-	error_show(" %s\n", mensaje);
-	perror("Descripcion ");
-
-	printf("\n");
-	printf("\n");
-	exit(-1);
-}
-
 char* generar_mensaje_para_loggear(void* mensaje, op_code codigo_operacion)
 {
 	char* mensaje_para_loguear = NULL;
@@ -212,6 +201,27 @@ char* generar_localized_pokemon_para_loggear(void* mensaje_a_imprimir)
 	free(mensaje);
 
 	return mensaje_para_loguear;
+}
+
+void imprimir_error_y_terminar_programa(char* mensaje)
+{
+	printf("\n");
+	error_show(" %s\n", mensaje);
+	perror("Descripcion ");
+
+	printf("\n");
+	printf("\n");
+	exit(-1);
+}// PODRIAS HACER QUE RECIBA UNA FUNCION PARA TERMINAR PROCESO DE FORMA MAS PERSONALIZADA.
+//PARA REMINAR GAMECARD O TEAM ESPECIFICAMENTE Y LIBERAR LOS RECURSS QUE SE PUEDAN LIBERAR TODO
+
+void imprimir_error_y_terminar_hilo(char* mensaje, t_log* logger)
+{
+	log_error(logger, "%s\n", mensaje);
+	perror("Descripcion ");
+
+	printf("\n");
+	pthread_exit(NULL);
 }
 
 void terminar_programa(int conexion, t_log* logger, t_config* config)

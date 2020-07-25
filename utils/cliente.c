@@ -14,7 +14,7 @@ int crear_socket_como_cliente(char *ip, char* puerto)
 
 	int socket_cliente = socket(server_info->ai_family, server_info->ai_socktype, server_info->ai_protocol);
 
-	if(connect(socket_cliente, server_info->ai_addr, server_info->ai_addrlen) == -1) return -1;
+	if(connect(socket_cliente, server_info->ai_addr, server_info->ai_addrlen) == -1) imprimir_error_y_terminar_programa("Error en connect() en crear_socket_como_cliente");
 
 	freeaddrinfo(server_info);
 
@@ -77,6 +77,8 @@ int enviar_mensaje_como_cliente(void* mensaje, int socket_cliente, op_code codig
 	printf("EnviarMensaje -> Paquete Serializado - Tamaño Total: %d Bytes.\n", bytes);	//PARA LAS PRUEBAS COMENTAR ESTO TODO
 
 	int estado = send(socket_cliente, aEnviar, bytes, MSG_NOSIGNAL);
+	if(estado == -1) imprimir_error_y_terminar_programa("Error al usar send() en enviar_mensaje_como_cliente()");
+
 	verificar_estado(estado);	//PARA LAS PRUEBAS COMENTAR ESTO TODO
 	free(aEnviar);
 	free(paquete->buffer->stream);		//HACE FALTA ESTE FREE()?? NO HAGO EL FREE() EN GENERAR_Y_ENVIAR_T_ALGO() ??? TODO
@@ -202,6 +204,7 @@ int enviar_identificacion_general(int socket, char* id_procesos_tp)
 	memcpy(aEnviar + desplazamiento, id_procesos_tp, size);
 
 	int estado = send(socket, aEnviar, sizeof(int) + size, MSG_NOSIGNAL);
+	if(estado == -1) imprimir_error_y_terminar_programa("Error al usar send() en enviar_identificacion_general()");
 
 	free(aEnviar);
 
@@ -220,6 +223,8 @@ int enviar_mensaje_de_suscripcion(int socket_cliente, op_code codigo_suscripcion
 	memcpy(aEnviar + desplazamiento, &(id_manual_del_proceso), sizeof(int));
 
 	estado = send(socket_cliente, aEnviar, sizeof(sizeof(op_code) + sizeof(int)), MSG_NOSIGNAL);
+	if(estado == -1) imprimir_error_y_terminar_programa("Error al usar send() en enviar_mensaje_de_suscripcion()");
+
 	verificar_estado(estado);
 
 	free(aEnviar);
@@ -230,7 +235,9 @@ int enviar_mensaje_de_suscripcion(int socket_cliente, op_code codigo_suscripcion
 int esperar_id_mensaje_enviado(int socket_cliente)
 {
 	int id_mensaje_enviado = 0;
-	if(recv(socket_cliente, &id_mensaje_enviado, sizeof(int), MSG_WAITALL) <= 0)return 0;
+	int estado = recv(socket_cliente, &id_mensaje_enviado, sizeof(int), MSG_WAITALL);
+	if(estado == -1) imprimir_error_y_terminar_programa("Error al usar recv() en esperar_id_mensaje_enviado()");
+	if(estado == 0) return 0;
 
 	return id_mensaje_enviado;
 }
@@ -238,6 +245,8 @@ int esperar_id_mensaje_enviado(int socket_cliente)
 int enviar_ack(int socket_cliente, int id_mensaje_recibido){
 	int estado = 0;
 	estado = send(socket_cliente, &id_mensaje_recibido, sizeof(int), MSG_NOSIGNAL);
+	if(estado == -1) imprimir_error_y_terminar_programa("Error al usar send() en enviar_ack()");
+
 	verificar_estado(estado);
 
 	return estado;
@@ -245,16 +254,28 @@ int enviar_ack(int socket_cliente, int id_mensaje_recibido){
 
 void* recibir_mensaje_por_socket(op_code* codigo_operacion, int socket_cliente, int* id_correlativo, int* id_mensaje)
 {
-	if(recv(socket_cliente, codigo_operacion, sizeof(op_code), MSG_WAITALL) <= 0)return NULL;
+	int ultimo_estado;
 
-	if(recv(socket_cliente, id_correlativo, sizeof(int), MSG_WAITALL) <= 0)return NULL;
+	ultimo_estado = recv(socket_cliente, codigo_operacion, sizeof(op_code), MSG_WAITALL);
+	if(ultimo_estado == -1) imprimir_error_y_terminar_programa("Error al usar recv() en recibir_mensaje_por_socket()");
+	if(ultimo_estado == 0) return NULL;
 
-	if(recv(socket_cliente, id_mensaje, sizeof(int), MSG_WAITALL) <= 0)return NULL;
+	ultimo_estado = recv(socket_cliente, id_correlativo, sizeof(int), MSG_WAITALL);
+	if(ultimo_estado == -1) imprimir_error_y_terminar_programa("Error al usar recv() en recibir_mensaje_por_socket()");
+	if(ultimo_estado == 0) return NULL;
+
+	ultimo_estado = recv(socket_cliente, id_mensaje, sizeof(int), MSG_WAITALL);
+	if(ultimo_estado == -1) imprimir_error_y_terminar_programa("Error al usar recv() en recibir_mensaje_por_socket()");
+	if(ultimo_estado == 0) return NULL;
 	int size;
-	if(recv(socket_cliente,&size, sizeof(int), MSG_WAITALL) <= 0)return NULL;
+	ultimo_estado = recv(socket_cliente,&size, sizeof(int), MSG_WAITALL);
+	if(ultimo_estado == -1) imprimir_error_y_terminar_programa("Error al usar recv() en recibir_mensaje_por_socket()");
+	if(ultimo_estado == 0) return NULL;
 
 	void* mensaje = malloc(size);
-	if(recv(socket_cliente,mensaje, size, MSG_WAITALL) <= 0)return NULL;
+	ultimo_estado = recv(socket_cliente,mensaje, size, MSG_WAITALL);
+	if(ultimo_estado == -1) imprimir_error_y_terminar_programa("Error al usar recv() en recibir_mensaje_por_socket()");
+	if(ultimo_estado == 0) return NULL;
 
 	void* response;
 
