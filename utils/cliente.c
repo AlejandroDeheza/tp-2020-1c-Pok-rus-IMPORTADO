@@ -1,7 +1,12 @@
 #include "cliente.h"
 
-int crear_socket_como_cliente(char *ip, char* puerto)
+int iniciar_conexion_como_cliente(char *nombre_de_proceso_servidor, t_config* config, pthread_mutex_t* mutex_config)
 {
+	char* ip = NULL;
+	char* puerto = NULL;
+
+	leer_ip_y_puerto(&ip, &puerto, config, nombre_de_proceso_servidor, mutex_config);
+
 	struct addrinfo hints;
 	struct addrinfo *server_info;
 
@@ -19,18 +24,6 @@ int crear_socket_como_cliente(char *ip, char* puerto)
 	freeaddrinfo(server_info);
 
 	return socket_cliente;
-}
-
-int iniciar_conexion_como_cliente(char *nombre_de_proceso_servidor, t_config* config){
-	char* ip = NULL;
-	char* puerto = NULL;
-	int conexion = 0;
-
-	leer_ip_y_puerto(&ip, &puerto, config, nombre_de_proceso_servidor);
-
-	conexion = crear_socket_como_cliente(ip, puerto);
-
-	return conexion;
 }
 
 int enviar_mensaje_como_cliente(void* mensaje, int socket_cliente, op_code codigo_operacion, int id_mensaje, int id_correlativo)
@@ -193,15 +186,37 @@ void verificar_estado(int estado) {
 	}
 }
 
-int enviar_identificacion_general(int socket, char* id_procesos_tp)
+int enviar_identificacion_general(int socket, char* id_procesos_tp, pthread_mutex_t* mutex_id_procesos_tp)
 {
-	int size = strlen(id_procesos_tp) + 1;
+	int size;
+
+	if(mutex_id_procesos_tp != NULL)
+	{
+		pthread_mutex_lock(mutex_id_procesos_tp);
+		size = strlen(id_procesos_tp) + 1;
+		pthread_mutex_unlock(mutex_id_procesos_tp);
+	}
+	else
+	{
+		size = strlen(id_procesos_tp) + 1;
+	}
+
 	void* aEnviar = malloc(size);
 	int desplazamiento = 0;
 
 	memcpy(aEnviar + desplazamiento, &size, sizeof(int));
 	desplazamiento+= sizeof(int);
-	memcpy(aEnviar + desplazamiento, id_procesos_tp, size);
+
+	if(mutex_id_procesos_tp != NULL)
+	{
+		pthread_mutex_lock(mutex_id_procesos_tp);
+		memcpy(aEnviar + desplazamiento, id_procesos_tp, size);
+		pthread_mutex_unlock(mutex_id_procesos_tp);
+	}
+	else
+	{
+		memcpy(aEnviar + desplazamiento, id_procesos_tp, size);
+	}
 
 	int estado = send(socket, aEnviar, sizeof(int) + size, MSG_NOSIGNAL);
 	if(estado == -1) imprimir_error_y_terminar_programa("Error al usar send() en enviar_identificacion_general()");
@@ -211,7 +226,7 @@ int enviar_identificacion_general(int socket, char* id_procesos_tp)
 	return estado;
 }
 
-int enviar_mensaje_de_suscripcion(int socket_cliente, op_code codigo_suscripcion, int id_manual_del_proceso)
+int enviar_mensaje_de_suscripcion(int socket_cliente, op_code codigo_suscripcion, int id_manual_del_proceso, pthread_mutex_t* mutex_id_manual_del_proceso)
 {	//si id_manual_del_proceso == 0, entonces el BROKER lo setea en 0
 	int estado = 0;
 
@@ -220,7 +235,18 @@ int enviar_mensaje_de_suscripcion(int socket_cliente, op_code codigo_suscripcion
 
 	memcpy(aEnviar + desplazamiento, &(codigo_suscripcion), sizeof(op_code));
 	desplazamiento+= sizeof(int);
-	memcpy(aEnviar + desplazamiento, &(id_manual_del_proceso), sizeof(int));
+
+	if(mutex_id_manual_del_proceso != NULL)
+	{
+		pthread_mutex_unlock(mutex_id_manual_del_proceso);
+		memcpy(aEnviar + desplazamiento, &(id_manual_del_proceso), sizeof(int));
+		pthread_mutex_unlock(mutex_id_manual_del_proceso);
+	}
+	else
+	{
+		memcpy(aEnviar + desplazamiento, &(id_manual_del_proceso), sizeof(int));
+	}
+
 
 	estado = send(socket_cliente, aEnviar, sizeof(sizeof(op_code) + sizeof(int)), MSG_NOSIGNAL);
 	if(estado == -1) imprimir_error_y_terminar_programa("Error al usar send() en enviar_mensaje_de_suscripcion()");

@@ -22,6 +22,18 @@
 #include "../utils/config.h"
 #include "servidor.h"
 
+pthread_mutex_t* MUTEX_CONFIG;
+pthread_mutex_t* MUTEX_LOGGER;
+pthread_mutex_t* MUTEX_METADATA_METADATA_BIN;
+pthread_mutex_t* MUTEX_BITMAP;
+pthread_mutex_t* MUTEX_ID_PROCESOS_TP;
+pthread_mutex_t* MUTEX_ID_MANUAL_DEL_PROCESO;
+
+pthread_mutex_t* MUTEX_DICCIONARIO;
+
+t_dictionary * DICCIONARIO_CON_MUTEX;
+
+
 t_config* CONFIG = NULL;
 t_log* LOGGER = NULL;
 
@@ -36,6 +48,8 @@ typedef struct
 	int entero;
 	void* stream;
 } argumentos_de_hilo;
+
+void eliminador_de_mutex_en_diccionario(void* argumento);
 
 void ejecutar_antes_de_terminar(int numero_senial);
 void finalizar_gamecard();

@@ -9,15 +9,26 @@ t_log* generar_logger(t_config* config, char* nombre_proceso)
 	return log_create(log_file, nombre_proceso , true, LOG_LEVEL_INFO);
 }
 
-void leer_ip_y_puerto(char** ip, char** puerto, t_config* config, char* nombre_proceso)
+void leer_ip_y_puerto(char** ip, char** puerto, t_config* config, char* nombre_proceso, pthread_mutex_t* mutex_config)
 {
 	char* ipElegida = string_new();
 	char* puertoElegido = string_new();
 
 	string_append_with_format(&ipElegida, "IP_%s", nombre_proceso);
 	string_append_with_format(&puertoElegido, "PUERTO_%s", nombre_proceso);
-	*ip = asignar_string_property(config, ipElegida);
-	*puerto = asignar_string_property(config, puertoElegido);
+
+	if(mutex_config != NULL)
+	{
+		pthread_mutex_lock(mutex_config);
+		*ip = asignar_string_property(config, ipElegida);
+		*puerto = asignar_string_property(config, puertoElegido);
+		pthread_mutex_unlock(mutex_config);
+	}
+	else
+	{
+		*ip = asignar_string_property(config, ipElegida);
+		*puerto = asignar_string_property(config, puertoElegido);
+	}
 
 	if(!(*ip) || !(*puerto)){
 		printf("\n");

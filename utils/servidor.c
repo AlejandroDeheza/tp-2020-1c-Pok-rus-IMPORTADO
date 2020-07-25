@@ -79,7 +79,7 @@ int enviar_mensaje_a_suscriptores(void* mensaje, int size_mensaje, int socket_cl
 	return estado;
 }
 
-bool es_un_proceso_esperado(int socket_cliente, char* id_procesos_tp)
+bool es_un_proceso_esperado(int socket_cliente, char* id_procesos_tp, pthread_mutex_t* mutex_id_procesos_tp)
 {
 	int size = 0;
 
@@ -92,11 +92,14 @@ bool es_un_proceso_esperado(int socket_cliente, char* id_procesos_tp)
 	if(segundo_retorno == 0) return false;
 	if(segundo_retorno == -1) imprimir_error_y_terminar_programa("Error al usar recv() en es_un_proceso_esperado()");
 
+	pthread_mutex_lock(mutex_id_procesos_tp);
 	if(strcmp((char*) cadena_recibida, id_procesos_tp) == 0)
 	{
+		pthread_mutex_unlock(mutex_id_procesos_tp);
 		free(cadena_recibida);
 		return true;
 	}
+	pthread_mutex_unlock(mutex_id_procesos_tp);
 
 	free(cadena_recibida);
 	return false;

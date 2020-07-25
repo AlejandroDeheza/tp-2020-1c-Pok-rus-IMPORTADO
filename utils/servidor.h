@@ -22,7 +22,7 @@ int enviar_mensaje_a_suscriptores(void* mensaje, int size_mensaje, int socket_cl
 
 bool es_codigo_operacion_valido(op_code codigo_operacion);
 
-bool es_un_proceso_esperado(int socket_cliente, char* id_procesos_tp);
+bool es_un_proceso_esperado(int socket_cliente, char* id_procesos_tp, pthread_mutex_t* mutex_id_procesos_tp);
 
 /**************vv funciones anteriores vv*****************/
 

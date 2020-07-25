@@ -511,7 +511,7 @@ void suscribirse_a_colas(){
   			reintentar_conexion_con_broker(conexion);
   		}
 
-  		enviar_mensaje_de_suscripcion(conexion, queue_suscripcion, ID_MANUAL_DEL_PROCESO_TEAM);
+  		enviar_mensaje_de_suscripcion(conexion, queue_suscripcion, ID_MANUAL_DEL_PROCESO_TEAM, NULL);
   		log_info(LOGGER, "Suscripcion a cola de mensajes %s realizada", suscripcion);
   		pthread_mutex_unlock(&mutex_suscripciones);
 
@@ -545,7 +545,7 @@ void suscribirse_a_colas(){
 // Se establece por parametro si debe iniciar el proceso de reintento  de conexion
 //----------------------------------------------------------------------------------------------------------
 int conectarse_a_broker() {
-	int socket = iniciar_conexion_como_cliente("BROKER", CONFIG);
+	int socket = iniciar_conexion_como_cliente("BROKER", CONFIG, NULL);
 
 	if(socket > 0) {
 		conexion_con_broker = CONECTADO;
@@ -574,7 +574,7 @@ void reintentar_conexion_con_broker(int conexion){
 	while(conexion < 0){
 		sleep(tiempo_reconexion);
 		log_info(LOGGER, "Reintentando conexion con proceso BROKER");
-		conexion = iniciar_conexion_como_cliente("BROKER", CONFIG);
+		conexion = iniciar_conexion_como_cliente("BROKER", CONFIG, NULL);
 	}
 
 	log_info(LOGGER, "Se logro conexion con proceso BROKER");
@@ -716,7 +716,7 @@ void escuchar_conexion()
 	char* ip = NULL;
 	char* puerto = NULL;
 
-	leer_ip_y_puerto(&ip, &puerto, CONFIG, "GAMEBOY");
+	leer_ip_y_puerto(&ip, &puerto, CONFIG, "GAMEBOY", NULL);
 
     socket_servidor_gameboy = crear_socket_para_escuchar(ip, puerto);
     log_info(LOGGER, "Comienzo a escuchar IP:%s y PUERTO:%s para recibir conexion de GAME-BOY", ip, puerto);

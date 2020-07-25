@@ -13,26 +13,26 @@ int main(int argc, char *argv[]) {
 
 	if(strcmp(argv[1],"SUSCRIPTOR")==0){	// lo de aca se ejecuta si estamos en modo SUSCRIPTOR
 
-		CONEXION = iniciar_conexion_como_cliente("BROKER", CONFIG);
+		CONEXION = iniciar_conexion_como_cliente("BROKER", CONFIG, NULL);
 
 		if(CONEXION == 0) imprimir_error_y_terminar_programa("Error de conexion con BROKER");
 
 		log_info(LOGGER, "Se realizo una conexion con BROKER, para suscribirse a la cola de mensajes %s", argv[2]);
 
-		if(enviar_identificacion_general(CONEXION, ID_PROCESOS_TP) == 0) imprimir_error_y_terminar_programa("Error en enviar_identificacion_general()");
+		if(enviar_identificacion_general(CONEXION, ID_PROCESOS_TP, NULL) == 0) imprimir_error_y_terminar_programa("Error en enviar_identificacion_general()");
 
 		iniciar_modo_suscriptor(CONEXION, argv[2], atoi(argv[3]));
 
 	}
 	else
 	{	// esto se ejecuta si estamos en MODO NORMAL / MODO NO SUSCRIPTOR
-		CONEXION = iniciar_conexion_como_cliente(argv[1], CONFIG);
+		CONEXION = iniciar_conexion_como_cliente(argv[1], CONFIG, NULL);
 
 		if(CONEXION == 0) imprimir_error_y_terminar_programa("Error de conexion");
 
 		log_info(LOGGER, "Se realizo una conexion con %s, para enviar un mensaje %s", argv[1], argv[2]);
 
-		if(enviar_identificacion_general(CONEXION, ID_PROCESOS_TP) == 0) imprimir_error_y_terminar_programa("Error en enviar_identificacion_general()");
+		if(enviar_identificacion_general(CONEXION, ID_PROCESOS_TP, NULL) == 0) imprimir_error_y_terminar_programa("Error en enviar_identificacion_general()");
 
 		//se interpretan los argumentos ingresados por consola y se envia el mensaje correspondiente
 		int estado = despachar_Mensaje(CONEXION, argv);
@@ -199,7 +199,7 @@ void iniciar_modo_suscriptor(int conexion, char* cola_a_suscribirse, int tiempo_
 
 	//envio mensaje a BROKER para suscribirme a una cola. COMO EN ID_MANUAL_DEL_PROCESO LE PONGO 0, EL BROKER ME DESUSCRIBE DE LA COLA DE MENSAJES
 	//CUANDO SE DA CUENTA QUE EL SOCKET YA NO SIRVE
-	if(enviar_mensaje_de_suscripcion(conexion, codigo_suscripcion, ID_MANUAL_DEL_PROCESO) <= 0)
+	if(enviar_mensaje_de_suscripcion(conexion, codigo_suscripcion, ID_MANUAL_DEL_PROCESO, NULL) <= 0)
 		imprimir_error_y_terminar_programa("No se pudo enviar mensaje de suscripcion a BROKER");
 
 	//HACE FALTA RECIBIR ACK DEL MENSAJE DE SUSCRIPCION?? TODO	por ahora no lo voy a hacer

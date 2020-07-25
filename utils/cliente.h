@@ -19,9 +19,7 @@
 #include "serializacion.h"
 #include "config.h"
 
-
-int crear_socket_como_cliente(char* ip, char* puerto);
-int iniciar_conexion_como_cliente(char* nombre_de_proceso_servidor, t_config* config);
+int iniciar_conexion_como_cliente(char* nombre_de_proceso_servidor, t_config* config, pthread_mutex_t* mutex_config);
 
 int enviar_mensaje_como_cliente(void* mensaje, int socket_cliente, op_code codigo_operacion, int id_mensaje, int id_correlativo);
 
@@ -34,8 +32,8 @@ int generar_y_enviar_localized_pokemon(int conexion, int id_mensaje, int id_corr
 
 
 void verificar_estado(int estado);
-int enviar_identificacion_general(int socket, char* id_procesos_tp);
-int enviar_mensaje_de_suscripcion(int socket_cliente, op_code codigo_suscripcion, int id_manual_del_proceso);
+int enviar_identificacion_general(int socket, char* id_procesos_tp, pthread_mutex_t* mutex_id_procesos_tp);
+int enviar_mensaje_de_suscripcion(int socket_cliente, op_code codigo_suscripcion, int id_manual_del_proceso, pthread_mutex_t* mutex_id_manual_del_proceso);
 int esperar_id_mensaje_enviado(int socket_cliente);
 int enviar_ack(int socket_cliente, int id_mensaje_recibido);
 

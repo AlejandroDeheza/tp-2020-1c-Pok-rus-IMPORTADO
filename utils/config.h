@@ -14,7 +14,7 @@
 #include "estructuras.h"
 
 t_log* generar_logger(t_config* config, char* nombre_proceso);
-void leer_ip_y_puerto(char** ip, char** puerto, t_config* config, char* nombre_proceso);
+void leer_ip_y_puerto(char** ip, char** puerto, t_config* config, char* nombre_proceso, pthread_mutex_t* mutex_config);
 t_config* leer_config(char*);
 
 char* asignar_string_property(t_config*, char* property);
