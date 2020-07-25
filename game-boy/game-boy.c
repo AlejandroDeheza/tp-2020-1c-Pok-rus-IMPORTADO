@@ -199,10 +199,8 @@ void iniciar_modo_suscriptor(int conexion, char* cola_a_suscribirse, int tiempo_
 
 	//envio mensaje a BROKER para suscribirme a una cola. COMO EN ID_MANUAL_DEL_PROCESO LE PONGO 0, EL BROKER ME DESUSCRIBE DE LA COLA DE MENSAJES
 	//CUANDO SE DA CUENTA QUE EL SOCKET YA NO SIRVE
-	if(enviar_mensaje_de_suscripcion(conexion, codigo_suscripcion, ID_MANUAL_DEL_PROCESO, NULL) <= 0)
+	if(enviar_mensaje_de_suscripcion(conexion, codigo_suscripcion, ID_MANUAL_DEL_PROCESO, NULL) == 0)
 		imprimir_error_y_terminar_programa("No se pudo enviar mensaje de suscripcion a BROKER");
-
-	//HACE FALTA RECIBIR ACK DEL MENSAJE DE SUSCRIPCION?? TODO	por ahora no lo voy a hacer
 
 	log_info(LOGGER, "Se realizo una suscripcion a la cola de mensajes %s", cola_a_suscribirse);
 

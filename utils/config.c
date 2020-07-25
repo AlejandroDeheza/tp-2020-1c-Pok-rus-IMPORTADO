@@ -223,8 +223,26 @@ void imprimir_error_y_terminar_programa(char* mensaje)
 	printf("\n");
 	printf("\n");
 	exit(-1);
-}// PODRIAS HACER QUE RECIBA UNA FUNCION PARA TERMINAR PROCESO DE FORMA MAS PERSONALIZADA.
-//PARA REMINAR GAMECARD O TEAM ESPECIFICAMENTE Y LIBERAR LOS RECURSS QUE SE PUEDAN LIBERAR TODO
+}
+
+void imprimir_error_y_terminar_programa_perzonalizado(char* mensaje, void(*funcion_para_finalizar)(void))
+{
+	printf("\n");
+	error_show(" %s\n", mensaje);
+	perror("Descripcion ");
+
+	printf("\n");
+	printf("\n");
+
+	if(funcion_para_finalizar != NULL)
+	{
+		funcion_para_finalizar();
+	}
+	else
+	{
+		exit(-1);
+	}
+}
 
 void imprimir_error_y_terminar_hilo(char* mensaje, t_log* logger)
 {

@@ -309,7 +309,7 @@ void sobrescribir_y_cerrar_archivo(char* path_archivo_con_nombre, char* datos_a_
 	if(archivo == NULL)
 	{
 		char* mensaje = string_from_format("No se pudo crear archivo %s", path_archivo_con_nombre);
-		imprimir_error_y_terminar_programa(mensaje);
+		imprimir_error_y_terminar_programa_perzonalizado(mensaje, finalizar_gamecard);
 		free(mensaje); //ESTO NUNCA SE EJECUTA...
 	}
 
@@ -320,14 +320,14 @@ void sobrescribir_y_cerrar_archivo(char* path_archivo_con_nombre, char* datos_a_
 	log_info(LOGGER, "Archivo creado : %s  --  Bytes escritos : %i", path_archivo_con_nombre, tamanio_datos_a_grabar);
 	pthread_mutex_unlock(MUTEX_LOGGER);
 
-	if (fclose(archivo) != 0)imprimir_error_y_terminar_programa("No se pudo cerrar el archivo en sobrescribir_y_cerrar_archivo()");
+	if (fclose(archivo) != 0)imprimir_error_y_terminar_programa_perzonalizado("No se pudo cerrar el archivo en sobrescribir_y_cerrar_archivo()", finalizar_gamecard);
 }
 
 pthread_t iniciar_hilo_para_recibir_conexiones()
 {
 	pthread_t thread;
 	if(0 != pthread_create(&thread, NULL, recibir_conexiones, NULL))
-		imprimir_error_y_terminar_programa("No se pudo crear hilo recibir_conexiones()");
+		imprimir_error_y_terminar_programa_perzonalizado("No se pudo crear hilo recibir_conexiones()", finalizar_gamecard);
 
 	return thread;
 }
@@ -380,7 +380,7 @@ pthread_t iniciar_hilo_para_comunicarse_con_broker(char* cola_a_suscribirse, op_
 
 	pthread_t thread;
 	if(0 != pthread_create(&thread, NULL, conectar_recibir_y_enviar_mensajes, (void*)arg))
-		imprimir_error_y_terminar_programa("No se pudo crear hilo conectar_recibir_y_enviar_mensajes()");
+		imprimir_error_y_terminar_programa_perzonalizado("No se pudo crear hilo conectar_recibir_y_enviar_mensajes()", finalizar_gamecard);
 
 	return thread;
 }
@@ -400,11 +400,6 @@ void* conectar_recibir_y_enviar_mensajes(void* argumentos)
 
 		int estado_envio = enviar_mensaje_de_suscripcion(conexion, codigo_suscripcion, ID_MANUAL_DEL_PROCESO, MUTEX_ID_MANUAL_DEL_PROCESO);
 		if(estado_envio <= 0) continue;
-		// || estado_envio != (sizeof(op_code) + sizeof(int)) revisar si tenes tiempo, TODO
-		//si se manda el mensaje incompleto, que deberia hacer? seria algo poco probable, no? capaz ni hace falta considerar esto
-		//CREERIA QUE, SI PASA, DEBERIA TIRAR UN ERROR Y TERMINAR PROGRAMA... NO TENDRIA SENTIDO CONTINUAR
-
-		//HACE FALTA RECIBIR ACK DEL MENSAJE DE SUSCRIPCION?? TODO
 
 		pthread_mutex_lock(MUTEX_LOGGER);
 		log_info(LOGGER, "Se realizo una suscripcion a la cola de mensajes %s del BROKER", cola_a_suscribirse);
@@ -507,17 +502,17 @@ void iniciar_hilo_para_tratar_y_responder_mensaje(int id_mensaje_recibido, void*
 	switch (codigo_suscripcion) {
 			case SUBSCRIBE_NEW_POKEMON:
 				if(0 != pthread_create(&thread, NULL, atender_new_pokemon, (void*)arg))
-					imprimir_error_y_terminar_programa("No se pudo crear hilo para atender_new_pokemon()");
+					imprimir_error_y_terminar_programa_perzonalizado("No se pudo crear hilo para atender_new_pokemon()", finalizar_gamecard);
 				break;
 
 			case SUBSCRIBE_CATCH_POKEMON:
 				if(0 != pthread_create(&thread, NULL, atender_catch_pokemon, (void*)arg))
-					imprimir_error_y_terminar_programa("No se pudo crear hilo para atender_catch_pokemon()");
+					imprimir_error_y_terminar_programa_perzonalizado("No se pudo crear hilo para atender_catch_pokemon()", finalizar_gamecard);
 				break;
 
 			case SUBSCRIBE_GET_POKEMON:
 				if(0 != pthread_create(&thread, NULL, atender_get_pokemon, (void*)arg))
-					imprimir_error_y_terminar_programa("No se pudo crear hilo para atender_get_pokemon()");
+					imprimir_error_y_terminar_programa_perzonalizado("No se pudo crear hilo para atender_get_pokemon()", finalizar_gamecard);
 				break;
 			default:
 				break;
@@ -544,20 +539,15 @@ void* atender_new_pokemon(void* argumentos)
 
 	retener_un_rato_y_liberar_archivo_pokemon(mensaje->nombre);
 
-	int conexion = conectar_a_broker_y_reintentar_si_hace_falta("La conexion con el BROKER para enviar APPEARED_POKEMON fallo.");
-	//NO SERIA NECESARIO REINTENTAR CONEXION SI EL TEAM REINTENTA ENVIAR LOS PEDIDOS QUE NO RECIBE. REVISAR TODO
-	//FIJATE, CAPAZ NO PIDEN REINTENTAR CONEXION PARA ENVIAR MENSAJES TODO
-	//DIRIA QUE NOP HAY QUE REINTENTAR, LOGUEAR EN CASO DE NO PODER Y SEGUIR CON EJECUCION NORMAL
-	//ESTO CON LOS 3 TIPOS DE MENSAJES
+	int conexion = iniciar_conexion_como_cliente("BROKER", CONFIG, MUTEX_CONFIG);
+	int retorno_identificacion = 0;
 
-	//enviar_identificacion_general(conexion, ID_PROCESOS_TP);	//SI NO INTENTO RECONECTARME, TENGO QUE USAR ESTO
+	if( conexion > 0) retorno_identificacion = enviar_identificacion_general(conexion, ID_PROCESOS_TP, MUTEX_ID_PROCESOS_TP);
 
-	int estado;
+	int estado = 0;
 
-	if(retorno_agregar != -1)
+	if((retorno_agregar != -1) && (retorno_identificacion != 0))
 		estado = generar_y_enviar_appeared_pokemon(conexion, 0, id_mensaje_recibido, mensaje->nombre, mensaje->coordenadas.posx, mensaje->coordenadas.posy);
-
-	if(retorno_agregar == -1) estado = 0;
 
     int i = 0;
     while(array_de_todo_el_archivo_pokemon_con_posiciones_y_cantidades[i] != NULL)
@@ -627,20 +617,11 @@ void* atender_get_pokemon(void* argumentos)
 	if(verificar_si_existe_archivo_pokemon(mensaje->nombre) == false)
 	{
 		pthread_mutex_lock(MUTEX_LOGGER);
-		log_error(LOGGER, "Se recibio GET_POKEMON. No existe pokemon solicitado en file system. Nombre del pokemon: %s", mensaje->nombre);
+		log_error(LOGGER, "Se recibio GET_POKEMON. No existe pokemon solicitado en file system. "
+				"Se decide no enviar LOCALIZED_POKEMON y continuar con la ejecucion normal de Game-Card. Nombre del pokemon: %s", mensaje->nombre);
 		pthread_mutex_unlock(MUTEX_LOGGER);
 
-		char* mensaje_de_logueo_al_reintentar_conexion = string_from_format("La conexion con el BROKER para enviar LOCALIZED_POKEMON fallo.");
-		int conexion = conectar_a_broker_y_reintentar_si_hace_falta(mensaje_de_logueo_al_reintentar_conexion);
-		free(mensaje_de_logueo_al_reintentar_conexion);
-
-		//enviar_identificacion_general(conexion, ID_PROCESOS_TP);	//SI NO INTENTO RECONECTARME, TENGO QUE USAR ESTO
-
-		int estado = generar_y_enviar_localized_pokemon(conexion, 0, id_mensaje_recibido, mensaje->nombre, NULL);
-		//VERIFICAR QUE TEAM SABE ENTENDER UNA LISTA NULL. TODO
-		//DEBERIA MANDAR ESTE MENSAJE? O NO MANDO NADA Y TERMINO EL HILO ACTUAL? TODO
-
-		verificar_estado_del_envio_y_cerrar_conexion("LOCALIZED_POKEMON", estado, conexion);
+		pthread_exit(NULL);
 	}
 
 	pedir_archivo_pokemon(mensaje->nombre);
@@ -650,15 +631,16 @@ void* atender_get_pokemon(void* argumentos)
 
 	retener_un_rato_y_liberar_archivo_pokemon(mensaje->nombre);
 
-	char* mensaje_de_logueo_al_reintentar_conexion = string_from_format("La conexion con el BROKER para enviar LOCALIZED_POKEMON fallo.");
-	int conexion = conectar_a_broker_y_reintentar_si_hace_falta(mensaje_de_logueo_al_reintentar_conexion);
-	free(mensaje_de_logueo_al_reintentar_conexion);
+	int conexion = iniciar_conexion_como_cliente("BROKER", CONFIG, MUTEX_CONFIG);
 
-	//enviar_identificacion_general(conexion, ID_PROCESOS_TP);	//SI NO INTENTO RECONECTARME, TENGO QUE USAR ESTO
+	int retorno_identificacion = 0;
 
-	int estado = generar_y_enviar_localized_pokemon(conexion, 0, id_mensaje_recibido, mensaje->nombre, lista_posiciones);
-	//DEBERIA MANDAR ESTE MENSAJE SI LA LISTA ESTA VACIA? O NO MANDO NADA Y TERMINO EL HILO ACTUAL? TODO
-	//DEBERIA REVISAR EL TEAM
+	if(conexion > 0) retorno_identificacion = enviar_identificacion_general(conexion, ID_PROCESOS_TP, MUTEX_ID_PROCESOS_TP);
+
+	int estado = 0;
+
+	if((retorno_identificacion != 0) && (lista_posiciones->elements_count != 0))
+		estado = generar_y_enviar_localized_pokemon(conexion, 0, id_mensaje_recibido, mensaje->nombre, lista_posiciones);
 
 	list_destroy_and_destroy_elements(lista_posiciones, free);
 	free(mensaje->nombre);
@@ -691,13 +673,15 @@ void retener_conectar_librerar_recursos_caught(t_catch_pokemon* mensaje, int id_
 
 void conectar_enviar_verificar_caught(int id_mensaje_recibido, int resultado_caught)
 {
-	char* mensaje_de_logueo_al_reintentar_conexion = string_from_format("La conexion con el BROKER para enviar CAUGHT_POKEMON fallo.");
-	int conexion = conectar_a_broker_y_reintentar_si_hace_falta(mensaje_de_logueo_al_reintentar_conexion);
-	free(mensaje_de_logueo_al_reintentar_conexion);
+	int conexion = iniciar_conexion_como_cliente("BROKER", CONFIG, MUTEX_CONFIG);
 
-	//enviar_identificacion_general(conexion, ID_PROCESOS_TP);	//SI NO INTENTO RECONECTARME, TENGO QUE USAR ESTO
+	int retorno_identificacion = 0;
 
-	int estado = generar_y_enviar_caught_pokemon(conexion, 0, id_mensaje_recibido, resultado_caught);
+	if(conexion > 0) retorno_identificacion = enviar_identificacion_general(conexion, ID_PROCESOS_TP, MUTEX_ID_PROCESOS_TP);
+
+	int estado = 0;
+
+	if(retorno_identificacion != 0)	estado = generar_y_enviar_caught_pokemon(conexion, 0, id_mensaje_recibido, resultado_caught);
 
 	verificar_estado_del_envio_y_cerrar_conexion("CAUGHT_POKEMON", estado, conexion);
 }
@@ -799,7 +783,7 @@ bool intentar_abrir_archivo_pokemon(char* nombre_pokemon)
 	if(archivo_pokemon_metadata_bin == NULL)
 	{
 		char* mensaje_error = string_from_format("No se pudo abrir archivo %s en intentar_abrir_archivo_pokemon()", path_archivo_pokemon_metadata_bin);
-		imprimir_error_y_terminar_programa(mensaje_error);
+		imprimir_error_y_terminar_programa_perzonalizado(mensaje_error, finalizar_gamecard);
 		free(mensaje_error); //ESTO NUNCA SE EJECUTA...
 	}
 	free(path_archivo_pokemon_metadata_bin);
@@ -850,7 +834,7 @@ void liberar_archivo_pokemon(char* nombre_pokemon)
 	if(archivo_pokemon_metadata_bin == NULL)
 	{
 		char* mensaje_error = string_from_format("No se pudo abrir archivo %s en liberar_archivo_pokemon()", path_archivo_pokemon_metadata_bin);
-		imprimir_error_y_terminar_programa(mensaje_error);
+		imprimir_error_y_terminar_programa_perzonalizado(mensaje_error, finalizar_gamecard);
 		free(mensaje_error); //ESTO NUNCA SE EJECUTA...
 	}
 	free(path_archivo_pokemon_metadata_bin);
@@ -931,6 +915,7 @@ char** generar_array_de_todo_el_archivo_pokemon_con_posiciones_y_cantidades(char
 	pthread_mutex_lock(MUTEX_CONFIG);
 	char* punto_montaje_file_system = asignar_string_property(CONFIG, "PUNTO_MONTAJE_TALLGRASS");
 	pthread_mutex_unlock(MUTEX_CONFIG);
+
 	char* path_archivo_pokemon_metadata_bin = string_from_format("%s/Files/%s/Metadata.bin", punto_montaje_file_system, nombre_pokemon);
 	t_config* archivo_pokemon_metadata_bin = config_create(path_archivo_pokemon_metadata_bin);
 
@@ -938,7 +923,7 @@ char** generar_array_de_todo_el_archivo_pokemon_con_posiciones_y_cantidades(char
 	{
 		char* mensaje_error = string_from_format("No se pudo abrir archivo %s en "
 				"generar_array_de_todo_el_archivo_pokemon_con_posiciones_y_cantidades()", path_archivo_pokemon_metadata_bin);
-		imprimir_error_y_terminar_programa(mensaje_error);
+		imprimir_error_y_terminar_programa_perzonalizado(mensaje_error, finalizar_gamecard);
 		free(mensaje_error); //ESTO NUNCA SE EJECUTA...
 	}
 	free(path_archivo_pokemon_metadata_bin);
@@ -1054,7 +1039,7 @@ int agregar_cantidad_en_archivo_pokemon(t_new_pokemon* mensaje, char** array_de_
 	if(archivo_pokemon_metadata_bin == NULL)
 	{
 		char* mensaje_error = string_from_format("No se pudo abrir archivo %s en agregar_cantidad_en_archivo_pokemon()", path_archivo_pokemon_metadata_bin);
-		imprimir_error_y_terminar_programa(mensaje_error);
+		imprimir_error_y_terminar_programa_perzonalizado(mensaje_error, finalizar_gamecard);
 		free(mensaje_error); //ESTO NUNCA SE EJECUTA...
 	}
 	free(path_archivo_pokemon_metadata_bin);
@@ -1139,8 +1124,8 @@ int agregar_cantidad_en_archivo_pokemon(t_new_pokemon* mensaje, char** array_de_
 
        			if(se_encontro_bit == -1)
        			{
-       				imprimir_error_y_terminar_programa("NO SE ENCONTRARON MAS BLOQUES LIBRES EN EL FILE SYSTEM. "
-       				       						"TERMINANDO PROGRAMA");
+       				imprimir_error_y_terminar_programa_perzonalizado("NO SE ENCONTRARON MAS BLOQUES LIBRES EN EL FILE SYSTEM. "
+       				       						"TERMINANDO PROGRAMA", finalizar_gamecard);
                     free(cadena_a_grabar);
                     valor_retorno_funcion = -1;
                     break;
@@ -1276,7 +1261,7 @@ void reducir_cantidad_en_archivo_pokemon(char* nombre_pokemon, int indice_de_bus
 	if(archivo_pokemon_metadata_bin == NULL)
 	{
 		char* mensaje_error = string_from_format("No se pudo abrir archivo %s en reducir_cantidad_en_archivo_pokemon()", path_archivo_pokemon_metadata_bin);
-		imprimir_error_y_terminar_programa(mensaje_error);
+		imprimir_error_y_terminar_programa_perzonalizado(mensaje_error, finalizar_gamecard);
 		free(mensaje_error); //ESTO NUNCA SE EJECUTA...
 	}
 	free(path_archivo_pokemon_metadata_bin);

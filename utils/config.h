@@ -31,6 +31,7 @@ char* generar_get_pokemon_para_loggear(void* mensaje_a_imprimir);
 char* generar_localized_pokemon_para_loggear(void* mensaje_a_imprimir);
 
 void imprimir_error_y_terminar_programa(char* mensaje);
+void imprimir_error_y_terminar_programa_perzonalizado(char* mensaje, void(*funcion_para_finalizar)(void));
 void imprimir_error_y_terminar_hilo(char* mensaje, t_log* logger);
 void terminar_programa(int conexion, t_log* logger, t_config* config);
 
