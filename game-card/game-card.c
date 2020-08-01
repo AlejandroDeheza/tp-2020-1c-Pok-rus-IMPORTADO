@@ -725,7 +725,7 @@ void* atender_get_pokemon(void* argumentos)
 	{
 		pthread_mutex_lock(MUTEX_LOGGER);
 		log_error(LOGGER, "Se recibio GET_POKEMON. No existe pokemon solicitado en file system. "
-				"Se decide no enviar LOCALIZED_POKEMON y continuar con la ejecucion normal de Game-Card. Nombre del pokemon: %s", mensaje->nombre);
+				"Se decide no enviar LOCALIZED_POKEMON y continuar con la ejecucion normal de Game-Card. Nombre del pokemon: << %s >>", mensaje->nombre);
 		pthread_mutex_unlock(MUTEX_LOGGER);
 
 		pthread_exit(NULL);
@@ -1049,6 +1049,13 @@ t_list* obtener_todas_las_posiciones_de_archivo_pokemon(char* nombre_pokemon)
 
         coordenadas->posx = atoi(pos_x_pos_y[0]);
         coordenadas->posy = atoi(pos_x_pos_y[1]);
+
+    	pthread_mutex_lock(MUTEX_LOGGER);
+    	printf("coordenadas->posx: %i\n", coordenadas->posx);
+    	fflush(stdout);
+    	printf("coordenadas->posy: %i\n", coordenadas->posy);
+    	fflush(stdout);
+    	pthread_mutex_unlock(MUTEX_LOGGER);
 
         list_add(lista_coordenadas, coordenadas);
 
@@ -1490,6 +1497,15 @@ void reducir_cantidad_en_archivo_pokemon(char* nombre_pokemon, int indice_de_bus
 {
     //**** SE REDUCE EN 1 LA CANTIDAD EN EL nuevo_archivo_pokemon_en_un_string  ****//
 
+	pthread_mutex_lock(MUTEX_LOGGER);
+    printf("nombre_pokemon : %s\n", nombre_pokemon);
+    fflush(stdout);
+    printf("indice_de_busqueda : %i\n", indice_de_busqueda);
+    fflush(stdout);
+    printf("posicion_buscada_en_string : %s\n", posicion_buscada_en_string);
+    fflush(stdout);
+	pthread_mutex_unlock(MUTEX_LOGGER);
+
     char* nuevo_archivo_pokemon_en_un_string = string_new();
 
     int i = 1;
@@ -1497,6 +1513,11 @@ void reducir_cantidad_en_archivo_pokemon(char* nombre_pokemon, int indice_de_bus
    	char* linea_de_posicion_encontrada = array_de_todo_el_archivo_pokemon_con_posiciones_y_cantidades[indice_de_busqueda];
     char** key_y_value = string_split(linea_de_posicion_encontrada, "=");
     char* cantidad_anterior_de_pokemones = key_y_value[1];
+
+	pthread_mutex_lock(MUTEX_LOGGER);
+    printf("cantidad_anterior_de_pokemones : %s\n", cantidad_anterior_de_pokemones);
+    fflush(stdout);
+	pthread_mutex_unlock(MUTEX_LOGGER);
 
     if(atoi(cantidad_anterior_de_pokemones) == 1)
     {	//ESTO SE EJECUTA SI HAY QUE BORRAR UNA LINEA
@@ -1517,13 +1538,16 @@ void reducir_cantidad_en_archivo_pokemon(char* nombre_pokemon, int indice_de_bus
     	{
     		i = 2;
 
-    		string_append_with_format(&nuevo_archivo_pokemon_en_un_string, "%s", array_de_todo_el_archivo_pokemon_con_posiciones_y_cantidades[1]);
+    		if(array_de_todo_el_archivo_pokemon_con_posiciones_y_cantidades[1] != NULL)
+    		{
+    			string_append_with_format(&nuevo_archivo_pokemon_en_un_string, "%s", array_de_todo_el_archivo_pokemon_con_posiciones_y_cantidades[1]);
 
-            while(array_de_todo_el_archivo_pokemon_con_posiciones_y_cantidades[i] != NULL)
-            {
-               	string_append_with_format(&nuevo_archivo_pokemon_en_un_string, "\n%s", array_de_todo_el_archivo_pokemon_con_posiciones_y_cantidades[i]);
-               	i++;
-            }
+    			while(array_de_todo_el_archivo_pokemon_con_posiciones_y_cantidades[i] != NULL)
+    			{
+    				string_append_with_format(&nuevo_archivo_pokemon_en_un_string, "\n%s", array_de_todo_el_archivo_pokemon_con_posiciones_y_cantidades[i]);
+    				i++;
+    			}
+    		}
     	}
     }
     else
@@ -1546,6 +1570,10 @@ void reducir_cantidad_en_archivo_pokemon(char* nombre_pokemon, int indice_de_bus
     free(key_y_value[1]);
     free(key_y_value);
 
+	pthread_mutex_lock(MUTEX_LOGGER);
+    printf("nuevo_archivo_pokemon_en_un_string : %s\n", nuevo_archivo_pokemon_en_un_string);
+    fflush(stdout);
+	pthread_mutex_unlock(MUTEX_LOGGER);
 
     //**** SE INTERPRETA SI HAY QUE ELIMINAR EL ULTIMO BLOQUE  ****//
 
@@ -1588,7 +1616,7 @@ void reducir_cantidad_en_archivo_pokemon(char* nombre_pokemon, int indice_de_bus
     int j = 0;
     i = 0;
 
-    while(j < atoi(nuevo_value_SIZE_archivo_pokemon))
+    while(j <= atoi(nuevo_value_SIZE_archivo_pokemon))
     {
     	char* cadena_a_grabar = string_substring(nuevo_archivo_pokemon_en_un_string, j, tamanio_bloques_del_file_system);
 
