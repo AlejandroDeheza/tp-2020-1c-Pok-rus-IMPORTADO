@@ -382,7 +382,7 @@ void* recibir_conexiones()
 		char* mensaje_para_loguear = generar_mensaje_para_loggear(mensaje, codigo_operacion_recibido);
 
 		pthread_mutex_lock(MUTEX_LOGGER);
-		log_info(LOGGER, "Se recibio el mensaje <<  %s  >> del GAMEBOY", mensaje_para_loguear);
+		log_info(LOGGER, "Se recibio el mensaje  << %s >>  del GAMEBOY", mensaje_para_loguear);
 		pthread_mutex_unlock(MUTEX_LOGGER);
 
 		free(mensaje_para_loguear);
@@ -683,7 +683,7 @@ void* atender_catch_pokemon(void* argumentos)
 	if(verificar_si_existe_archivo_pokemon(mensaje->nombre) == false)
 	{
 		pthread_mutex_lock(MUTEX_LOGGER);
-		log_error(LOGGER, "Se recibio CATCH_POKEMON. No existe pokemon solicitado en file system. Nombre del pokemon: %s", mensaje->nombre);
+		log_error(LOGGER, "Se recibio CATCH_POKEMON. No existe pokemon solicitado en file system. Nombre del pokemon: << %s >>", mensaje->nombre);
 		pthread_mutex_unlock(MUTEX_LOGGER);
 
 		conectar_enviar_verificar_caught(id_mensaje_recibido, 0);
@@ -699,7 +699,7 @@ void* atender_catch_pokemon(void* argumentos)
 	{
 		pthread_mutex_lock(MUTEX_LOGGER);
 		log_error(LOGGER, "Se recibio CATCH_POKEMON. No existe pokemon en ubicacion solicitada en file system. "
-				"Nombre del pokemon: %s posx: %i posy %i", mensaje->nombre, mensaje->coordenadas.posx, mensaje->coordenadas.posy);
+				"<< Nombre del pokemon: %s    posx: %i    posy %i >>", mensaje->nombre, mensaje->coordenadas.posx, mensaje->coordenadas.posy);
 		pthread_mutex_unlock(MUTEX_LOGGER);
 
 		retener_conectar_librerar_recursos_caught(mensaje, id_mensaje_recibido, 0, posicion_buscada_en_string,

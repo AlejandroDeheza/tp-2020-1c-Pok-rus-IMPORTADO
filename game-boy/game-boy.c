@@ -69,7 +69,7 @@ int main(int argc, char *argv[]) {
 
 		//se interpretan los argumentos ingresados por consola y se envia el mensaje correspondiente
 		int estado = despachar_Mensaje(CONEXION, argv);
-		if(estado == 0) imprimir_error_y_terminar_programa_perzonalizado("Error al enviar mensaje al BROKER", finalizar_gameboy, NULL);
+		if(estado == 0) imprimir_error_y_terminar_programa_perzonalizado("Error al enviar mensaje", finalizar_gameboy, NULL);
 		if(estado == -1)
 			imprimir_error_y_terminar_programa_perzonalizado("Error al usar send() en enviar_mensaje_como_cliente()", finalizar_gameboy, NULL);
 
@@ -106,6 +106,7 @@ void finalizar_gameboy()
 void verificar_Entrada(int argc, char *argv[]){
 
 	printf("\n");
+	fflush(stdout);
 	if(argc == 1 || argc == 2 || argc == 3 ){
 		error_show(" Debe ingresar los argumentos con el siguiente formato:\n"
 		"./gameboy [PROCESO] [TIPO_MENSAJE] [ARGUMENTOS]*\n"

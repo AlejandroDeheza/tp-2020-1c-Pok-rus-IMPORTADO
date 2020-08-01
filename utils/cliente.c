@@ -338,7 +338,6 @@ void* recibir_mensaje_por_socket(op_code* codigo_operacion, int socket_cliente, 
 		default:
 			break;
 	}
-
 	free(mensaje);
 	return response;
 }

@@ -155,7 +155,7 @@ t_new_pokemon* deserializar_new_pokemon(void *stream){ 	//DESPUES DE USAR ESTA F
     stream += sizeof(int);
     pokemon->nombre = malloc(pokemon->size);
     memcpy(pokemon->nombre, stream, pokemon->size);
-    stream += sizeof(pokemon->size);
+    stream += pokemon->size;
     memcpy(&(pokemon->coordenadas.posx), stream, sizeof(int));
     stream += sizeof(int);
     memcpy(&(pokemon->coordenadas.posy), stream, sizeof(int));
@@ -175,7 +175,7 @@ t_appeared_pokemon* deserializar_appeared_pokemon(void *stream){	//DESPUES DE US
     stream += sizeof(int);
     pokemon->nombre = malloc(pokemon->size);
     memcpy(pokemon->nombre, stream, pokemon->size);
-    stream += sizeof(pokemon->size);
+    stream += pokemon->size;
     memcpy(&(pokemon->coordenadas.posx), stream, sizeof(int));
     stream += sizeof(int);
     memcpy(&(pokemon->coordenadas.posy), stream, sizeof(int));
@@ -193,7 +193,7 @@ t_catch_pokemon* deserializar_catch_pokemon(void *stream){	//DESPUES DE USAR EST
     stream += sizeof(int);
     pokemon->nombre = malloc(pokemon->size);
     memcpy(pokemon->nombre, stream, pokemon->size);
-    stream += sizeof(pokemon->size);
+    stream += pokemon->size;
     memcpy(&(pokemon->coordenadas.posx), stream, sizeof(int));
     stream += sizeof(int);
     memcpy(&(pokemon->coordenadas.posy), stream, sizeof(int));
@@ -239,7 +239,7 @@ t_localized_pokemon* deserializar_localized_pokemon(void *stream){ 	//DESPUES DE
     stream += sizeof(int);
     pokemon->nombre = malloc(pokemon->size);
     memcpy(pokemon->nombre, stream, pokemon->size);
-    stream += sizeof(pokemon->size);
+    stream += pokemon->size;
     memcpy(&(cantidad_pares_de_coordenadas), stream, sizeof(int));
     stream += sizeof(int);
 
