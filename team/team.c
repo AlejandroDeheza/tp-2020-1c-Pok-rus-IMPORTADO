@@ -88,7 +88,8 @@ void ejecutar_antes_de_terminar(int numero_senial)
 {
 	log_info(LOGGER, "Se recibio la senial : %i  -- terminando programa", numero_senial);
 
-	terminar_programa(0, LOGGER, CONFIG);	//TODO
+	terminar_programa(0, LOGGER, CONFIG, NULL);	//TODO
+	//TODO DEBERIA PASARLE UN MUTEX, NO NULL
 
 	exit(0);
 }
@@ -544,8 +545,17 @@ void suscribirse_a_colas(){
 // Setea flag global para saber el estado de la conexion actual
 // Se establece por parametro si debe iniciar el proceso de reintento  de conexion
 //----------------------------------------------------------------------------------------------------------
-int conectarse_a_broker() {
-	int socket = iniciar_conexion_como_cliente("BROKER", CONFIG, NULL);
+int conectarse_a_broker()
+{
+	char* ip = NULL;
+	char* puerto = NULL;
+
+	int retorno_ip_puerto = leer_ip_y_puerto(&ip, &puerto, CONFIG, "BROKER");
+
+	if(retorno_ip_puerto == -1)
+		imprimir_error_y_terminar_programa_perzonalizado("No se encontro IP_BROKER o PUERTO_BROKER en el archivo de configuracion", NULL, NULL);
+
+	int socket = iniciar_conexion_como_cliente(ip, puerto);
 
 	if(socket > 0) {
 		conexion_con_broker = CONECTADO;
@@ -571,10 +581,20 @@ void reintentar_conexion_con_broker(int conexion){
 		exit(-1);
 	}
 
+	char* ip = NULL;
+	char* puerto = NULL;
+
+	int retorno_ip_puerto = leer_ip_y_puerto(&ip, &puerto, CONFIG, "BROKER");
+
+	if(retorno_ip_puerto == -1)
+		imprimir_error_y_terminar_programa_perzonalizado("No se encontro IP_BROKER o PUERTO_BROKER en el archivo de configuracion", NULL, NULL);
+
+	conexion = iniciar_conexion_como_cliente(ip, puerto);
+
 	while(conexion < 0){
 		sleep(tiempo_reconexion);
 		log_info(LOGGER, "Reintentando conexion con proceso BROKER");
-		conexion = iniciar_conexion_como_cliente("BROKER", CONFIG, NULL);
+		conexion = iniciar_conexion_como_cliente(ip, puerto);
 	}
 
 	log_info(LOGGER, "Se logro conexion con proceso BROKER");
@@ -591,7 +611,8 @@ void recibir_con_semaforo(int socket_cliente, pthread_mutex_t mutex, op_code tip
 	op_code codigo_operacion_recibido = 0;
 
 	pthread_mutex_lock(&mutex);
-	void* response = recibir_mensaje_por_socket(&codigo_operacion_recibido, socket_cliente, &id_correlativo, &id_mensaje);
+	void* response = recibir_mensaje_por_socket(&codigo_operacion_recibido, socket_cliente, &id_correlativo, &id_mensaje, NULL, NULL);
+	//deberia pasarle una funcion pa finalizar y en mutex. TODO
 	pthread_mutex_unlock(&mutex);
 
 	if(response == NULL){
@@ -716,7 +737,7 @@ void escuchar_conexion()
 	char* ip = NULL;
 	char* puerto = NULL;
 
-	leer_ip_y_puerto(&ip, &puerto, CONFIG, "GAMEBOY", NULL);
+	leer_ip_y_puerto(&ip, &puerto, CONFIG, "GAMEBOY");	//DEBERIA RODEAR DE UN MUTEX A ESTA LLAMADA. TODO
 
     socket_servidor_gameboy = crear_socket_para_escuchar(ip, puerto);
     log_info(LOGGER, "Comienzo a escuchar IP:%s y PUERTO:%s para recibir conexion de GAME-BOY", ip, puerto);

@@ -30,8 +30,9 @@ pthread_mutex_t* MUTEX_ID_PROCESOS_TP;
 pthread_mutex_t* MUTEX_ID_MANUAL_DEL_PROCESO;
 
 pthread_mutex_t* MUTEX_DICCIONARIO;
+pthread_mutex_t* MUTEX_CONSULTA_POKEMON;
 
-t_dictionary * DICCIONARIO_CON_MUTEX;
+t_dictionary* DICCIONARIO_CON_MUTEX;
 
 
 t_config* CONFIG = NULL;
@@ -49,11 +50,13 @@ typedef struct
 	void* stream;
 } argumentos_de_hilo;
 
-void eliminador_de_mutex_en_diccionario(void* argumento);
 
 void ejecutar_antes_de_terminar(int numero_senial);
 void finalizar_gamecard();
+
 void verificar_e_interpretar_entrada(int argc, char *argv[]);
+void iniciar_variables_globales_gamecard();
+void establecer_comunicaciones_gamecard();
 
 
 ///**** FUNCIONES PARA ARCHIVOS FILE SYSTEM *****///
@@ -69,6 +72,8 @@ void sobrescribir_y_cerrar_archivo(char* path_archivo_con_nombre, char* datos_a_
 
 
 ///**** PODRIAN IR EN UTILS *****///
+void eliminador_de_mutex_en_diccionario(void* argumento);
+
 pthread_t iniciar_hilo_para_recibir_conexiones();
 void* recibir_conexiones();
 pthread_t iniciar_hilo_para_comunicarse_con_broker(char* cola_a_suscribirse, op_code codigo_suscripcion);

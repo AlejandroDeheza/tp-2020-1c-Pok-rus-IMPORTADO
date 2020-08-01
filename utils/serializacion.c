@@ -179,7 +179,7 @@ t_appeared_pokemon* deserializar_appeared_pokemon(void *stream){	//DESPUES DE US
     memcpy(&(pokemon->coordenadas.posx), stream, sizeof(int));
     stream += sizeof(int);
     memcpy(&(pokemon->coordenadas.posy), stream, sizeof(int));
-    printf("aca otra cosa %s \n", (char*)(*pokemon).nombre);
+
 	return pokemon;
 }
 

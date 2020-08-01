@@ -60,7 +60,7 @@ int main(void)
     list_destroy(&suscribers_get_pokemon);
     list_destroy(&suscribers_localized_pokemon);
 
-    terminar_programa(socket_servidor, NULL, config);
+    terminar_programa(socket_servidor, NULL, config, NULL); //DEBERIA ṔASARLE UN MUTEX, NO NULL. TODO
 
 	return EXIT_SUCCESS;
 }

@@ -27,6 +27,7 @@ typedef struct
 } argumentos_contador_de_tiempo;
 
 void ejecutar_antes_de_terminar(int numero_senial);
+void finalizar_gameboy();
 
 void verificar_Entrada(int argc, char *argv[]);
 

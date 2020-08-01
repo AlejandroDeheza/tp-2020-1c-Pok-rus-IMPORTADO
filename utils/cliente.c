@@ -1,12 +1,7 @@
 #include "cliente.h"
 
-int iniciar_conexion_como_cliente(char *nombre_de_proceso_servidor, t_config* config, pthread_mutex_t* mutex_config)
+int iniciar_conexion_como_cliente(char *ip, char* puerto)
 {
-	char* ip = NULL;
-	char* puerto = NULL;
-
-	leer_ip_y_puerto(&ip, &puerto, config, nombre_de_proceso_servidor, mutex_config);
-
 	struct addrinfo hints;
 	struct addrinfo *server_info;
 
@@ -19,9 +14,13 @@ int iniciar_conexion_como_cliente(char *nombre_de_proceso_servidor, t_config* co
 
 	int socket_cliente = socket(server_info->ai_family, server_info->ai_socktype, server_info->ai_protocol);
 
-	if(connect(socket_cliente, server_info->ai_addr, server_info->ai_addrlen) == -1) imprimir_error_y_terminar_programa("Error en connect() en crear_socket_como_cliente");
+	if(socket_cliente == -1) return -1;
+
+	int retorno_connect = connect(socket_cliente, server_info->ai_addr, server_info->ai_addrlen);
 
 	freeaddrinfo(server_info);
+
+	if(retorno_connect == -1) return 0;
 
 	return socket_cliente;
 }
@@ -67,17 +66,15 @@ int enviar_mensaje_como_cliente(void* mensaje, int socket_cliente, op_code codig
 	}
 	int bytes = 0;
 	void* aEnviar = serializar_paquete(paquete, &bytes);
-	printf("EnviarMensaje -> Paquete Serializado - Tamaño Total: %d Bytes.\n", bytes);	//PARA LAS PRUEBAS COMENTAR ESTO TODO
+	//printf("EnviarMensaje -> Paquete Serializado - Tamaño Total: %d Bytes.\n", bytes);	//PARA LAS PRUEBAS COMENTAR ESTO TODO
 
 	int estado = send(socket_cliente, aEnviar, bytes, MSG_NOSIGNAL);
-	if(estado == -1) imprimir_error_y_terminar_programa("Error al usar send() en enviar_mensaje_como_cliente()");
 
-	verificar_estado(estado);	//PARA LAS PRUEBAS COMENTAR ESTO TODO
+	//verificar_estado(estado);	//PARA LAS PRUEBAS COMENTAR ESTO TODO
 	free(aEnviar);
-	free(paquete->buffer->stream);		//HACE FALTA ESTE FREE()?? NO HAGO EL FREE() EN GENERAR_Y_ENVIAR_T_ALGO() ??? TODO
+	free(paquete->buffer->stream);
 	free(paquete->buffer);
 	free(paquete);
-	printf("\n");
 
 	return estado;
 }
@@ -201,7 +198,7 @@ int enviar_identificacion_general(int socket, char* id_procesos_tp, pthread_mute
 		size = strlen(id_procesos_tp) + 1;
 	}
 
-	void* aEnviar = malloc(size);
+	void* aEnviar = malloc(sizeof(int) + size);
 	int desplazamiento = 0;
 
 	memcpy(aEnviar + desplazamiento, &size, sizeof(int));
@@ -219,7 +216,6 @@ int enviar_identificacion_general(int socket, char* id_procesos_tp, pthread_mute
 	}
 
 	int estado = send(socket, aEnviar, sizeof(int) + size, MSG_NOSIGNAL);
-	if(estado == -1) imprimir_error_y_terminar_programa("Error al usar send() en enviar_identificacion_general()");
 
 	free(aEnviar);
 
@@ -249,9 +245,8 @@ int enviar_mensaje_de_suscripcion(int socket_cliente, op_code codigo_suscripcion
 
 
 	estado = send(socket_cliente, aEnviar, sizeof(sizeof(op_code) + sizeof(int)), MSG_NOSIGNAL);
-	if(estado == -1) imprimir_error_y_terminar_programa("Error al usar send() en enviar_mensaje_de_suscripcion()");
 
-	verificar_estado(estado);
+	//verificar_estado(estado);
 
 	free(aEnviar);
 
@@ -262,7 +257,7 @@ int esperar_id_mensaje_enviado(int socket_cliente)
 {
 	int id_mensaje_enviado = 0;
 	int estado = recv(socket_cliente, &id_mensaje_enviado, sizeof(int), MSG_WAITALL);
-	if(estado == -1) imprimir_error_y_terminar_programa("Error al usar recv() en esperar_id_mensaje_enviado()");
+	if(estado == -1) return -1;
 	if(estado == 0) return 0;
 
 	return id_mensaje_enviado;
@@ -271,36 +266,46 @@ int esperar_id_mensaje_enviado(int socket_cliente)
 int enviar_ack(int socket_cliente, int id_mensaje_recibido){
 	int estado = 0;
 	estado = send(socket_cliente, &id_mensaje_recibido, sizeof(int), MSG_NOSIGNAL);
-	if(estado == -1) imprimir_error_y_terminar_programa("Error al usar send() en enviar_ack()");
 
-	verificar_estado(estado);
+	//verificar_estado(estado);
 
 	return estado;
 }
 
-void* recibir_mensaje_por_socket(op_code* codigo_operacion, int socket_cliente, int* id_correlativo, int* id_mensaje)
+void* recibir_mensaje_por_socket(op_code* codigo_operacion, int socket_cliente, int* id_correlativo, int* id_mensaje,
+		void(*funcion_para_finalizar)(void), pthread_mutex_t* mutex_logger)
 {
 	int ultimo_estado;
 
 	ultimo_estado = recv(socket_cliente, codigo_operacion, sizeof(op_code), MSG_WAITALL);
-	if(ultimo_estado == -1) imprimir_error_y_terminar_programa("Error al usar recv() en recibir_mensaje_por_socket()");
+	if(ultimo_estado == -1)
+		imprimir_error_y_terminar_programa_perzonalizado("Error al usar recv() en recibir_mensaje_por_socket()", funcion_para_finalizar, mutex_logger);
+
 	if(ultimo_estado == 0) return NULL;
 
 	ultimo_estado = recv(socket_cliente, id_correlativo, sizeof(int), MSG_WAITALL);
-	if(ultimo_estado == -1) imprimir_error_y_terminar_programa("Error al usar recv() en recibir_mensaje_por_socket()");
+	if(ultimo_estado == -1)
+		imprimir_error_y_terminar_programa_perzonalizado("Error al usar recv() en recibir_mensaje_por_socket()", funcion_para_finalizar, mutex_logger);
+
 	if(ultimo_estado == 0) return NULL;
 
 	ultimo_estado = recv(socket_cliente, id_mensaje, sizeof(int), MSG_WAITALL);
-	if(ultimo_estado == -1) imprimir_error_y_terminar_programa("Error al usar recv() en recibir_mensaje_por_socket()");
+	if(ultimo_estado == -1)
+		imprimir_error_y_terminar_programa_perzonalizado("Error al usar recv() en recibir_mensaje_por_socket()", funcion_para_finalizar, mutex_logger);
+
 	if(ultimo_estado == 0) return NULL;
 	int size;
 	ultimo_estado = recv(socket_cliente,&size, sizeof(int), MSG_WAITALL);
-	if(ultimo_estado == -1) imprimir_error_y_terminar_programa("Error al usar recv() en recibir_mensaje_por_socket()");
+	if(ultimo_estado == -1)
+		imprimir_error_y_terminar_programa_perzonalizado("Error al usar recv() en recibir_mensaje_por_socket()", funcion_para_finalizar, mutex_logger);
+
 	if(ultimo_estado == 0) return NULL;
 
 	void* mensaje = malloc(size);
 	ultimo_estado = recv(socket_cliente,mensaje, size, MSG_WAITALL);
-	if(ultimo_estado == -1) imprimir_error_y_terminar_programa("Error al usar recv() en recibir_mensaje_por_socket()");
+	if(ultimo_estado == -1)
+		imprimir_error_y_terminar_programa_perzonalizado("Error al usar recv() en recibir_mensaje_por_socket()", funcion_para_finalizar, mutex_logger);
+
 	if(ultimo_estado == 0) return NULL;
 
 	void* response;

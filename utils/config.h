@@ -14,7 +14,7 @@
 #include "estructuras.h"
 
 t_log* generar_logger(t_config* config, char* nombre_proceso);
-void leer_ip_y_puerto(char** ip, char** puerto, t_config* config, char* nombre_proceso, pthread_mutex_t* mutex_config);
+int leer_ip_y_puerto(char** ip, char** puerto, t_config* config, char* nombre_proceso);
 t_config* leer_config(char*);
 
 char* asignar_string_property(t_config*, char* property);
@@ -31,8 +31,8 @@ char* generar_get_pokemon_para_loggear(void* mensaje_a_imprimir);
 char* generar_localized_pokemon_para_loggear(void* mensaje_a_imprimir);
 
 void imprimir_error_y_terminar_programa(char* mensaje);
-void imprimir_error_y_terminar_programa_perzonalizado(char* mensaje, void(*funcion_para_finalizar)(void));
+void imprimir_error_y_terminar_programa_perzonalizado(char* mensaje, void(*funcion_para_finalizar)(void), pthread_mutex_t* mutex_logger);
 void imprimir_error_y_terminar_hilo(char* mensaje, t_log* logger);
-void terminar_programa(int conexion, t_log* logger, t_config* config);
+void terminar_programa(int conexion, t_log* logger, t_config* config, pthread_mutex_t* mutex_logger);
 
 #endif /* CONFIGURACION_H_ */

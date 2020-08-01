@@ -63,13 +63,14 @@ int enviar_mensaje_a_suscriptores(void* mensaje, int size_mensaje, int socket_cl
 
 	int bytes = 0;
 	void* aEnviar = serializar_paquete(paquete, &bytes);
-	printf("EnviarMensaje -> Paquete Serializado - Tamaño Total: %d Bytes.\n", bytes);
+	//printf("EnviarMensaje -> Paquete Serializado - Tamaño Total: %d Bytes.\n", bytes);
 
 	int estado = send(socket_cliente, aEnviar, bytes, MSG_NOSIGNAL);
 	//agrego el flag "MSG_NOSIGNAL" por lo que decian en este issue: https://github.com/sisoputnfrba/foro/issues/1707
 	if(estado == -1) imprimir_error_y_terminar_programa("Error al usar send() en enviar_mensaje_a_suscriptores()");
+	//ESTO QUE ESTOY MANEJANDO ACA, DEBERIA HACERSE EN EL PROCESO QUE LLAMA A ESTA FUNCION TODO , OSEA EN EL BROKER
 
-	verificar_estado(estado);
+	//verificar_estado(estado);
 
 	free(aEnviar);
 	free(paquete->buffer->stream);
@@ -79,18 +80,21 @@ int enviar_mensaje_a_suscriptores(void* mensaje, int size_mensaje, int socket_cl
 	return estado;
 }
 
-bool es_un_proceso_esperado(int socket_cliente, char* id_procesos_tp, pthread_mutex_t* mutex_id_procesos_tp)
+bool es_un_proceso_esperado(int socket_cliente, char* id_procesos_tp, pthread_mutex_t* mutex_id_procesos_tp,
+		void(*funcion_para_finalizar)(void), pthread_mutex_t* mutex_logger)
 {
 	int size = 0;
 
 	int primer_retorno = recv(socket_cliente, &size, sizeof(int), MSG_WAITALL);
 	if(primer_retorno == 0) return false;
-	if(primer_retorno == -1) imprimir_error_y_terminar_programa("Error al usar recv() en es_un_proceso_esperado()");
+	if(primer_retorno == -1)
+		imprimir_error_y_terminar_programa_perzonalizado("Error al usar recv() en es_un_proceso_esperado()", funcion_para_finalizar, mutex_logger);
 
 	void* cadena_recibida = malloc(size);
 	int segundo_retorno = recv(socket_cliente, cadena_recibida, size, MSG_WAITALL);
 	if(segundo_retorno == 0) return false;
-	if(segundo_retorno == -1) imprimir_error_y_terminar_programa("Error al usar recv() en es_un_proceso_esperado()");
+	if(segundo_retorno == -1)
+		imprimir_error_y_terminar_programa_perzonalizado("Error al usar recv() en es_un_proceso_esperado()", funcion_para_finalizar, mutex_logger);
 
 	pthread_mutex_lock(mutex_id_procesos_tp);
 	if(strcmp((char*) cadena_recibida, id_procesos_tp) == 0)

@@ -13,39 +13,78 @@ int main(int argc, char *argv[]) {
 
 	if(strcmp(argv[1],"SUSCRIPTOR")==0){	// lo de aca se ejecuta si estamos en modo SUSCRIPTOR
 
-		CONEXION = iniciar_conexion_como_cliente("BROKER", CONFIG, NULL);
+		char* ip = NULL;
+		char* puerto = NULL;
 
-		if(CONEXION == 0) imprimir_error_y_terminar_programa("Error de conexion con BROKER");
+		int retorno_ip_puerto = leer_ip_y_puerto(&ip, &puerto, CONFIG, "BROKER");
+
+		if(retorno_ip_puerto == -1)
+			imprimir_error_y_terminar_programa_perzonalizado("No se encontro IP_BROKER o PUERTO_BROKER en el archivo de configuracion", NULL, NULL);
+
+		CONEXION = iniciar_conexion_como_cliente(ip, puerto);
+
+		if(CONEXION == -1)
+			imprimir_error_y_terminar_programa_perzonalizado("Error en socket() en crear_socket_como_cliente", NULL, NULL);
+
+		if(CONEXION == 0) imprimir_error_y_terminar_programa_perzonalizado("Error de conexion con BROKER", NULL, NULL);
 
 		log_info(LOGGER, "Se realizo una conexion con BROKER, para suscribirse a la cola de mensajes %s", argv[2]);
 
-		if(enviar_identificacion_general(CONEXION, ID_PROCESOS_TP, NULL) == 0) imprimir_error_y_terminar_programa("Error en enviar_identificacion_general()");
+		int retorno_identificacion = enviar_identificacion_general(CONEXION, ID_PROCESOS_TP, NULL);
+
+		if(retorno_identificacion == 0)
+			imprimir_error_y_terminar_programa_perzonalizado("Error en enviar_identificacion_general()", finalizar_gameboy, NULL);
+
+		if(retorno_identificacion == -1)
+			imprimir_error_y_terminar_programa_perzonalizado("Error al usar send() en enviar_identificacion_general()", finalizar_gameboy, NULL);
 
 		iniciar_modo_suscriptor(CONEXION, argv[2], atoi(argv[3]));
 
 	}
 	else
 	{	// esto se ejecuta si estamos en MODO NORMAL / MODO NO SUSCRIPTOR
-		CONEXION = iniciar_conexion_como_cliente(argv[1], CONFIG, NULL);
+		char* ip = NULL;
+		char* puerto = NULL;
 
-		if(CONEXION == 0) imprimir_error_y_terminar_programa("Error de conexion");
+		int retorno_ip_puerto = leer_ip_y_puerto(&ip, &puerto, CONFIG, argv[1]);
+
+		if(retorno_ip_puerto == -1)
+			imprimir_error_y_terminar_programa_perzonalizado("No se encontro IP_BROKER o PUERTO_BROKER en el archivo de configuracion", NULL, NULL);
+
+		CONEXION = iniciar_conexion_como_cliente(ip, puerto);
+		if(CONEXION == -1)
+			imprimir_error_y_terminar_programa_perzonalizado("Error en socket() en crear_socket_como_cliente", NULL, NULL);
+
+		if(CONEXION == 0) imprimir_error_y_terminar_programa_perzonalizado("Error de conexion", NULL, NULL);
 
 		log_info(LOGGER, "Se realizo una conexion con %s, para enviar un mensaje %s", argv[1], argv[2]);
 
-		if(enviar_identificacion_general(CONEXION, ID_PROCESOS_TP, NULL) == 0) imprimir_error_y_terminar_programa("Error en enviar_identificacion_general()");
+		int retorno_identificacion = enviar_identificacion_general(CONEXION, ID_PROCESOS_TP, NULL);
+
+		if(retorno_identificacion == 0)
+			imprimir_error_y_terminar_programa_perzonalizado("Error en enviar_identificacion_general()", finalizar_gameboy, NULL);
+
+		if(retorno_identificacion == -1)
+			imprimir_error_y_terminar_programa_perzonalizado("Error al usar send() en enviar_identificacion_general()", finalizar_gameboy, NULL);
 
 		//se interpretan los argumentos ingresados por consola y se envia el mensaje correspondiente
 		int estado = despachar_Mensaje(CONEXION, argv);
-		if(estado == 0) imprimir_error_y_terminar_programa("Error al enviar mensaje al BROKER");
+		if(estado == 0) imprimir_error_y_terminar_programa_perzonalizado("Error al enviar mensaje al BROKER", finalizar_gameboy, NULL);
+		if(estado == -1)
+			imprimir_error_y_terminar_programa_perzonalizado("Error al usar send() en enviar_mensaje_como_cliente()", finalizar_gameboy, NULL);
 
 		if(strcmp(argv[1],"BROKER") == 0){
 			int id_mensaje_enviado = esperar_id_mensaje_enviado(CONEXION);	//EL GAMEBOY NO HACE NADA CON ESTO
 			//SE VA A QUEDAR BLOQUEADO SI EL BROKER SE CAE...PERO NO CREO QUE PASE JUSTO CUANDO LE ENVIAMOS UN MENSAJE
-			if(id_mensaje_enviado == 0) imprimir_error_y_terminar_programa("Error al recibir id_mensaje_enviado del BROKER");
+			if(id_mensaje_enviado == 0)
+				imprimir_error_y_terminar_programa_perzonalizado("Error al recibir id_mensaje_enviado del BROKER", finalizar_gameboy, NULL);
+
+			if(id_mensaje_enviado == -1)
+				imprimir_error_y_terminar_programa_perzonalizado("Error al usar recv() en esperar_id_mensaje_enviado()", finalizar_gameboy, NULL);
 		}
 	}
 
-	terminar_programa(CONEXION, LOGGER, CONFIG);
+	finalizar_gameboy();
 	printf("\nEl Game-Boy finalizo correctamente.\n\n");
 	return EXIT_SUCCESS;
 }
@@ -54,9 +93,14 @@ void ejecutar_antes_de_terminar(int numero_senial)
 {
 	log_info(LOGGER, "Se recibio la senial : %i  -- terminando programa", numero_senial);
 
-	terminar_programa(CONEXION, LOGGER, CONFIG);
+	finalizar_gameboy();
 
 	exit(0);
+}
+
+void finalizar_gameboy()
+{
+	terminar_programa(CONEXION, LOGGER, CONFIG, NULL);
 }
 
 void verificar_Entrada(int argc, char *argv[]){
@@ -199,8 +243,13 @@ void iniciar_modo_suscriptor(int conexion, char* cola_a_suscribirse, int tiempo_
 
 	//envio mensaje a BROKER para suscribirme a una cola. COMO EN ID_MANUAL_DEL_PROCESO LE PONGO 0, EL BROKER ME DESUSCRIBE DE LA COLA DE MENSAJES
 	//CUANDO SE DA CUENTA QUE EL SOCKET YA NO SIRVE
-	if(enviar_mensaje_de_suscripcion(conexion, codigo_suscripcion, ID_MANUAL_DEL_PROCESO, NULL) == 0)
-		imprimir_error_y_terminar_programa("No se pudo enviar mensaje de suscripcion a BROKER");
+	int estado_envio = enviar_mensaje_de_suscripcion(conexion, codigo_suscripcion, ID_MANUAL_DEL_PROCESO, NULL);
+
+	if(estado_envio == 0)
+		imprimir_error_y_terminar_programa_perzonalizado("No se pudo enviar mensaje de suscripcion a BROKER", finalizar_gameboy, NULL);
+
+	if(estado_envio == -1)
+		imprimir_error_y_terminar_programa_perzonalizado("Error al usar send() en enviar_mensaje_de_suscripcion()", finalizar_gameboy, NULL);
 
 	log_info(LOGGER, "Se realizo una suscripcion a la cola de mensajes %s", cola_a_suscribirse);
 
@@ -215,15 +264,20 @@ void iniciar_modo_suscriptor(int conexion, char* cola_a_suscribirse, int tiempo_
 	while(true)
 	{
 		//queda bloqueado hasta que el gameboy recibe un mensaje,
-		void* mensaje = recibir_mensaje_por_socket(&codigo_operacion_recibido, conexion, &id_correlativo, &id_mensaje_recibido);
+		void* mensaje = recibir_mensaje_por_socket(&codigo_operacion_recibido, conexion, &id_correlativo, &id_mensaje_recibido, finalizar_gameboy, NULL);
 
 		//si se recibe el mensaje de error (que se genera si se acaba el tiempo de suscripcion), se sale de este while(true)
 		if(mensaje == NULL)break;
 
 		//si no hay error, se envia ACK al BROKER
-		if(enviar_ack(conexion, id_mensaje_recibido) == 0)
-			imprimir_error_y_terminar_programa("No se pudo enviar ACK al BROKER del mensaje recibido");
+		int estado_ack = enviar_ack(conexion, id_mensaje_recibido);
+
+		if(estado_ack == 0)
+			imprimir_error_y_terminar_programa_perzonalizado("No se pudo enviar ACK al BROKER del mensaje recibido", finalizar_gameboy, NULL);
 		//COMO EL ENUNCIADO NO ME PIDE QUE INTENTE RECONECTAR, TIRO ERROR
+
+		if(estado_ack == -1)
+			imprimir_error_y_terminar_programa_perzonalizado("Error al usar send() en enviar_ack()", finalizar_gameboy, NULL);
 
 		//se imprime por pantalla el mensaje recibido
 		imprimir_mensaje_recibido(mensaje, codigo_suscripcion);	//COMENTAR PARA LAS PRUEBAS ?? TODO O DEBERIA DESCTIVAR LOS LOGS POR PANTALLA?
@@ -260,7 +314,7 @@ void iniciar_hilo_para_desuscripcion(int tiempo_suscripcion, int conexion_con_br
 
 	pthread_t thread;
 	if(0 != pthread_create(&thread, NULL, (void*) contador_de_tiempo, (void*)arg))
-		imprimir_error_y_terminar_programa("No se pudo crear un hilo de gameboy");
+		imprimir_error_y_terminar_programa_perzonalizado("No se pudo crear un hilo de gameboy", finalizar_gameboy, NULL);
 
 	pthread_detach(thread);
 }

@@ -9,7 +9,7 @@ t_log* generar_logger(t_config* config, char* nombre_proceso)
 	return log_create(log_file, nombre_proceso , true, LOG_LEVEL_INFO);
 }
 
-void leer_ip_y_puerto(char** ip, char** puerto, t_config* config, char* nombre_proceso, pthread_mutex_t* mutex_config)
+int leer_ip_y_puerto(char** ip, char** puerto, t_config* config, char* nombre_proceso)
 {
 	char* ipElegida = string_new();
 	char* puertoElegido = string_new();
@@ -17,27 +17,17 @@ void leer_ip_y_puerto(char** ip, char** puerto, t_config* config, char* nombre_p
 	string_append_with_format(&ipElegida, "IP_%s", nombre_proceso);
 	string_append_with_format(&puertoElegido, "PUERTO_%s", nombre_proceso);
 
-	if(mutex_config != NULL)
-	{
-		pthread_mutex_lock(mutex_config);
-		*ip = asignar_string_property(config, ipElegida);
-		*puerto = asignar_string_property(config, puertoElegido);
-		pthread_mutex_unlock(mutex_config);
-	}
-	else
-	{
-		*ip = asignar_string_property(config, ipElegida);
-		*puerto = asignar_string_property(config, puertoElegido);
-	}
+	*ip = asignar_string_property(config, ipElegida);
+	*puerto = asignar_string_property(config, puertoElegido);
 
-	if(!(*ip) || !(*puerto)){
-		printf("\n");
-		error_show(" No se encontro %s o %s en el archivo de configuracion\n\n", ipElegida, puertoElegido);
-		exit(-1);
-	}
+	int retorno = 0;
+
+	if((*ip) == NULL || (*puerto) == NULL ) retorno = -1;
 
 	free(ipElegida);
 	free(puertoElegido);
+
+	return retorno;
 }
 
 t_config* leer_config(char* file)
@@ -134,11 +124,11 @@ char* generar_new_pokemon_para_loguear(void* mensaje_a_imprimir)
 {
 	t_new_pokemon* mensaje = mensaje_a_imprimir;
 
-	char* mensaje_para_loguear = string_from_format("NEW_POKEMON nombre: %s x: %i y: %i cantidad: %i",
+	char* mensaje_para_loguear = string_from_format("NEW_POKEMON    nombre: %s    x: %i    y: %i    cantidad: %i",
 			(char*) mensaje->nombre, mensaje->coordenadas.posx, mensaje->coordenadas.posy, mensaje->cantidad);
 
-	free(mensaje->nombre);
-	free(mensaje);
+	//free(mensaje->nombre);
+	//free(mensaje);
 
 	return mensaje_para_loguear;
 }
@@ -147,11 +137,11 @@ char* generar_appeared_pokemon_para_loggear(void* mensaje_a_imprimir)
 {
 	t_appeared_pokemon* mensaje = mensaje_a_imprimir;
 
-	char* mensaje_para_loguear = string_from_format("APPEARED_POKEMON nombre: %s x: %i y: %i",
+	char* mensaje_para_loguear = string_from_format("APPEARED_POKEMON    nombre: %s    x: %i    y: %i",
 			(char*) mensaje->nombre, mensaje->coordenadas.posx, mensaje->coordenadas.posy);
 
-	free(mensaje->nombre);
-	free(mensaje);
+	//free(mensaje->nombre);
+	//free(mensaje);
 
 	return mensaje_para_loguear;
 }
@@ -160,11 +150,11 @@ char* generar_catch_pokemon_para_loggear(void* mensaje_a_imprimir)
 {
 	t_catch_pokemon* mensaje = mensaje_a_imprimir;
 
-	char* mensaje_para_loguear = string_from_format("CATCH_POKEMON nombre: %s x: %i y: %i",
+	char* mensaje_para_loguear = string_from_format("CATCH_POKEMON    nombre: %s    x: %i    y: %i",
 			(char*) mensaje->nombre, mensaje->coordenadas.posx, mensaje->coordenadas.posy);
 
-	free(mensaje->nombre);
-	free(mensaje);
+	//free(mensaje->nombre);
+	//free(mensaje);
 
 	return mensaje_para_loguear;
 }
@@ -173,9 +163,9 @@ char* generar_caught_pokemon_para_loggear(void* mensaje_a_imprimir)
 {
 	t_caught_pokemon* mensaje = mensaje_a_imprimir;
 
-	char* mensaje_para_loguear = string_from_format("CAUGHT_POKEMON resultado: %i", (char*) mensaje->resultado);
+	char* mensaje_para_loguear = string_from_format("CAUGHT_POKEMON    resultado: %i", (char*) mensaje->resultado);
 
-	free(mensaje);
+	//free(mensaje);
 
 	return mensaje_para_loguear;
 }
@@ -184,10 +174,10 @@ char* generar_get_pokemon_para_loggear(void* mensaje_a_imprimir)
 {
 	t_get_pokemon* mensaje = mensaje_a_imprimir;
 
-	char* mensaje_para_loguear = string_from_format("GET_POKEMON nombre: %s", (char*) mensaje->nombre);
+	char* mensaje_para_loguear = string_from_format("GET_POKEMON    nombre: %s", (char*) mensaje->nombre);
 
-	free(mensaje->nombre);
-	free(mensaje);
+	//free(mensaje->nombre);
+	//free(mensaje);
 
 	return mensaje_para_loguear;
 }
@@ -196,7 +186,7 @@ char* generar_localized_pokemon_para_loggear(void* mensaje_a_imprimir)
 {
 	t_localized_pokemon* mensaje = mensaje_a_imprimir;
 
-	char* mensaje_para_loguear = string_from_format("LOCALIZED_POKEMON nombre: %s cantidad de posiciones: %i", (char*) mensaje->nombre, mensaje->coordenadas->elements_count);
+	char* mensaje_para_loguear = string_from_format("LOCALIZED_POKEMON    nombre: %s    cantidad de posiciones: %i", (char*) mensaje->nombre, mensaje->coordenadas->elements_count);
 
 	for(int i = 0 ; i < mensaje->coordenadas->elements_count ; i++)
 	{
@@ -205,11 +195,11 @@ char* generar_localized_pokemon_para_loggear(void* mensaje_a_imprimir)
 		int posx = coordenadas->posx;
 		int posy = coordenadas->posy;
 
-		string_append_with_format(&mensaje_para_loguear, " x: %i y: %i", posx, posy);
+		string_append_with_format(&mensaje_para_loguear, "    x: %i    y: %i", posx, posy);
 	}
-	list_destroy_and_destroy_elements(mensaje->coordenadas, free);
-	free(mensaje->nombre);
-	free(mensaje);
+	//list_destroy_and_destroy_elements(mensaje->coordenadas, free);
+	//free(mensaje->nombre);
+	//free(mensaje);
 
 	return mensaje_para_loguear;
 }
@@ -222,17 +212,34 @@ void imprimir_error_y_terminar_programa(char* mensaje)
 
 	printf("\n");
 	printf("\n");
+	fflush(stdout);
 	exit(-1);
 }
 
-void imprimir_error_y_terminar_programa_perzonalizado(char* mensaje, void(*funcion_para_finalizar)(void))
+void imprimir_error_y_terminar_programa_perzonalizado(char* mensaje, void(*funcion_para_finalizar)(void), pthread_mutex_t* mutex_logger)
 {
-	printf("\n");
-	error_show(" %s\n", mensaje);
-	perror("Descripcion ");
 
-	printf("\n");
-	printf("\n");
+	if(mutex_logger != NULL)
+	{
+		pthread_mutex_lock(mutex_logger);
+		printf("\n");
+		error_show(" %s\n", mensaje);
+		perror("Descripcion ");
+
+		printf("\n");
+		printf("\n");
+		pthread_mutex_unlock(mutex_logger);
+	}
+	else
+	{
+		printf("\n");
+		error_show(" %s\n", mensaje);
+		perror("Descripcion ");
+
+		printf("\n");
+		printf("\n");
+	}
+	fflush(stdout);
 
 	if(funcion_para_finalizar != NULL)
 	{
@@ -250,10 +257,11 @@ void imprimir_error_y_terminar_hilo(char* mensaje, t_log* logger)
 	perror("Descripcion ");
 
 	printf("\n");
+	fflush(stdout);
 	pthread_exit(NULL);
 }
 
-void terminar_programa(int conexion, t_log* logger, t_config* config)
+void terminar_programa(int conexion, t_log* logger, t_config* config, pthread_mutex_t* mutex_logger)
 {
 	int retorno;
 
@@ -267,5 +275,5 @@ void terminar_programa(int conexion, t_log* logger, t_config* config)
 		retorno = close(conexion);
 	}
 
-	if(retorno == -1) imprimir_error_y_terminar_programa("Ocurrio un error al cerrar el socket");
+	if(retorno == -1) imprimir_error_y_terminar_programa_perzonalizado("Ocurrio un error al cerrar el socket", NULL, mutex_logger);
 }

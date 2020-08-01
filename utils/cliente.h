@@ -19,7 +19,7 @@
 #include "serializacion.h"
 #include "config.h"
 
-int iniciar_conexion_como_cliente(char* nombre_de_proceso_servidor, t_config* config, pthread_mutex_t* mutex_config);
+int iniciar_conexion_como_cliente(char *ip, char* puerto);
 
 int enviar_mensaje_como_cliente(void* mensaje, int socket_cliente, op_code codigo_operacion, int id_mensaje, int id_correlativo);
 
@@ -37,6 +37,7 @@ int enviar_mensaje_de_suscripcion(int socket_cliente, op_code codigo_suscripcion
 int esperar_id_mensaje_enviado(int socket_cliente);
 int enviar_ack(int socket_cliente, int id_mensaje_recibido);
 
-void* recibir_mensaje_por_socket(op_code* codigo_operacion, int socket_cliente, int* id_correlativo, int* id_mensaje);
+void* recibir_mensaje_por_socket(op_code* codigo_operacion, int socket_cliente, int* id_correlativo, int* id_mensaje,
+		void(*funcion_para_finalizar)(void), pthread_mutex_t* mutex_logger);
 
 #endif /* TEAM_UTILS_H_ */

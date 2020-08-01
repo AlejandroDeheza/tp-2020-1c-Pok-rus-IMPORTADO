@@ -4,37 +4,17 @@ int main(int argc, char *argv[]) {
 
 	signal(SIGINT, &ejecutar_antes_de_terminar);
 
-	CONFIG = leer_config("../game-card.config");
-	LOGGER = generar_logger(CONFIG, "game-card");
-	ID_PROCESOS_TP = asignar_string_property(CONFIG, "ID_PROCESOS_TP");
-	DICCIONARIO_CON_MUTEX = dictionary_create();
 
-	pthread_mutex_init(MUTEX_CONFIG, NULL);
-	pthread_mutex_init(MUTEX_LOGGER, NULL);
-	pthread_mutex_init(MUTEX_METADATA_METADATA_BIN, NULL);
-	pthread_mutex_init(MUTEX_BITMAP, NULL);
-	pthread_mutex_init(MUTEX_ID_PROCESOS_TP, NULL);
-	pthread_mutex_init(MUTEX_ID_MANUAL_DEL_PROCESO, NULL);
-	pthread_mutex_init(MUTEX_DICCIONARIO, NULL);
-
-	log_error(LOGGER, "PROBANDO LOG_ERRROR(). NO PASO NINGUN ERROR");
 
 	verificar_e_interpretar_entrada(argc, argv);
 
+	iniciar_variables_globales_gamecard();
+
 	iniciar_file_system();
 
-	pthread_t thread_servidor = iniciar_hilo_para_recibir_conexiones();
+	establecer_comunicaciones_gamecard();
 
-	pthread_t thread_new_appeared = iniciar_hilo_para_comunicarse_con_broker("NEW_POKEMON", SUBSCRIBE_NEW_POKEMON);
 
-	pthread_t thread_catch_caught = iniciar_hilo_para_comunicarse_con_broker("CATCH_POKEMON", SUBSCRIBE_CATCH_POKEMON);
-
-	pthread_t thread_get_localized = iniciar_hilo_para_comunicarse_con_broker("GET_POKEMON", SUBSCRIBE_GET_POKEMON);
-
-	pthread_join(thread_servidor, NULL);
-	pthread_join(thread_new_appeared, NULL);
-	pthread_join(thread_catch_caught, NULL);
-	pthread_join(thread_get_localized, NULL);
 
 	finalizar_gamecard();
 
@@ -70,7 +50,7 @@ void finalizar_gamecard()
 
 	pthread_mutex_lock(MUTEX_LOGGER);
 	pthread_mutex_lock(MUTEX_CONFIG);
-	terminar_programa(0, LOGGER, CONFIG);
+	terminar_programa(0, LOGGER, CONFIG, NULL);
 	pthread_mutex_unlock(MUTEX_CONFIG);
 	pthread_mutex_unlock(MUTEX_LOGGER);
 
@@ -85,6 +65,7 @@ void finalizar_gamecard()
 	pthread_mutex_destroy(MUTEX_ID_PROCESOS_TP);
 	pthread_mutex_destroy(MUTEX_ID_MANUAL_DEL_PROCESO);
 	pthread_mutex_destroy(MUTEX_DICCIONARIO);
+	pthread_mutex_destroy(MUTEX_CONSULTA_POKEMON);
 }
 
 void eliminador_de_mutex_en_diccionario(void* argumento)
@@ -95,14 +76,40 @@ void eliminador_de_mutex_en_diccionario(void* argumento)
 
 void verificar_e_interpretar_entrada(int argc, char *argv[])
 {
-	if(argc > 1 ){
+	if(argc > 2 ){
 		error_show(" Ingresaste mas argumentos de los necesarios.\n"
 				"Solo se puede ingresar un argumento, el ID_MANUAL_DEL_PROCESO, que es opcional.\n"
 				"Si no se ingresa, se setea en 0\n\n");
 		exit(-1);
 	}
 
-	if(argc == 1) ID_MANUAL_DEL_PROCESO = atoi(argv[1]);
+	if(argc == 2) ID_MANUAL_DEL_PROCESO = atoi(argv[1]);
+}
+
+void iniciar_variables_globales_gamecard()
+{
+	CONFIG = leer_config("../game-card.config");
+	LOGGER = generar_logger(CONFIG, "game-card");
+	ID_PROCESOS_TP = asignar_string_property(CONFIG, "ID_PROCESOS_TP");
+	DICCIONARIO_CON_MUTEX = dictionary_create();
+
+	MUTEX_CONFIG = malloc(sizeof(pthread_mutex_t));
+	MUTEX_LOGGER = malloc(sizeof(pthread_mutex_t));
+	MUTEX_METADATA_METADATA_BIN = malloc(sizeof(pthread_mutex_t));
+	MUTEX_BITMAP = malloc(sizeof(pthread_mutex_t));
+	MUTEX_ID_PROCESOS_TP = malloc(sizeof(pthread_mutex_t));
+	MUTEX_ID_MANUAL_DEL_PROCESO = malloc(sizeof(pthread_mutex_t));
+	MUTEX_DICCIONARIO = malloc(sizeof(pthread_mutex_t));
+	MUTEX_CONSULTA_POKEMON = malloc(sizeof(pthread_mutex_t));
+
+	pthread_mutex_init(MUTEX_CONFIG, NULL);
+	pthread_mutex_init(MUTEX_LOGGER, NULL);
+	pthread_mutex_init(MUTEX_METADATA_METADATA_BIN, NULL);
+	pthread_mutex_init(MUTEX_BITMAP, NULL);
+	pthread_mutex_init(MUTEX_ID_PROCESOS_TP, NULL);
+	pthread_mutex_init(MUTEX_ID_MANUAL_DEL_PROCESO, NULL);
+	pthread_mutex_init(MUTEX_DICCIONARIO, NULL);
+	pthread_mutex_init(MUTEX_CONSULTA_POKEMON, NULL);
 }
 
 void iniciar_file_system()
@@ -189,6 +196,7 @@ void generar_estructura_file_system_si_hace_falta(char* punto_montaje_file_syste
 	/* SE CREA ARCHIVO FILES/METADATA.BIN */
 	char* path_files_metadata_bin = string_from_format("%s/Metadata.bin", path_files);
 	escribir_y_cerrar_archivo_si_no_existe(path_files_metadata_bin, "DIRECTORY=Y", strlen("DIRECTORY=Y"));
+	free(path_files_metadata_bin);
 
 	/* SE GENERAN MUTEX EN EL DICCIONARIO */
 	DIR *dir;
@@ -196,34 +204,35 @@ void generar_estructura_file_system_si_hace_falta(char* punto_montaje_file_syste
 	dir = opendir (path_files);
 	free(path_files);
 
-	if (dir == NULL) imprimir_error_y_terminar_programa("No se pudo habrir un directorio en generar_estructura_file_system_si_hace_falta()");
+	if (dir == NULL) imprimir_error_y_terminar_programa("No se pudo abrir un directorio en generar_estructura_file_system_si_hace_falta()");
 
 	while ((ent = readdir (dir)) != NULL)
 	{
-		if (strcmp(ent->d_name, ".") != 0 && strcmp(ent->d_name, "..") != 0 && strcmp(ent->d_name, path_files_metadata_bin) != 0)
+		if (strcmp(ent->d_name, ".") == 0 || strcmp(ent->d_name, "..") == 0 || strcmp(ent->d_name, "Metadata.bin") == 0)
 	    {
-			char* metadata_bin_archivo_pokemon = string_from_format(ent->d_name, "/Metadata.bin");
-			struct stat datos_metadata_bin_archivo_pokemon;
-
-			if(stat(metadata_bin_archivo_pokemon, &datos_metadata_bin_archivo_pokemon) == -1)
-			{
-				imprimir_error_y_terminar_programa("No se pudo habrir un Files/Metadata.bin en generar_estructura_file_system_si_hace_falta()");
-			}
-			else
-			{
-				if(datos_metadata_bin_archivo_pokemon.st_size != 0)
-				{
-					pthread_mutex_t* mutex = malloc(sizeof(pthread_mutex_t));
-					pthread_mutex_init(mutex, NULL);
-					dictionary_put(DICCIONARIO_CON_MUTEX, metadata_bin_archivo_pokemon, mutex);
-				}
-			}
-
-			free(metadata_bin_archivo_pokemon);
+			continue;
 	    }
+
+		char* metadata_bin_archivo_pokemon = string_from_format("%s/Files/%s/Metadata.bin", punto_montaje_file_system, ent->d_name);
+		struct stat datos_metadata_bin_archivo_pokemon;
+
+		if(stat(metadata_bin_archivo_pokemon, &datos_metadata_bin_archivo_pokemon) == -1)
+		{
+			continue;
+		}
+		else
+		{
+			if(datos_metadata_bin_archivo_pokemon.st_size != 0)
+			{
+				pthread_mutex_t* mutex = malloc(sizeof(pthread_mutex_t));
+				pthread_mutex_init(mutex, NULL);
+				dictionary_put(DICCIONARIO_CON_MUTEX, metadata_bin_archivo_pokemon, mutex);
+			}
+		}
+
+		free(metadata_bin_archivo_pokemon);
 	}
 
-	free(path_files_metadata_bin);
 	closedir(dir);
 }
 
@@ -277,10 +286,6 @@ void crear_carpeta_si_no_existe(char* path_carpeta_con_nombre)
 	if(carpeta == NULL)
 	{
 		mkdir(path_carpeta_con_nombre, 0777);
-
-		pthread_mutex_unlock(MUTEX_LOGGER);
-		log_info(LOGGER, "Carpeta creada : %s", path_carpeta_con_nombre);
-		pthread_mutex_unlock(MUTEX_LOGGER);
 	}
 	else
 	{
@@ -309,25 +314,40 @@ void sobrescribir_y_cerrar_archivo(char* path_archivo_con_nombre, char* datos_a_
 	if(archivo == NULL)
 	{
 		char* mensaje = string_from_format("No se pudo crear archivo %s", path_archivo_con_nombre);
-		imprimir_error_y_terminar_programa_perzonalizado(mensaje, finalizar_gamecard);
+		imprimir_error_y_terminar_programa_perzonalizado(mensaje, finalizar_gamecard, MUTEX_LOGGER);
 		free(mensaje); //ESTO NUNCA SE EJECUTA...
 	}
 
 	//fprintf(metadata_bin, "%s", datos_metadata_bin);
 	fwrite(datos_a_grabar, tamanio_datos_a_grabar, 1, archivo);
+	fflush(archivo);
 
-	pthread_mutex_lock(MUTEX_LOGGER);
-	log_info(LOGGER, "Archivo creado : %s  --  Bytes escritos : %i", path_archivo_con_nombre, tamanio_datos_a_grabar);
-	pthread_mutex_unlock(MUTEX_LOGGER);
+	if (fclose(archivo) != 0)
+		imprimir_error_y_terminar_programa_perzonalizado("No se pudo cerrar el archivo en sobrescribir_y_cerrar_archivo()",
+				finalizar_gamecard, MUTEX_LOGGER);
+}
 
-	if (fclose(archivo) != 0)imprimir_error_y_terminar_programa_perzonalizado("No se pudo cerrar el archivo en sobrescribir_y_cerrar_archivo()", finalizar_gamecard);
+void establecer_comunicaciones_gamecard()
+{
+	pthread_t thread_servidor = iniciar_hilo_para_recibir_conexiones();
+
+	pthread_t thread_new_appeared = iniciar_hilo_para_comunicarse_con_broker("NEW_POKEMON", SUBSCRIBE_NEW_POKEMON);
+
+	pthread_t thread_catch_caught = iniciar_hilo_para_comunicarse_con_broker("CATCH_POKEMON", SUBSCRIBE_CATCH_POKEMON);
+
+	pthread_t thread_get_localized = iniciar_hilo_para_comunicarse_con_broker("GET_POKEMON", SUBSCRIBE_GET_POKEMON);
+
+	pthread_join(thread_servidor, NULL);
+	pthread_join(thread_new_appeared, NULL);
+	pthread_join(thread_catch_caught, NULL);
+	pthread_join(thread_get_localized, NULL);
 }
 
 pthread_t iniciar_hilo_para_recibir_conexiones()
 {
 	pthread_t thread;
 	if(0 != pthread_create(&thread, NULL, recibir_conexiones, NULL))
-		imprimir_error_y_terminar_programa_perzonalizado("No se pudo crear hilo recibir_conexiones()", finalizar_gamecard);
+		imprimir_error_y_terminar_programa_perzonalizado("No se pudo crear hilo recibir_conexiones()", finalizar_gamecard, MUTEX_LOGGER);
 
 	return thread;
 }
@@ -350,21 +370,25 @@ void* recibir_conexiones()
 		op_code codigo_operacion_recibido = 0;
 
 		//IDENTIFICA Y RECHAZA PROCESOS QUE NO ESTA ESPERANDO
-		if(es_un_proceso_esperado(socket_cliente, ID_PROCESOS_TP, MUTEX_ID_PROCESOS_TP) == false) continue;
+		if(es_un_proceso_esperado(socket_cliente, ID_PROCESOS_TP, MUTEX_ID_PROCESOS_TP, finalizar_gamecard, MUTEX_LOGGER) == false) continue;
 
 		//queda bloqueado hasta que el gamecard recibe un mensaje del gameboy
-		void* mensaje = recibir_mensaje_por_socket(&codigo_operacion_recibido, socket_cliente, &id_correlativo, &id_mensaje_recibido);
+		void* mensaje = recibir_mensaje_por_socket(&codigo_operacion_recibido, socket_cliente, &id_correlativo, &id_mensaje_recibido,
+				finalizar_gamecard, MUTEX_LOGGER);
 
-		//si se recibe el mensaje de error (que se genera si se CAE EL GAMEBOY O SI HAY UN ERROR), se sale de este while(true) y ESPERA OTRA CONEXION
-		if(mensaje == NULL) break;
+		//si se recibe el mensaje de error (que se genera si se CAE EL GAMEBOY O SI HAY UN ERROR), ESPERA OTRA CONEXION
+		if(mensaje == NULL) continue;
 
 		char* mensaje_para_loguear = generar_mensaje_para_loggear(mensaje, codigo_operacion_recibido);
 
 		pthread_mutex_lock(MUTEX_LOGGER);
-		log_info(LOGGER, "Se recibio el mensaje <<%s>> del GAMEBOY", mensaje_para_loguear);
+		log_info(LOGGER, "Se recibio el mensaje <<  %s  >> del GAMEBOY", mensaje_para_loguear);
 		pthread_mutex_unlock(MUTEX_LOGGER);
 
 		free(mensaje_para_loguear);
+
+		if(close(socket_cliente) == -1)
+			imprimir_error_y_terminar_programa_perzonalizado("Error al cerrar socket en recibir_conexiones()", finalizar_gamecard, MUTEX_LOGGER);
 
 		iniciar_hilo_para_tratar_y_responder_mensaje(id_mensaje_recibido, mensaje, codigo_operacion_recibido);
     }
@@ -380,7 +404,7 @@ pthread_t iniciar_hilo_para_comunicarse_con_broker(char* cola_a_suscribirse, op_
 
 	pthread_t thread;
 	if(0 != pthread_create(&thread, NULL, conectar_recibir_y_enviar_mensajes, (void*)arg))
-		imprimir_error_y_terminar_programa_perzonalizado("No se pudo crear hilo conectar_recibir_y_enviar_mensajes()", finalizar_gamecard);
+		imprimir_error_y_terminar_programa_perzonalizado("No se pudo crear hilo conectar_recibir_y_enviar_mensajes()", finalizar_gamecard, MUTEX_LOGGER);
 
 	return thread;
 }
@@ -399,7 +423,9 @@ void* conectar_recibir_y_enviar_mensajes(void* argumentos)
 		free(mensaje_de_logueo_al_reintentar_conexion);
 
 		int estado_envio = enviar_mensaje_de_suscripcion(conexion, codigo_suscripcion, ID_MANUAL_DEL_PROCESO, MUTEX_ID_MANUAL_DEL_PROCESO);
-		if(estado_envio <= 0) continue;
+		if(estado_envio == 0) continue;
+		if(estado_envio == -1)
+			imprimir_error_y_terminar_programa_perzonalizado("Error al usar send() en enviar_mensaje_de_suscripcion()", finalizar_gamecard, MUTEX_LOGGER);
 
 		pthread_mutex_lock(MUTEX_LOGGER);
 		log_info(LOGGER, "Se realizo una suscripcion a la cola de mensajes %s del BROKER", cola_a_suscribirse);
@@ -413,18 +439,22 @@ void* conectar_recibir_y_enviar_mensajes(void* argumentos)
 			op_code codigo_operacion_recibido = 0;
 
 			//queda bloqueado hasta que el gameboy recibe un mensaje,
-			void* mensaje = recibir_mensaje_por_socket(&codigo_operacion_recibido, conexion, &id_correlativo, &id_mensaje_recibido);
+			void* mensaje = recibir_mensaje_por_socket(&codigo_operacion_recibido, conexion, &id_correlativo, &id_mensaje_recibido,
+					finalizar_gamecard, MUTEX_LOGGER);
 
 			//si se recibe el mensaje de error (que se genera si se CAE EL BROKER), se sale de este while(true) y reintenta la conexion
 			if(mensaje == NULL) break;
 
-			enviar_ack(conexion, id_mensaje_recibido); //NO VERIFICO EL ESTADO PORQUE NO IMPORTA, EL GAMECARD VA A REALIZAR SU TAREA ASIGNADA DE TODAS FORMAS
+			int estado_ack = enviar_ack(conexion, id_mensaje_recibido); //NO VERIFICO EL ESTADO PORQUE NO IMPORTA, EL GAMECARD VA A REALIZAR SU TAREA ASIGNADA DE TODAS FORMAS
 			//ADEMAS EL BROKER, COMO PERDIO TODOS LOS MENSAJES QUE TENIA EN MEMORIA, NO VA A REENVIAR NADA A GAMECARD
+
+			if(estado_ack == -1)
+				imprimir_error_y_terminar_programa_perzonalizado("Error al usar send() en enviar_ack()", finalizar_gamecard, MUTEX_LOGGER);
 
 			char* mensaje_para_loguear = generar_mensaje_para_loggear(mensaje, codigo_suscripcion);
 
 			pthread_mutex_lock(MUTEX_LOGGER);
-			log_info(LOGGER, "Se recibio el mensaje <<%s>> de la cola %s", mensaje_para_loguear, cola_a_suscribirse);
+			log_info(LOGGER, "Se recibio el mensaje <<  %s  >> de la cola %s", mensaje_para_loguear, cola_a_suscribirse);
 			pthread_mutex_unlock(MUTEX_LOGGER);
 
 			free(mensaje_para_loguear);
@@ -438,7 +468,21 @@ void* conectar_recibir_y_enviar_mensajes(void* argumentos)
 
 int conectar_a_broker_y_reintentar_si_hace_falta(char* mensaje_de_logueo_al_reintentar_conexion)
 {
-	int conexion = iniciar_conexion_como_cliente("BROKER", CONFIG, MUTEX_CONFIG);
+	char* ip = NULL;
+	char* puerto = NULL;
+
+	pthread_mutex_lock(MUTEX_CONFIG);
+	int retorno_ip_puerto = leer_ip_y_puerto(&ip, &puerto, CONFIG, "BROKER");
+	pthread_mutex_unlock(MUTEX_CONFIG);
+
+	if(retorno_ip_puerto == -1)
+		imprimir_error_y_terminar_programa_perzonalizado("No se encontro IP_BROKER o PUERTO_BROKER en el archivo de configuracion",
+				finalizar_gamecard, MUTEX_CONFIG);
+
+	int conexion = iniciar_conexion_como_cliente(ip, puerto);
+
+	if(conexion == -1)
+		imprimir_error_y_terminar_programa_perzonalizado("Error en socket() en crear_socket_como_cliente", finalizar_gamecard, MUTEX_LOGGER);
 
 	pthread_mutex_lock(MUTEX_CONFIG);
 	int tiempo_de_reintento_conexion = asignar_int_property(CONFIG, "TIEMPO_DE_REINTENTO_CONEXION");
@@ -452,12 +496,21 @@ int conectar_a_broker_y_reintentar_si_hace_falta(char* mensaje_de_logueo_al_rein
 
 		sleep(tiempo_de_reintento_conexion);
 
-		conexion = iniciar_conexion_como_cliente("BROKER", CONFIG, MUTEX_CONFIG);
+		conexion = iniciar_conexion_como_cliente(ip, puerto);
 
-		if( conexion > 0)
+		if(conexion == -1)
+			imprimir_error_y_terminar_programa_perzonalizado("Error en socket() en crear_socket_como_cliente", finalizar_gamecard, MUTEX_LOGGER);
+
+		if(conexion > 0)
 		{
-			if(enviar_identificacion_general(conexion, ID_PROCESOS_TP, MUTEX_ID_PROCESOS_TP) <= 0) conexion = -1;
+			int retorno_identificacion = enviar_identificacion_general(conexion, ID_PROCESOS_TP, MUTEX_ID_PROCESOS_TP);
+
+			if(retorno_identificacion == 0) conexion = -1;
 			//SI FALLA LA IDENTIFICACIOJN, ENTONCES SE INTENTA RECONECTAR DEVUELTA
+
+			if(retorno_identificacion == -1)
+				imprimir_error_y_terminar_programa_perzonalizado("Error al usar send() en enviar_identificacion_general()",
+						finalizar_gamecard, MUTEX_LOGGER);
 		}
 	}
 
@@ -479,7 +532,10 @@ void verificar_estado_del_envio_y_cerrar_conexion(char* tipo_mensaje, int estado
 	}
 	else
 	{
-		esperar_id_mensaje_enviado(conexion);	//EL GAMECARD NO HACE NADA CON EL ID, SOLO TIENE QUE ESPERARLO
+		int id_mensaje_enviado = esperar_id_mensaje_enviado(conexion);	//EL GAMECARD NO HACE NADA CON EL ID, SOLO TIENE QUE ESPERARLO
+
+		if(id_mensaje_enviado == -1)
+			imprimir_error_y_terminar_programa_perzonalizado("Error al usar recv() en esperar_id_mensaje_enviado()", finalizar_gamecard, MUTEX_LOGGER);
 
 		pthread_mutex_lock(MUTEX_LOGGER);
 		log_error(LOGGER, "Mensaje %s enviado al BROKER correctamente", tipo_mensaje);
@@ -502,17 +558,31 @@ void iniciar_hilo_para_tratar_y_responder_mensaje(int id_mensaje_recibido, void*
 	switch (codigo_suscripcion) {
 			case SUBSCRIBE_NEW_POKEMON:
 				if(0 != pthread_create(&thread, NULL, atender_new_pokemon, (void*)arg))
-					imprimir_error_y_terminar_programa_perzonalizado("No se pudo crear hilo para atender_new_pokemon()", finalizar_gamecard);
+					imprimir_error_y_terminar_programa_perzonalizado("No se pudo crear hilo para atender_new_pokemon()", finalizar_gamecard, MUTEX_LOGGER);
 				break;
 
 			case SUBSCRIBE_CATCH_POKEMON:
 				if(0 != pthread_create(&thread, NULL, atender_catch_pokemon, (void*)arg))
-					imprimir_error_y_terminar_programa_perzonalizado("No se pudo crear hilo para atender_catch_pokemon()", finalizar_gamecard);
+					imprimir_error_y_terminar_programa_perzonalizado("No se pudo crear hilo para atender_catch_pokemon()", finalizar_gamecard, MUTEX_LOGGER);
 				break;
 
 			case SUBSCRIBE_GET_POKEMON:
 				if(0 != pthread_create(&thread, NULL, atender_get_pokemon, (void*)arg))
-					imprimir_error_y_terminar_programa_perzonalizado("No se pudo crear hilo para atender_get_pokemon()", finalizar_gamecard);
+					imprimir_error_y_terminar_programa_perzonalizado("No se pudo crear hilo para atender_get_pokemon()", finalizar_gamecard, MUTEX_LOGGER);
+				break;
+			case NEW_POKEMON:
+				if(0 != pthread_create(&thread, NULL, atender_new_pokemon, (void*)arg))
+					imprimir_error_y_terminar_programa_perzonalizado("No se pudo crear hilo para atender_new_pokemon()", finalizar_gamecard, MUTEX_LOGGER);
+				break;
+
+			case CATCH_POKEMON:
+				if(0 != pthread_create(&thread, NULL, atender_catch_pokemon, (void*)arg))
+					imprimir_error_y_terminar_programa_perzonalizado("No se pudo crear hilo para atender_catch_pokemon()", finalizar_gamecard, MUTEX_LOGGER);
+				break;
+
+			case GET_POKEMON:
+				if(0 != pthread_create(&thread, NULL, atender_get_pokemon, (void*)arg))
+					imprimir_error_y_terminar_programa_perzonalizado("No se pudo crear hilo para atender_get_pokemon()", finalizar_gamecard, MUTEX_LOGGER);
 				break;
 			default:
 				break;
@@ -528,26 +598,63 @@ void* atender_new_pokemon(void* argumentos)
 	t_new_pokemon* mensaje = args->stream;
 	free(args);
 
+	pthread_mutex_lock(MUTEX_CONSULTA_POKEMON);
 	if(verificar_si_existe_archivo_pokemon(mensaje->nombre) == false) crear_archivo_pokemon(mensaje->nombre);
+	pthread_mutex_unlock(MUTEX_CONSULTA_POKEMON);
 
 	pedir_archivo_pokemon(mensaje->nombre);
 
     char** array_de_todo_el_archivo_pokemon_con_posiciones_y_cantidades = generar_array_de_todo_el_archivo_pokemon_con_posiciones_y_cantidades((char*) mensaje->nombre);
     char* posicion_buscada_en_string = string_from_format("%i-%i", mensaje->coordenadas.posx, mensaje->coordenadas.posy);
 
+	pthread_mutex_lock(MUTEX_LOGGER);
+    printf("posicion_buscada_en_string : %s\n", posicion_buscada_en_string);
+    fflush(stdout);
+	pthread_mutex_unlock(MUTEX_LOGGER);
+
 	int retorno_agregar = agregar_cantidad_en_archivo_pokemon(mensaje, array_de_todo_el_archivo_pokemon_con_posiciones_y_cantidades, posicion_buscada_en_string);
+
+	pthread_mutex_lock(MUTEX_LOGGER);
+    printf("retorno_agregar : %i\n", retorno_agregar);
+    fflush(stdout);
+	pthread_mutex_unlock(MUTEX_LOGGER);
 
 	retener_un_rato_y_liberar_archivo_pokemon(mensaje->nombre);
 
-	int conexion = iniciar_conexion_como_cliente("BROKER", CONFIG, MUTEX_CONFIG);
+	char* ip = NULL;
+	char* puerto = NULL;
+
+	pthread_mutex_lock(MUTEX_CONFIG);
+	int retorno_ip_puerto = leer_ip_y_puerto(&ip, &puerto, CONFIG, "BROKER");
+	pthread_mutex_unlock(MUTEX_CONFIG);
+
+	if(retorno_ip_puerto == -1)
+		imprimir_error_y_terminar_programa_perzonalizado("No se encontro IP_BROKER o PUERTO_BROKER en el archivo de configuracion", finalizar_gamecard, MUTEX_LOGGER);
+
+	int conexion = iniciar_conexion_como_cliente(ip, puerto);
+	if(conexion == -1)
+		imprimir_error_y_terminar_programa_perzonalizado("Error en socket() en crear_socket_como_cliente", finalizar_gamecard, MUTEX_LOGGER);
+
 	int retorno_identificacion = 0;
 
-	if( conexion > 0) retorno_identificacion = enviar_identificacion_general(conexion, ID_PROCESOS_TP, MUTEX_ID_PROCESOS_TP);
+	if( conexion > 0)
+	{
+		retorno_identificacion = enviar_identificacion_general(conexion, ID_PROCESOS_TP, MUTEX_ID_PROCESOS_TP);
+
+		if(retorno_identificacion == -1)
+			imprimir_error_y_terminar_programa_perzonalizado("Error al usar send() en enviar_identificacion_general()", finalizar_gamecard, MUTEX_LOGGER);
+	}
 
 	int estado = 0;
 
 	if((retorno_agregar != -1) && (retorno_identificacion != 0))
+	{
 		estado = generar_y_enviar_appeared_pokemon(conexion, 0, id_mensaje_recibido, mensaje->nombre, mensaje->coordenadas.posx, mensaje->coordenadas.posy);
+
+		if(estado == -1)
+			imprimir_error_y_terminar_programa_perzonalizado("Error al usar send() en enviar_mensaje_como_cliente()", finalizar_gamecard, MUTEX_LOGGER);
+	}
+
 
     int i = 0;
     while(array_de_todo_el_archivo_pokemon_con_posiciones_y_cantidades[i] != NULL)
@@ -631,16 +738,39 @@ void* atender_get_pokemon(void* argumentos)
 
 	retener_un_rato_y_liberar_archivo_pokemon(mensaje->nombre);
 
-	int conexion = iniciar_conexion_como_cliente("BROKER", CONFIG, MUTEX_CONFIG);
+	char* ip = NULL;
+	char* puerto = NULL;
+
+	pthread_mutex_lock(MUTEX_CONFIG);
+	int retorno_ip_puerto = leer_ip_y_puerto(&ip, &puerto, CONFIG, "BROKER");
+	pthread_mutex_unlock(MUTEX_CONFIG);
+
+	if(retorno_ip_puerto == -1)
+		imprimir_error_y_terminar_programa_perzonalizado("No se encontro IP_BROKER o PUERTO_BROKER en el archivo de configuracion", finalizar_gamecard, MUTEX_LOGGER);
+
+	int conexion = iniciar_conexion_como_cliente(ip, puerto);
+	if(conexion == -1)
+		imprimir_error_y_terminar_programa_perzonalizado("Error en socket() en crear_socket_como_cliente", finalizar_gamecard, MUTEX_LOGGER);
 
 	int retorno_identificacion = 0;
 
-	if(conexion > 0) retorno_identificacion = enviar_identificacion_general(conexion, ID_PROCESOS_TP, MUTEX_ID_PROCESOS_TP);
+	if(conexion > 0)
+	{
+		retorno_identificacion = enviar_identificacion_general(conexion, ID_PROCESOS_TP, MUTEX_ID_PROCESOS_TP);
+
+		if(retorno_identificacion == -1)
+			imprimir_error_y_terminar_programa_perzonalizado("Error al usar send() en enviar_identificacion_general()", finalizar_gamecard, MUTEX_LOGGER);
+	}
 
 	int estado = 0;
 
 	if((retorno_identificacion != 0) && (lista_posiciones->elements_count != 0))
+	{
 		estado = generar_y_enviar_localized_pokemon(conexion, 0, id_mensaje_recibido, mensaje->nombre, lista_posiciones);
+
+		if(estado == -1)
+			imprimir_error_y_terminar_programa_perzonalizado("Error al usar send() en enviar_mensaje_como_cliente()", finalizar_gamecard, MUTEX_LOGGER);
+	}
 
 	list_destroy_and_destroy_elements(lista_posiciones, free);
 	free(mensaje->nombre);
@@ -673,15 +803,40 @@ void retener_conectar_librerar_recursos_caught(t_catch_pokemon* mensaje, int id_
 
 void conectar_enviar_verificar_caught(int id_mensaje_recibido, int resultado_caught)
 {
-	int conexion = iniciar_conexion_como_cliente("BROKER", CONFIG, MUTEX_CONFIG);
+	char* ip = NULL;
+	char* puerto = NULL;
+
+	pthread_mutex_lock(MUTEX_CONFIG);
+	int retorno_ip_puerto = leer_ip_y_puerto(&ip, &puerto, CONFIG, "BROKER");
+	pthread_mutex_unlock(MUTEX_CONFIG);
+
+	if(retorno_ip_puerto == -1)
+		imprimir_error_y_terminar_programa_perzonalizado("No se encontro IP_BROKER o PUERTO_BROKER en el archivo de configuracion",
+				finalizar_gamecard, MUTEX_LOGGER);
+
+	int conexion = iniciar_conexion_como_cliente(ip, puerto);
+	if(conexion == -1)
+		imprimir_error_y_terminar_programa_perzonalizado("Error en socket() en crear_socket_como_cliente", finalizar_gamecard, MUTEX_LOGGER);
 
 	int retorno_identificacion = 0;
 
-	if(conexion > 0) retorno_identificacion = enviar_identificacion_general(conexion, ID_PROCESOS_TP, MUTEX_ID_PROCESOS_TP);
+	if(conexion > 0)
+	{
+		retorno_identificacion = enviar_identificacion_general(conexion, ID_PROCESOS_TP, MUTEX_ID_PROCESOS_TP);
+
+		if(retorno_identificacion == -1)
+			imprimir_error_y_terminar_programa_perzonalizado("Error al usar send() en enviar_identificacion_general()", finalizar_gamecard, MUTEX_LOGGER);
+	}
 
 	int estado = 0;
 
-	if(retorno_identificacion != 0)	estado = generar_y_enviar_caught_pokemon(conexion, 0, id_mensaje_recibido, resultado_caught);
+	if(retorno_identificacion != 0)
+	{
+		estado = generar_y_enviar_caught_pokemon(conexion, 0, id_mensaje_recibido, resultado_caught);
+
+		if(estado == -1)
+			imprimir_error_y_terminar_programa_perzonalizado("Error al usar send() en enviar_mensaje_como_cliente()", finalizar_gamecard, MUTEX_LOGGER);
+	}
 
 	verificar_estado_del_envio_y_cerrar_conexion("CAUGHT_POKEMON", estado, conexion);
 }
@@ -691,6 +846,7 @@ bool verificar_si_existe_archivo_pokemon(char* nombre_pokemon)
 	pthread_mutex_lock(MUTEX_CONFIG);
 	char* punto_montaje_file_system = asignar_string_property(CONFIG, "PUNTO_MONTAJE_TALLGRASS");
 	pthread_mutex_unlock(MUTEX_CONFIG);
+
 	char* path_carpeta_con_nombre = string_from_format("%s/Files/%s", punto_montaje_file_system, nombre_pokemon);
 	DIR* carpeta = opendir(path_carpeta_con_nombre);
 
@@ -731,15 +887,15 @@ void crear_archivo_pokemon(char* nombre_pokemon)
 
 	char* path_archivo_con_nombre = string_from_format("%s/Metadata.bin", path_carpeta_con_nombre);
 
-	sobrescribir_y_cerrar_archivo(path_archivo_con_nombre, "DIRECTORY=N\nSIZE=0\nBLOCKS=[]\nOPEN=N", strlen("DIRECTORY=N\nSIZE=0\nBLOCKS=[0]\nOPEN=N"));
-	//DEBERIA PONER BLOCK=[0] ? O DEJARLO ASI? REVISAR TODO
-
 	pthread_mutex_t* mutex = malloc(sizeof(pthread_mutex_t));
 	pthread_mutex_init(mutex, NULL);
 
 	pthread_mutex_lock(MUTEX_DICCIONARIO);
 	dictionary_put(DICCIONARIO_CON_MUTEX, path_archivo_con_nombre, mutex);
 	pthread_mutex_unlock(MUTEX_DICCIONARIO);
+
+	sobrescribir_y_cerrar_archivo(path_archivo_con_nombre, "DIRECTORY=N\nSIZE=0\nBLOCKS=[]\nOPEN=N", strlen("DIRECTORY=N\nSIZE=0\nBLOCKS=[0]\nOPEN=N"));
+	//DEBERIA PONER BLOCK=[0] ? O DEJARLO ASI? REVISAR TODO
 
 	pthread_mutex_lock(MUTEX_LOGGER);
 	log_info(LOGGER, "Nuevo archivo pokemon creado : %s", path_carpeta_con_nombre);
@@ -777,13 +933,16 @@ bool intentar_abrir_archivo_pokemon(char* nombre_pokemon)
 	pthread_mutex_t* mutex_archivo_pokemon = dictionary_get(DICCIONARIO_CON_MUTEX, path_archivo_pokemon_metadata_bin);
 	pthread_mutex_unlock(MUTEX_DICCIONARIO);
 
+	if(mutex_archivo_pokemon == NULL)
+		imprimir_error_y_terminar_programa_perzonalizado("No se encontro un MUTEX en el DICCIONARIO", finalizar_gamecard, MUTEX_LOGGER);
+
 	pthread_mutex_lock(mutex_archivo_pokemon);
 	t_config* archivo_pokemon_metadata_bin = config_create(path_archivo_pokemon_metadata_bin);
 
 	if(archivo_pokemon_metadata_bin == NULL)
 	{
 		char* mensaje_error = string_from_format("No se pudo abrir archivo %s en intentar_abrir_archivo_pokemon()", path_archivo_pokemon_metadata_bin);
-		imprimir_error_y_terminar_programa_perzonalizado(mensaje_error, finalizar_gamecard);
+		imprimir_error_y_terminar_programa_perzonalizado(mensaje_error, finalizar_gamecard, MUTEX_LOGGER);
 		free(mensaje_error); //ESTO NUNCA SE EJECUTA...
 	}
 	free(path_archivo_pokemon_metadata_bin);
@@ -828,13 +987,16 @@ void liberar_archivo_pokemon(char* nombre_pokemon)
 	pthread_mutex_t* mutex_archivo_pokemon = dictionary_get(DICCIONARIO_CON_MUTEX, path_archivo_pokemon_metadata_bin);
 	pthread_mutex_unlock(MUTEX_DICCIONARIO);
 
+	if(mutex_archivo_pokemon == NULL)
+		imprimir_error_y_terminar_programa_perzonalizado("No se encontro un MUTEX en el DICCIONARIO", finalizar_gamecard, MUTEX_LOGGER);
+
 	pthread_mutex_lock(mutex_archivo_pokemon);
 	t_config* archivo_pokemon_metadata_bin = config_create(path_archivo_pokemon_metadata_bin);
 
 	if(archivo_pokemon_metadata_bin == NULL)
 	{
 		char* mensaje_error = string_from_format("No se pudo abrir archivo %s en liberar_archivo_pokemon()", path_archivo_pokemon_metadata_bin);
-		imprimir_error_y_terminar_programa_perzonalizado(mensaje_error, finalizar_gamecard);
+		imprimir_error_y_terminar_programa_perzonalizado(mensaje_error, finalizar_gamecard, MUTEX_LOGGER);
 		free(mensaje_error); //ESTO NUNCA SE EJECUTA...
 	}
 	free(path_archivo_pokemon_metadata_bin);
@@ -855,7 +1017,7 @@ int buscar_posicion_en_archivo_pokemon(char** array_de_todo_el_archivo_pokemon_c
 
     while(array_de_todo_el_archivo_pokemon_con_posiciones_y_cantidades[i] != NULL)
     {
-        if(string_starts_with(array_de_todo_el_archivo_pokemon_con_posiciones_y_cantidades[i], posicion_buscada_en_string) == 0)
+        if(string_starts_with(array_de_todo_el_archivo_pokemon_con_posiciones_y_cantidades[i], posicion_buscada_en_string) == true)
         {
         	indice_de_busqueda = i;
         	break;
@@ -917,18 +1079,34 @@ char** generar_array_de_todo_el_archivo_pokemon_con_posiciones_y_cantidades(char
 	pthread_mutex_unlock(MUTEX_CONFIG);
 
 	char* path_archivo_pokemon_metadata_bin = string_from_format("%s/Files/%s/Metadata.bin", punto_montaje_file_system, nombre_pokemon);
+
+	pthread_mutex_lock(MUTEX_DICCIONARIO);
+	pthread_mutex_t* mutex_archivo_pokemon = dictionary_get(DICCIONARIO_CON_MUTEX, path_archivo_pokemon_metadata_bin);
+	pthread_mutex_unlock(MUTEX_DICCIONARIO);
+
+	if(mutex_archivo_pokemon == NULL)
+		imprimir_error_y_terminar_programa_perzonalizado("No se encontro un MUTEX en el DICCIONARIO", finalizar_gamecard, MUTEX_LOGGER);
+
+	pthread_mutex_lock(mutex_archivo_pokemon);
 	t_config* archivo_pokemon_metadata_bin = config_create(path_archivo_pokemon_metadata_bin);
 
 	if(archivo_pokemon_metadata_bin == NULL)
 	{
 		char* mensaje_error = string_from_format("No se pudo abrir archivo %s en "
 				"generar_array_de_todo_el_archivo_pokemon_con_posiciones_y_cantidades()", path_archivo_pokemon_metadata_bin);
-		imprimir_error_y_terminar_programa_perzonalizado(mensaje_error, finalizar_gamecard);
+		imprimir_error_y_terminar_programa_perzonalizado(mensaje_error, finalizar_gamecard, MUTEX_LOGGER);
 		free(mensaje_error); //ESTO NUNCA SE EJECUTA...
 	}
 	free(path_archivo_pokemon_metadata_bin);
 
 	char* bloques_del_archivo_pokemon = asignar_string_property(archivo_pokemon_metadata_bin, "BLOCKS");
+	pthread_mutex_unlock(mutex_archivo_pokemon);
+
+	pthread_mutex_lock(MUTEX_LOGGER);
+	printf("bloques: %s\n", bloques_del_archivo_pokemon);
+	fflush(stdout);
+	pthread_mutex_unlock(MUTEX_LOGGER);
+
 	char** array_bloques_del_archivo_pokemon = string_get_string_as_array(bloques_del_archivo_pokemon);	//REVISAR QUE PASA CON LISTA VACIA TODO
 
 	pthread_mutex_lock(MUTEX_METADATA_METADATA_BIN);
@@ -953,6 +1131,7 @@ char** generar_array_de_todo_el_archivo_pokemon_con_posiciones_y_cantidades(char
     	char* contenido_de_un_bloque = malloc(tamanio_bloques_del_file_system);
 
     	fread(contenido_de_un_bloque, tamanio_bloques_del_file_system, 1, archivo_bloque_bin);
+    	fflush(archivo_bloque_bin);
 
     	string_append_with_format(&todo_el_archivo_pokemon_en_un_string, "%s", contenido_de_un_bloque);
     	free(contenido_de_un_bloque);
@@ -962,8 +1141,19 @@ char** generar_array_de_todo_el_archivo_pokemon_con_posiciones_y_cantidades(char
 	    i++;
     }
 
+	pthread_mutex_lock(MUTEX_LOGGER);
+    printf("todo_el_archivo_pokemon_en_un_string : <%s>\n", todo_el_archivo_pokemon_en_un_string);
+    fflush(stdout);
+	pthread_mutex_unlock(MUTEX_LOGGER);
+
     char** array_de_todo_el_archivo_pokemon_con_posiciones_y_cantidades = string_split(todo_el_archivo_pokemon_en_un_string, "\n");
     free(todo_el_archivo_pokemon_en_un_string);
+
+	pthread_mutex_lock(MUTEX_LOGGER);
+    printf("array 1 : <%s>\n", array_de_todo_el_archivo_pokemon_con_posiciones_y_cantidades[0]);
+   // printf("array 2 : <%s>\n", array_de_todo_el_archivo_pokemon_con_posiciones_y_cantidades[1]);
+    fflush(stdout);
+	pthread_mutex_unlock(MUTEX_LOGGER);
 
     i = 0;
     while(array_bloques_del_archivo_pokemon[i] != NULL)
@@ -973,7 +1163,9 @@ char** generar_array_de_todo_el_archivo_pokemon_con_posiciones_y_cantidades(char
     }
     free(array_bloques_del_archivo_pokemon);
 
+	pthread_mutex_lock(mutex_archivo_pokemon);
     config_destroy(archivo_pokemon_metadata_bin);
+	pthread_mutex_unlock(mutex_archivo_pokemon);
 
     return array_de_todo_el_archivo_pokemon_con_posiciones_y_cantidades;
 }
@@ -983,6 +1175,10 @@ int agregar_cantidad_en_archivo_pokemon(t_new_pokemon* mensaje, char** array_de_
     int indice_de_busqueda = buscar_posicion_en_archivo_pokemon(array_de_todo_el_archivo_pokemon_con_posiciones_y_cantidades, posicion_buscada_en_string);
 
     //**** SE AGREGA CANTIDAD EN EL nuevo_archivo_pokemon_en_un_string  ****//
+	pthread_mutex_lock(MUTEX_LOGGER);
+    printf("indice_de_busqueda : %i\n", indice_de_busqueda);
+    fflush(stdout);
+	pthread_mutex_unlock(MUTEX_LOGGER);
 
     char* nuevo_archivo_pokemon_en_un_string = string_new();
 
@@ -1015,31 +1211,53 @@ int agregar_cantidad_en_archivo_pokemon(t_new_pokemon* mensaje, char** array_de_
     {	//  SI ESTO SE EJECUTA, REPRESENTA UN --->   agregar_cantidad_al_final();
         char* posicion_para_agregar_al_final = string_from_format("%s=%i", posicion_buscada_en_string, mensaje->cantidad);
 
-    	string_append_with_format(&nuevo_archivo_pokemon_en_un_string, "%s", array_de_todo_el_archivo_pokemon_con_posiciones_y_cantidades[0]);
-
-        while(array_de_todo_el_archivo_pokemon_con_posiciones_y_cantidades[i] != NULL)
+        if(array_de_todo_el_archivo_pokemon_con_posiciones_y_cantidades[0] != NULL)
         {
-        	string_append_with_format(&nuevo_archivo_pokemon_en_un_string, "\n%s", array_de_todo_el_archivo_pokemon_con_posiciones_y_cantidades[i]);
+        	string_append_with_format(&nuevo_archivo_pokemon_en_un_string, "%s", array_de_todo_el_archivo_pokemon_con_posiciones_y_cantidades[0]);
 
-        	i++;
+
+        	while(array_de_todo_el_archivo_pokemon_con_posiciones_y_cantidades[i] != NULL)
+        	{
+        		string_append_with_format(&nuevo_archivo_pokemon_en_un_string, "\n%s", array_de_todo_el_archivo_pokemon_con_posiciones_y_cantidades[i]);
+
+        		i++;
+        	}
+
+            string_append_with_format(&nuevo_archivo_pokemon_en_un_string, "\n%s", posicion_para_agregar_al_final);
         }
-        string_append_with_format(&nuevo_archivo_pokemon_en_un_string, "\n%s", posicion_para_agregar_al_final);
+        else
+        {// ESTO SE EJECUTA SI EL ARCHIVO POKEMON NO TENIA NINGUNA POSICION
+        	string_append_with_format(&nuevo_archivo_pokemon_en_un_string, "%s", posicion_para_agregar_al_final);
+        }
         free(posicion_para_agregar_al_final);
     }
 
-
+	pthread_mutex_lock(MUTEX_LOGGER);
+    printf("nuevo_archivo_pokemon_en_un_string : %s\n", nuevo_archivo_pokemon_en_un_string);
+    fflush(stdout);
+	pthread_mutex_unlock(MUTEX_LOGGER);
     //**** SE INTERPRETA SI HAY QUE AGREGAR UN BLOQUE MAS  ****//
 
 	pthread_mutex_lock(MUTEX_CONFIG);
 	char* punto_montaje_file_system = asignar_string_property(CONFIG, "PUNTO_MONTAJE_TALLGRASS");
 	pthread_mutex_unlock(MUTEX_CONFIG);
+
 	char* path_archivo_pokemon_metadata_bin = string_from_format("%s/Files/%s/Metadata.bin", punto_montaje_file_system, (char*) mensaje->nombre);
+
+	pthread_mutex_lock(MUTEX_DICCIONARIO);
+	pthread_mutex_t* mutex_archivo_pokemon = dictionary_get(DICCIONARIO_CON_MUTEX, path_archivo_pokemon_metadata_bin);
+	pthread_mutex_unlock(MUTEX_DICCIONARIO);
+
+	if(mutex_archivo_pokemon == NULL)
+		imprimir_error_y_terminar_programa_perzonalizado("No se encontro un MUTEX en el DICCIONARIO", finalizar_gamecard, MUTEX_LOGGER);
+
+	pthread_mutex_lock(mutex_archivo_pokemon);
 	t_config* archivo_pokemon_metadata_bin = config_create(path_archivo_pokemon_metadata_bin);
 
 	if(archivo_pokemon_metadata_bin == NULL)
 	{
 		char* mensaje_error = string_from_format("No se pudo abrir archivo %s en agregar_cantidad_en_archivo_pokemon()", path_archivo_pokemon_metadata_bin);
-		imprimir_error_y_terminar_programa_perzonalizado(mensaje_error, finalizar_gamecard);
+		imprimir_error_y_terminar_programa_perzonalizado(mensaje_error, finalizar_gamecard, MUTEX_LOGGER);
 		free(mensaje_error); //ESTO NUNCA SE EJECUTA...
 	}
 	free(path_archivo_pokemon_metadata_bin);
@@ -1062,6 +1280,27 @@ int agregar_cantidad_en_archivo_pokemon(t_new_pokemon* mensaje, char** array_de_
 
 	char* bloques_del_archivo_pokemon = asignar_string_property(archivo_pokemon_metadata_bin, "BLOCKS");
 	char** array_bloques_del_archivo_pokemon = string_get_string_as_array(bloques_del_archivo_pokemon);	//REVISAR QUE PASA CON LISTA VACIA TODO
+	pthread_mutex_unlock(mutex_archivo_pokemon);
+
+	pthread_mutex_lock(MUTEX_LOGGER);
+	printf("size nuevo : %i\n", atoi(nuevo_value_SIZE_archivo_pokemon));
+	fflush(stdout);
+	printf("segundo resto: %i\n", (atoi(nuevo_value_SIZE_archivo_pokemon) % tamanio_bloques_del_file_system));
+	fflush(stdout);
+
+	printf("cantidad_de_bloques_anterior : %i\n", cantidad_de_bloques_anterior);
+	fflush(stdout);
+	printf("cantidad_de_bloques_necesaria : %i\n", cantidad_de_bloques_necesaria);
+	fflush(stdout);
+
+	printf("nuevo array 0: %s\n", array_bloques_del_archivo_pokemon[0]);
+	fflush(stdout);
+	printf("nuevo array 1: %s\n", array_bloques_del_archivo_pokemon[1]);
+	fflush(stdout);
+
+	printf("cantidad_de_bloques_necesaria : %i\n", cantidad_de_bloques_necesaria);
+	fflush(stdout);
+	pthread_mutex_unlock(MUTEX_LOGGER);
 
     int j = 0;
     i = 0;
@@ -1080,7 +1319,15 @@ int agregar_cantidad_en_archivo_pokemon(t_new_pokemon* mensaje, char** array_de_
 
            	FILE* archivo_bloque_bin_nuevo = fopen(path_bloque_bin_nuevo, "wb");
 
-           	fwrite(cadena_a_grabar, tamanio_bloques_del_file_system, 1, archivo_bloque_bin_nuevo);
+           	if(strlen(cadena_a_grabar) >= tamanio_bloques_del_file_system)
+           	{
+               	fwrite(cadena_a_grabar, tamanio_bloques_del_file_system, 1, archivo_bloque_bin_nuevo);
+           	}
+           	else
+           	{
+               	fwrite(cadena_a_grabar, strlen(cadena_a_grabar), 1, archivo_bloque_bin_nuevo);
+           	}
+        	fflush(archivo_bloque_bin_nuevo);
 
            	fclose(archivo_bloque_bin_nuevo);
 
@@ -1095,6 +1342,8 @@ int agregar_cantidad_en_archivo_pokemon(t_new_pokemon* mensaje, char** array_de_
     {	//ESTO SE EJECUTA SI TENGO QUE PEDIR UN BLOQUE MAS
        	int archivo_bloque_actual = 0;
 
+		int se_encontro_bit = -1;
+
        	while(archivo_bloque_actual < cantidad_de_bloques_necesaria)
        	{
 
@@ -1108,7 +1357,6 @@ int agregar_cantidad_en_archivo_pokemon(t_new_pokemon* mensaje, char** array_de_
        			int cantidad_bloques_en_file_system = asignar_int_property(METADATA_METADATA_BIN, "BLOCKS");
        			pthread_mutex_unlock(MUTEX_METADATA_METADATA_BIN);
 
-       			int se_encontro_bit = -1;
        			int bit;
 
    				pthread_mutex_lock(MUTEX_BITMAP);
@@ -1124,8 +1372,8 @@ int agregar_cantidad_en_archivo_pokemon(t_new_pokemon* mensaje, char** array_de_
 
        			if(se_encontro_bit == -1)
        			{
-       				imprimir_error_y_terminar_programa_perzonalizado("NO SE ENCONTRARON MAS BLOQUES LIBRES EN EL FILE SYSTEM. "
-       				       						"TERMINANDO PROGRAMA", finalizar_gamecard);
+       				imprimir_error_y_terminar_programa_perzonalizado("NO SE ENCONTRARON MAS BLOQUES LIBRES EN EL FILE SYSTEM. TERMINANDO PROGRAMA",
+       						finalizar_gamecard, MUTEX_LOGGER);
                     free(cadena_a_grabar);
                     valor_retorno_funcion = -1;
                     break;
@@ -1136,11 +1384,27 @@ int agregar_cantidad_en_archivo_pokemon(t_new_pokemon* mensaje, char** array_de_
    				pthread_mutex_unlock(MUTEX_BITMAP);
 
    				char* string_bloques_sin_corchetes = string_substring(bloques_del_archivo_pokemon, 1, strlen(bloques_del_archivo_pokemon) - 2);
+   				char* nuevo_value_blocks;
 
-   				char* nuevo_value_blocks = string_from_format("[%s,%i]", string_bloques_sin_corchetes, se_encontro_bit + 1);
+   				pthread_mutex_lock(MUTEX_LOGGER);
+   				printf("string_bloques_sin_corchetes : %s\n", string_bloques_sin_corchetes);
+   				fflush(stdout);
+   				pthread_mutex_unlock(MUTEX_LOGGER);
+
+   				if(strcmp(string_bloques_sin_corchetes, "") != 0)
+   				{
+   	   				nuevo_value_blocks = string_from_format("[%s,%i]", string_bloques_sin_corchetes, se_encontro_bit + 1);
+   				}
+   				else
+   				{
+   					nuevo_value_blocks = string_from_format("[%i]", se_encontro_bit + 1);
+   				}
    				free(string_bloques_sin_corchetes);
 
+   				pthread_mutex_lock(mutex_archivo_pokemon);
    		        config_set_value(archivo_pokemon_metadata_bin, "BLOCKS", nuevo_value_blocks);
+   		        pthread_mutex_unlock(mutex_archivo_pokemon);
+
    		        free(nuevo_value_blocks);
 
                	char* path_bloque_con_nombre_nuevo = string_from_format("%s/Blocks/%i.bin", punto_montaje_file_system, se_encontro_bit + 1);
@@ -1148,21 +1412,38 @@ int agregar_cantidad_en_archivo_pokemon(t_new_pokemon* mensaje, char** array_de_
                	free(path_bloque_con_nombre_nuevo);
 
                	fwrite(cadena_a_grabar, tamanio_bloques_del_file_system, 1, archivo_bloque_nuevo);
+            	fflush(archivo_bloque_nuevo);
                	fclose(archivo_bloque_nuevo);
 
                 free(cadena_a_grabar);
        			break;
        		}
 
-           	int un_bloque_nuevo = atoi(array_bloques_del_archivo_pokemon[archivo_bloque_actual]);
+       		int un_bloque_nuevo;
+
+       		if(array_bloques_del_archivo_pokemon[archivo_bloque_actual] != NULL)
+       		{
+               	un_bloque_nuevo = atoi(array_bloques_del_archivo_pokemon[archivo_bloque_actual]);
+       		}
+       		else
+       		{
+       			un_bloque_nuevo = se_encontro_bit + 1;
+       		}
 
            	char* path_bloque_con_nombre_nuevo = string_from_format("%s/Blocks/%i.bin", punto_montaje_file_system, un_bloque_nuevo);
 
            	FILE* archivo_bloque_nuevo = fopen(path_bloque_con_nombre_nuevo, "wb");
            	free(path_bloque_con_nombre_nuevo);
 
-           	fwrite(cadena_a_grabar, tamanio_bloques_del_file_system, 1, archivo_bloque_nuevo);
-
+           	if(strlen(cadena_a_grabar) >= tamanio_bloques_del_file_system)
+           	{
+               	fwrite(cadena_a_grabar, tamanio_bloques_del_file_system, 1, archivo_bloque_nuevo);
+           	}
+           	else
+           	{
+               	fwrite(cadena_a_grabar, strlen(cadena_a_grabar), 1, archivo_bloque_nuevo);
+           	}
+        	fflush(archivo_bloque_nuevo);
            	fclose(archivo_bloque_nuevo);
 
            	archivo_bloque_actual++;
@@ -1183,8 +1464,10 @@ int agregar_cantidad_en_archivo_pokemon(t_new_pokemon* mensaje, char** array_de_
     free(nuevo_archivo_pokemon_en_un_string);
     free(nuevo_value_SIZE_archivo_pokemon);
 
+	pthread_mutex_lock(mutex_archivo_pokemon);
     config_save(archivo_pokemon_metadata_bin);
 	config_destroy(archivo_pokemon_metadata_bin);
+	pthread_mutex_unlock(mutex_archivo_pokemon);
 
 	return valor_retorno_funcion;
 }
@@ -1255,13 +1538,23 @@ void reducir_cantidad_en_archivo_pokemon(char* nombre_pokemon, int indice_de_bus
 	pthread_mutex_lock(MUTEX_CONFIG);
 	char* punto_montaje_file_system = asignar_string_property(CONFIG, "PUNTO_MONTAJE_TALLGRASS");
 	pthread_mutex_unlock(MUTEX_CONFIG);
+
 	char* path_archivo_pokemon_metadata_bin = string_from_format("%s/Files/%s/Metadata.bin", punto_montaje_file_system, nombre_pokemon);
+
+	pthread_mutex_lock(MUTEX_DICCIONARIO);
+	pthread_mutex_t* mutex_archivo_pokemon = dictionary_get(DICCIONARIO_CON_MUTEX, path_archivo_pokemon_metadata_bin);
+	pthread_mutex_unlock(MUTEX_DICCIONARIO);
+
+	if(mutex_archivo_pokemon == NULL)
+		imprimir_error_y_terminar_programa_perzonalizado("No se encontro un MUTEX en el DICCIONARIO", finalizar_gamecard, MUTEX_LOGGER);
+
+	pthread_mutex_lock(mutex_archivo_pokemon);
 	t_config* archivo_pokemon_metadata_bin = config_create(path_archivo_pokemon_metadata_bin);
 
 	if(archivo_pokemon_metadata_bin == NULL)
 	{
 		char* mensaje_error = string_from_format("No se pudo abrir archivo %s en reducir_cantidad_en_archivo_pokemon()", path_archivo_pokemon_metadata_bin);
-		imprimir_error_y_terminar_programa_perzonalizado(mensaje_error, finalizar_gamecard);
+		imprimir_error_y_terminar_programa_perzonalizado(mensaje_error, finalizar_gamecard, MUTEX_LOGGER);
 		free(mensaje_error); //ESTO NUNCA SE EJECUTA...
 	}
 	free(path_archivo_pokemon_metadata_bin);
@@ -1272,6 +1565,7 @@ void reducir_cantidad_en_archivo_pokemon(char* nombre_pokemon, int indice_de_bus
 
 	char* bloques_del_archivo_pokemon = asignar_string_property(archivo_pokemon_metadata_bin, "BLOCKS");
 	char** array_bloques_del_archivo_pokemon = string_get_string_as_array(bloques_del_archivo_pokemon);
+	pthread_mutex_unlock(mutex_archivo_pokemon);
 
 	pthread_mutex_lock(MUTEX_METADATA_METADATA_BIN);
 	int tamanio_bloques_del_file_system = asignar_int_property(METADATA_METADATA_BIN, "BLOCK_SIZE");
@@ -1290,6 +1584,7 @@ void reducir_cantidad_en_archivo_pokemon(char* nombre_pokemon, int indice_de_bus
         free(path_bloque_bin_nuevo);
 
        	fwrite(cadena_a_grabar, tamanio_bloques_del_file_system, 1, archivo_bloque_bin_nuevo);
+    	fflush(archivo_bloque_bin_nuevo);
         free(cadena_a_grabar);
 
        	fclose(archivo_bloque_bin_nuevo);
@@ -1329,7 +1624,10 @@ void reducir_cantidad_en_archivo_pokemon(char* nombre_pokemon, int indice_de_bus
     	char* nuevo_value_blocks = string_from_format("[%s]", nuevo_value_blocks_sin_corchetes);
     	free(nuevo_value_blocks_sin_corchetes);
 
+    	pthread_mutex_lock(mutex_archivo_pokemon);
     	config_set_value(archivo_pokemon_metadata_bin, "BLOCKS", nuevo_value_blocks);
+    	pthread_mutex_unlock(mutex_archivo_pokemon);
+
     	free(nuevo_value_blocks);
     }
 
@@ -1344,6 +1642,8 @@ void reducir_cantidad_en_archivo_pokemon(char* nombre_pokemon, int indice_de_bus
     free(nuevo_archivo_pokemon_en_un_string);
     free(nuevo_value_SIZE_archivo_pokemon);
 
+	pthread_mutex_lock(mutex_archivo_pokemon);
     config_save(archivo_pokemon_metadata_bin);
 	config_destroy(archivo_pokemon_metadata_bin);
+	pthread_mutex_unlock(mutex_archivo_pokemon);
 }
