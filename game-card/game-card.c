@@ -1109,10 +1109,6 @@ char** generar_array_de_todo_el_archivo_pokemon_con_posiciones_y_cantidades(char
 
 	char** array_bloques_del_archivo_pokemon = string_get_string_as_array(bloques_del_archivo_pokemon);	//REVISAR QUE PASA CON LISTA VACIA TODO
 
-	pthread_mutex_lock(MUTEX_METADATA_METADATA_BIN);
-	int tamanio_bloques_del_file_system = asignar_int_property(METADATA_METADATA_BIN, "BLOCK_SIZE");
-	pthread_mutex_unlock(MUTEX_METADATA_METADATA_BIN);
-
 
 	//**** METO TODA LA INFO DEL ARCHIVO POKEMON (QUE ESTABA SEPARADA EN BLOQUES) EN UN STRING ****//
 
@@ -1125,13 +1121,23 @@ char** generar_array_de_todo_el_archivo_pokemon_con_posiciones_y_cantidades(char
 
     	char* path_un_bloque_bin = string_from_format("%s/Blocks/%i.bin", punto_montaje_file_system, atoi(string_de_un_bloque_del_archivo_pokemon));
 
+    	struct stat datos_archivo;
+
+    	if(stat(path_un_bloque_bin, &datos_archivo) == -1)
+    		imprimir_error_y_terminar_programa_perzonalizado("Error al usar stat() en "
+    				"generar_array_de_todo_el_archivo_pokemon_con_posiciones_y_cantidades()", finalizar_gamecard, MUTEX_LOGGER);
+
+    	int tamanio_bloque_actual = datos_archivo.st_size;
+
     	FILE* archivo_bloque_bin = fopen(path_un_bloque_bin, "rb");
     	free(path_un_bloque_bin);
 
-    	char* contenido_de_un_bloque = malloc(tamanio_bloques_del_file_system);
+    	char* contenido_de_un_bloque = malloc(tamanio_bloque_actual + 1);
 
-    	fread(contenido_de_un_bloque, tamanio_bloques_del_file_system, 1, archivo_bloque_bin);
+    	fread(contenido_de_un_bloque, tamanio_bloque_actual, 1, archivo_bloque_bin);
     	fflush(archivo_bloque_bin);
+
+    	*(contenido_de_un_bloque + tamanio_bloque_actual) = '\0';
 
     	string_append_with_format(&todo_el_archivo_pokemon_en_un_string, "%s", contenido_de_un_bloque);
     	free(contenido_de_un_bloque);
@@ -1411,7 +1417,15 @@ int agregar_cantidad_en_archivo_pokemon(t_new_pokemon* mensaje, char** array_de_
                	FILE* archivo_bloque_nuevo = fopen(path_bloque_con_nombre_nuevo, "wb");
                	free(path_bloque_con_nombre_nuevo);
 
-               	fwrite(cadena_a_grabar, tamanio_bloques_del_file_system, 1, archivo_bloque_nuevo);
+               	if(strlen(cadena_a_grabar) >= tamanio_bloques_del_file_system)
+               	{
+                   	fwrite(cadena_a_grabar, tamanio_bloques_del_file_system, 1, archivo_bloque_nuevo);
+               	}
+               	else
+               	{
+                   	fwrite(cadena_a_grabar, strlen(cadena_a_grabar), 1, archivo_bloque_nuevo);
+               	}
+
             	fflush(archivo_bloque_nuevo);
                	fclose(archivo_bloque_nuevo);
 
@@ -1583,7 +1597,15 @@ void reducir_cantidad_en_archivo_pokemon(char* nombre_pokemon, int indice_de_bus
         FILE* archivo_bloque_bin_nuevo = fopen(path_bloque_bin_nuevo, "wb");
         free(path_bloque_bin_nuevo);
 
-       	fwrite(cadena_a_grabar, tamanio_bloques_del_file_system, 1, archivo_bloque_bin_nuevo);
+       	if(strlen(cadena_a_grabar) >= tamanio_bloques_del_file_system)
+       	{
+           	fwrite(cadena_a_grabar, tamanio_bloques_del_file_system, 1, archivo_bloque_bin_nuevo);
+       	}
+       	else
+       	{
+           	fwrite(cadena_a_grabar, strlen(cadena_a_grabar), 1, archivo_bloque_bin_nuevo);
+       	}
+
     	fflush(archivo_bloque_bin_nuevo);
         free(cadena_a_grabar);
 
