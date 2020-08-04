@@ -454,7 +454,7 @@ void* conectar_recibir_y_enviar_mensajes(void* argumentos)
 			char* mensaje_para_loguear = generar_mensaje_para_loggear(mensaje, codigo_suscripcion);
 
 			pthread_mutex_lock(MUTEX_LOGGER);
-			log_info(LOGGER, "Se recibio el mensaje <<  %s  >> de la cola %s", mensaje_para_loguear, cola_a_suscribirse);
+			log_info(LOGGER, "Se recibio el mensaje << %s >> de la cola %s", mensaje_para_loguear, cola_a_suscribirse);
 			pthread_mutex_unlock(MUTEX_LOGGER);
 
 			free(mensaje_para_loguear);
@@ -523,12 +523,11 @@ int conectar_a_broker_y_reintentar_si_hace_falta(char* mensaje_de_logueo_al_rein
 
 void verificar_estado_del_envio_y_cerrar_conexion(char* tipo_mensaje, int estado, int conexion)
 {
-	if(estado <= 0){
-
+	if(estado <= 0)
+	{
 		pthread_mutex_lock(MUTEX_LOGGER);
 		log_error(LOGGER, "No se pudo enviar %s al BROKER. Continuando operacion del GAME CARD", tipo_mensaje);
 		pthread_mutex_unlock(MUTEX_LOGGER);
-
 	}
 	else
 	{
@@ -615,10 +614,31 @@ void* atender_new_pokemon(void* argumentos)
 
 	int retorno_agregar = agregar_cantidad_en_archivo_pokemon(mensaje, array_de_todo_el_archivo_pokemon_con_posiciones_y_cantidades, posicion_buscada_en_string);
 
-	pthread_mutex_lock(MUTEX_LOGGER);
-    printf("retorno_agregar : %i\n", retorno_agregar);
-    fflush(stdout);
-	pthread_mutex_unlock(MUTEX_LOGGER);
+	if(retorno_agregar == -1)
+	{
+		char* mensaje_para_loguear = generar_mensaje_para_loggear(mensaje, SUBSCRIBE_NEW_POKEMON);
+
+		log_error(LOGGER, "No se encontraron mas bloques libres para atender el mensaje << %s >>. Se decidio no enviar appeared pokemon. "
+				"El GAMECARD continua con su ejecucion normal", mensaje_para_loguear);
+
+		free(mensaje_para_loguear);
+
+		retener_un_rato_y_liberar_archivo_pokemon(mensaje->nombre);
+
+	    int i = 0;
+	    while(array_de_todo_el_archivo_pokemon_con_posiciones_y_cantidades[i] != NULL)
+	    {
+	    	free(array_de_todo_el_archivo_pokemon_con_posiciones_y_cantidades[i]);
+	    	i++;
+	    }
+	    free(array_de_todo_el_archivo_pokemon_con_posiciones_y_cantidades);
+	    free(posicion_buscada_en_string);
+
+		free(mensaje->nombre);
+		free(mensaje);
+
+		return NULL;
+	}
 
 	retener_un_rato_y_liberar_archivo_pokemon(mensaje->nombre);
 
@@ -638,7 +658,7 @@ void* atender_new_pokemon(void* argumentos)
 
 	int retorno_identificacion = 0;
 
-	if( conexion > 0)
+	if(conexion > 0)
 	{
 		retorno_identificacion = enviar_identificacion_general(conexion, ID_PROCESOS_TP, MUTEX_ID_PROCESOS_TP);
 
@@ -648,7 +668,7 @@ void* atender_new_pokemon(void* argumentos)
 
 	int estado = 0;
 
-	if((retorno_agregar != -1) && (retorno_identificacion != 0))
+	if(retorno_identificacion != 0)
 	{
 		estado = generar_y_enviar_appeared_pokemon(conexion, 0, id_mensaje_recibido, mensaje->nombre, mensaje->coordenadas.posx, mensaje->coordenadas.posy);
 
@@ -1197,9 +1217,41 @@ char** generar_array_de_todo_el_archivo_pokemon_con_posiciones_y_cantidades(char
 
 int agregar_cantidad_en_archivo_pokemon(t_new_pokemon* mensaje, char** array_de_todo_el_archivo_pokemon_con_posiciones_y_cantidades, char* posicion_buscada_en_string)
 {
-    int indice_de_busqueda = buscar_posicion_en_archivo_pokemon(array_de_todo_el_archivo_pokemon_con_posiciones_y_cantidades, posicion_buscada_en_string);
+	//**** SE BUSCA EL PRIMER BLOQUE DISPONIBLE  ****//
+	//ESTO LO HAGO AHORA PARA RESERVAR EL BIT EN EL BITMAP EN CASO DE QUE LO NECESITE
+	//SI AL FINAL NO LO NECESITO, LO LIBERO
+	//ESTO LO HAGO PARA CORTAR EL HILO ANTES DE REALIZAR ALGUN EFECTO DE LADO SI ES QUE NO VOY A TENER MAS BLOQUES DISPONIBLES
+	int se_encontro_bit = -1;
+
+	pthread_mutex_lock(MUTEX_METADATA_METADATA_BIN);
+	int cantidad_bloques_en_file_system = asignar_int_property(METADATA_METADATA_BIN, "BLOCKS");
+	pthread_mutex_unlock(MUTEX_METADATA_METADATA_BIN);
+
+	int bit;
+
+	pthread_mutex_lock(MUTEX_BITMAP);
+	for(bit = 0; bit < cantidad_bloques_en_file_system; bit++)
+	{
+		if(bitarray_test_bit(BITMAP, bit) == false)
+		{
+			se_encontro_bit = bit;
+			break;
+		}
+	}
+
+	if(se_encontro_bit == -1) return -1;
+
+	pthread_mutex_lock(MUTEX_LOGGER);
+	printf("bit encontrado: %i\n", se_encontro_bit);
+	pthread_mutex_unlock(MUTEX_LOGGER);
+
+	bitarray_set_bit(BITMAP, se_encontro_bit);
+	pthread_mutex_unlock(MUTEX_BITMAP);
+
 
     //**** SE AGREGA CANTIDAD EN EL nuevo_archivo_pokemon_en_un_string  ****//
+    int indice_de_busqueda = buscar_posicion_en_archivo_pokemon(array_de_todo_el_archivo_pokemon_con_posiciones_y_cantidades, posicion_buscada_en_string);
+
 	pthread_mutex_lock(MUTEX_LOGGER);
     printf("indice_de_busqueda : %i\n", indice_de_busqueda);
     fflush(stdout);
@@ -1331,10 +1383,13 @@ int agregar_cantidad_en_archivo_pokemon(t_new_pokemon* mensaje, char** array_de_
     int j = 0;
     i = 0;
 
-    int valor_retorno_funcion = 0;
-
     if(cantidad_de_bloques_anterior == cantidad_de_bloques_necesaria)
     {	//ESTO SE EJECUTA SI ME ALCANZA CON LOS BLOQUES QUE TENGO
+
+    	pthread_mutex_lock(MUTEX_BITMAP);
+    	bitarray_clean_bit(BITMAP, se_encontro_bit);
+    	pthread_mutex_unlock(MUTEX_BITMAP);
+
     	while(j < atoi(nuevo_value_SIZE_archivo_pokemon))
     	{
     		char* cadena_a_grabar = string_substring(nuevo_archivo_pokemon_en_un_string, j, tamanio_bloques_del_file_system);
@@ -1345,29 +1400,20 @@ int agregar_cantidad_en_archivo_pokemon(t_new_pokemon* mensaje, char** array_de_
 
            	FILE* archivo_bloque_bin_nuevo = fopen(path_bloque_bin_nuevo, "wb");
 
-           	if(strlen(cadena_a_grabar) >= tamanio_bloques_del_file_system)
-           	{
-               	fwrite(cadena_a_grabar, tamanio_bloques_del_file_system, 1, archivo_bloque_bin_nuevo);
-           	}
-           	else
-           	{
-               	fwrite(cadena_a_grabar, strlen(cadena_a_grabar), 1, archivo_bloque_bin_nuevo);
-           	}
+            fwrite(cadena_a_grabar, strlen(cadena_a_grabar), 1, archivo_bloque_bin_nuevo);
+
         	fflush(archivo_bloque_bin_nuevo);
            	fclose(archivo_bloque_bin_nuevo);
+            free(cadena_a_grabar);
+            free(path_bloque_bin_nuevo);
 
            	i++;
             j = j + tamanio_bloques_del_file_system;
-
-            free(cadena_a_grabar);
-            free(path_bloque_bin_nuevo);
     	}
     }
     else
     {	//ESTO SE EJECUTA SI TENGO QUE PEDIR UN BLOQUE MAS
        	int archivo_bloque_actual = 0;
-
-		int se_encontro_bit = -1;
 
        	while(archivo_bloque_actual < cantidad_de_bloques_necesaria)
        	{
@@ -1376,41 +1422,6 @@ int agregar_cantidad_en_archivo_pokemon(t_new_pokemon* mensaje, char** array_de_
 
        		if(archivo_bloque_actual == (cantidad_de_bloques_necesaria - 1))
        		{	//ESTO SE EJECUTA SI ESTOY EN EL ULTIMO BLOQUE A GRABAR
-
-       		    //**** SE BUSCA EL PRIMER BLOQUE DISPONIBLE  ****//
-       			pthread_mutex_lock(MUTEX_METADATA_METADATA_BIN);
-       			int cantidad_bloques_en_file_system = asignar_int_property(METADATA_METADATA_BIN, "BLOCKS");
-       			pthread_mutex_unlock(MUTEX_METADATA_METADATA_BIN);
-
-       			int bit;
-
-   				pthread_mutex_lock(MUTEX_BITMAP);
-       			for(bit = 0; bit < cantidad_bloques_en_file_system; bit++)
-       			{
-           			if(bitarray_test_bit(BITMAP, bit) == false)
-           			{
-           				se_encontro_bit = bit;
-           				break;
-           			}
-       			}
-       			pthread_mutex_unlock(MUTEX_BITMAP);
-
-       			if(se_encontro_bit == -1)
-       			{
-       				imprimir_error_y_terminar_programa_perzonalizado("NO SE ENCONTRARON MAS BLOQUES LIBRES EN EL FILE SYSTEM. TERMINANDO PROGRAMA",
-       						finalizar_gamecard, MUTEX_LOGGER);
-                    free(cadena_a_grabar);
-                    valor_retorno_funcion = -1;
-                    break;
-       			}
-
-   				pthread_mutex_lock(MUTEX_LOGGER);
-       			printf("bit encontrado: %i\n", se_encontro_bit);
-   				pthread_mutex_unlock(MUTEX_LOGGER);
-
-       			pthread_mutex_lock(MUTEX_BITMAP);
-   				bitarray_set_bit(BITMAP, se_encontro_bit);
-   				pthread_mutex_unlock(MUTEX_BITMAP);
 
    				char* string_bloques_sin_corchetes = string_substring(bloques_del_archivo_pokemon, 1, strlen(bloques_del_archivo_pokemon) - 2);
    				char* nuevo_value_blocks;
@@ -1444,19 +1455,12 @@ int agregar_cantidad_en_archivo_pokemon(t_new_pokemon* mensaje, char** array_de_
                	FILE* archivo_bloque_nuevo = fopen(path_bloque_con_nombre_nuevo, "wb");
                	free(path_bloque_con_nombre_nuevo);
 
-               	if(strlen(cadena_a_grabar) >= tamanio_bloques_del_file_system)
-               	{
-                   	fwrite(cadena_a_grabar, tamanio_bloques_del_file_system, 1, archivo_bloque_nuevo);
-               	}
-               	else
-               	{
-                   	fwrite(cadena_a_grabar, strlen(cadena_a_grabar), 1, archivo_bloque_nuevo);
-               	}
+               	fwrite(cadena_a_grabar, strlen(cadena_a_grabar), 1, archivo_bloque_nuevo);
 
             	fflush(archivo_bloque_nuevo);
                	fclose(archivo_bloque_nuevo);
-
                 free(cadena_a_grabar);
+
        			break;
        		}
 
@@ -1476,21 +1480,14 @@ int agregar_cantidad_en_archivo_pokemon(t_new_pokemon* mensaje, char** array_de_
            	FILE* archivo_bloque_nuevo = fopen(path_bloque_con_nombre_nuevo, "wb");
            	free(path_bloque_con_nombre_nuevo);
 
-           	if(strlen(cadena_a_grabar) >= tamanio_bloques_del_file_system)
-           	{
-               	fwrite(cadena_a_grabar, tamanio_bloques_del_file_system, 1, archivo_bloque_nuevo);
-           	}
-           	else
-           	{
-               	fwrite(cadena_a_grabar, strlen(cadena_a_grabar), 1, archivo_bloque_nuevo);
-           	}
+           	fwrite(cadena_a_grabar, strlen(cadena_a_grabar), 1, archivo_bloque_nuevo);
+
         	fflush(archivo_bloque_nuevo);
            	fclose(archivo_bloque_nuevo);
+            free(cadena_a_grabar);
 
            	archivo_bloque_actual++;
             j = j + tamanio_bloques_del_file_system;
-
-            free(cadena_a_grabar);
        	}
     }
 
@@ -1510,7 +1507,7 @@ int agregar_cantidad_en_archivo_pokemon(t_new_pokemon* mensaje, char** array_de_
 	config_destroy(archivo_pokemon_metadata_bin);
 	pthread_mutex_unlock(mutex_archivo_pokemon);
 
-	return valor_retorno_funcion;
+	return 0;
 }
 
 void reducir_cantidad_en_archivo_pokemon(char* nombre_pokemon, int indice_de_busqueda, char** array_de_todo_el_archivo_pokemon_con_posiciones_y_cantidades, char* posicion_buscada_en_string)
@@ -1648,18 +1645,10 @@ void reducir_cantidad_en_archivo_pokemon(char* nombre_pokemon, int indice_de_bus
         FILE* archivo_bloque_bin_nuevo = fopen(path_bloque_bin_nuevo, "wb");
         free(path_bloque_bin_nuevo);
 
-       	if(strlen(cadena_a_grabar) >= tamanio_bloques_del_file_system)
-       	{
-           	fwrite(cadena_a_grabar, tamanio_bloques_del_file_system, 1, archivo_bloque_bin_nuevo);
-       	}
-       	else
-       	{
-           	fwrite(cadena_a_grabar, strlen(cadena_a_grabar), 1, archivo_bloque_bin_nuevo);
-       	}
+       	fwrite(cadena_a_grabar, strlen(cadena_a_grabar), 1, archivo_bloque_bin_nuevo);
 
     	fflush(archivo_bloque_bin_nuevo);
         free(cadena_a_grabar);
-
        	fclose(archivo_bloque_bin_nuevo);
 
         i++;

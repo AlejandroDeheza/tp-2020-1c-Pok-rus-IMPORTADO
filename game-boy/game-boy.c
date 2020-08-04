@@ -49,9 +49,10 @@ int main(int argc, char *argv[]) {
 		int retorno_ip_puerto = leer_ip_y_puerto(&ip, &puerto, CONFIG, argv[1]);
 
 		if(retorno_ip_puerto == -1)
-			imprimir_error_y_terminar_programa_perzonalizado("No se encontro IP_BROKER o PUERTO_BROKER en el archivo de configuracion", NULL, NULL);
+			imprimir_error_y_terminar_programa_perzonalizado("No se encontro IP o PUERTO en el archivo de configuracion", NULL, NULL);
 
 		CONEXION = iniciar_conexion_como_cliente(ip, puerto);
+
 		if(CONEXION == -1)
 			imprimir_error_y_terminar_programa_perzonalizado("Error en socket() en crear_socket_como_cliente", NULL, NULL);
 
