@@ -604,7 +604,8 @@ void* atender_new_pokemon(void* argumentos)
 
 	pedir_archivo_pokemon(mensaje->nombre);
 
-    char** array_de_todo_el_archivo_pokemon_con_posiciones_y_cantidades = generar_array_de_todo_el_archivo_pokemon_con_posiciones_y_cantidades((char*) mensaje->nombre);
+    char** array_de_todo_el_archivo_pokemon_con_posiciones_y_cantidades = generar_array_de_todo_el_archivo_pokemon_con_posiciones_y_cantidades(
+    		(char*) mensaje->nombre);
     char* posicion_buscada_en_string = string_from_format("%i-%i", mensaje->coordenadas.posx, mensaje->coordenadas.posy);
 
 	pthread_mutex_lock(MUTEX_LOGGER);
@@ -915,10 +916,18 @@ void pedir_archivo_pokemon(char* nombre_pokemon)
 
 	while(se_pudo_abrir == false)
 	{
+		pthread_mutex_lock(MUTEX_LOGGER);
+		log_info(LOGGER, "Archivo pokemon < %s > : No se pudo abrir. Reintentando operacion en %i segundos", nombre_pokemon, tiempo_de_reintento_operacion);
+		pthread_mutex_unlock(MUTEX_LOGGER);
+
 		sleep(tiempo_de_reintento_operacion);
 
 		se_pudo_abrir = intentar_abrir_archivo_pokemon(nombre_pokemon);
 	}
+
+	pthread_mutex_lock(MUTEX_LOGGER);
+	log_info(LOGGER, "Archivo pokemon < %s > : Se pudo abrir ", nombre_pokemon);
+	pthread_mutex_unlock(MUTEX_LOGGER);
 }
 
 bool intentar_abrir_archivo_pokemon(char* nombre_pokemon)
@@ -974,6 +983,10 @@ void retener_un_rato_y_liberar_archivo_pokemon(char* nombre_pokemon)
 	sleep(tiempo_de_retardo_operacion);
 
 	liberar_archivo_pokemon(nombre_pokemon);
+
+	pthread_mutex_lock(MUTEX_LOGGER);
+	log_info(LOGGER, "Archivo pokemon < %s > : Se libero el archivo", nombre_pokemon);
+	pthread_mutex_unlock(MUTEX_LOGGER);
 }
 
 void liberar_archivo_pokemon(char* nombre_pokemon)
@@ -1110,8 +1123,7 @@ char** generar_array_de_todo_el_archivo_pokemon_con_posiciones_y_cantidades(char
 	pthread_mutex_unlock(mutex_archivo_pokemon);
 
 	pthread_mutex_lock(MUTEX_LOGGER);
-	printf("bloques: %s\n", bloques_del_archivo_pokemon);
-	fflush(stdout);
+	log_info(LOGGER, "Archivo pokemon < %s > : tiene los bloques < %s >", nombre_pokemon, bloques_del_archivo_pokemon);
 	pthread_mutex_unlock(MUTEX_LOGGER);
 
 	char** array_bloques_del_archivo_pokemon = string_get_string_as_array(bloques_del_archivo_pokemon);	//REVISAR QUE PASA CON LISTA VACIA TODO
@@ -1219,6 +1231,10 @@ int agregar_cantidad_en_archivo_pokemon(t_new_pokemon* mensaje, char** array_de_
 
         	i++;
         }
+
+    	pthread_mutex_lock(MUTEX_LOGGER);
+    	log_info(LOGGER, "Archivo pokemon < %s > : Se esta agregando < %i pokemon > en la posicion EXISTENTE < %s >", mensaje->nombre, mensaje->cantidad, posicion_buscada_en_string);
+    	pthread_mutex_unlock(MUTEX_LOGGER);
     }
     else
     {	//  SI ESTO SE EJECUTA, REPRESENTA UN --->   agregar_cantidad_al_final();
@@ -1243,6 +1259,10 @@ int agregar_cantidad_en_archivo_pokemon(t_new_pokemon* mensaje, char** array_de_
         	string_append_with_format(&nuevo_archivo_pokemon_en_un_string, "%s", posicion_para_agregar_al_final);
         }
         free(posicion_para_agregar_al_final);
+
+    	pthread_mutex_lock(MUTEX_LOGGER);
+    	log_info(LOGGER, "Archivo pokemon < %s > : Se esta agregando < %i pokemon > en la posicion NUEVA < %s >", mensaje->nombre, mensaje->cantidad, posicion_buscada_en_string);
+    	pthread_mutex_unlock(MUTEX_LOGGER);
     }
 
 	pthread_mutex_lock(MUTEX_LOGGER);
@@ -1296,22 +1316,15 @@ int agregar_cantidad_en_archivo_pokemon(t_new_pokemon* mensaje, char** array_de_
 	pthread_mutex_unlock(mutex_archivo_pokemon);
 
 	pthread_mutex_lock(MUTEX_LOGGER);
-	printf("size nuevo : %i\n", atoi(nuevo_value_SIZE_archivo_pokemon));
-	fflush(stdout);
-	printf("segundo resto: %i\n", (atoi(nuevo_value_SIZE_archivo_pokemon) % tamanio_bloques_del_file_system));
-	fflush(stdout);
+	log_info(LOGGER, "Archivo pokemon < %s > : tamanio anterior < %i > ---- tamanio nuevo < %s >", mensaje->nombre,
+			tamanio_anterior_archivo_pokemon, nuevo_value_SIZE_archivo_pokemon);
 
-	printf("cantidad_de_bloques_anterior : %i\n", cantidad_de_bloques_anterior);
-	fflush(stdout);
-	printf("cantidad_de_bloques_necesaria : %i\n", cantidad_de_bloques_necesaria);
-	fflush(stdout);
+	log_info(LOGGER, "Archivo pokemon < %s > : cantidad de bloques anterior < %i > ---- cantidad de bloques nueva < %i >", mensaje->nombre,
+			cantidad_de_bloques_anterior, cantidad_de_bloques_necesaria);
 
 	printf("nuevo array 0: %s\n", array_bloques_del_archivo_pokemon[0]);
 	fflush(stdout);
 	printf("nuevo array 1: %s\n", array_bloques_del_archivo_pokemon[1]);
-	fflush(stdout);
-
-	printf("cantidad_de_bloques_necesaria : %i\n", cantidad_de_bloques_necesaria);
 	fflush(stdout);
 	pthread_mutex_unlock(MUTEX_LOGGER);
 
@@ -1341,10 +1354,9 @@ int agregar_cantidad_en_archivo_pokemon(t_new_pokemon* mensaje, char** array_de_
                	fwrite(cadena_a_grabar, strlen(cadena_a_grabar), 1, archivo_bloque_bin_nuevo);
            	}
         	fflush(archivo_bloque_bin_nuevo);
-
            	fclose(archivo_bloque_bin_nuevo);
 
-            i++;
+           	i++;
             j = j + tamanio_bloques_del_file_system;
 
             free(cadena_a_grabar);
@@ -1392,6 +1404,10 @@ int agregar_cantidad_en_archivo_pokemon(t_new_pokemon* mensaje, char** array_de_
                     break;
        			}
 
+   				pthread_mutex_lock(MUTEX_LOGGER);
+       			printf("bit encontrado: %i\n", se_encontro_bit);
+   				pthread_mutex_unlock(MUTEX_LOGGER);
+
        			pthread_mutex_lock(MUTEX_BITMAP);
    				bitarray_set_bit(BITMAP, se_encontro_bit);
    				pthread_mutex_unlock(MUTEX_BITMAP);
@@ -1417,6 +1433,10 @@ int agregar_cantidad_en_archivo_pokemon(t_new_pokemon* mensaje, char** array_de_
    				pthread_mutex_lock(mutex_archivo_pokemon);
    		        config_set_value(archivo_pokemon_metadata_bin, "BLOCKS", nuevo_value_blocks);
    		        pthread_mutex_unlock(mutex_archivo_pokemon);
+
+   				pthread_mutex_lock(MUTEX_LOGGER);
+   				log_info(LOGGER, "Archivo pokemon < %s > : Se agrego el bloque < %i >", mensaje->nombre, se_encontro_bit + 1);
+   				pthread_mutex_unlock(MUTEX_LOGGER);
 
    		        free(nuevo_value_blocks);
 
@@ -1498,11 +1518,7 @@ void reducir_cantidad_en_archivo_pokemon(char* nombre_pokemon, int indice_de_bus
     //**** SE REDUCE EN 1 LA CANTIDAD EN EL nuevo_archivo_pokemon_en_un_string  ****//
 
 	pthread_mutex_lock(MUTEX_LOGGER);
-    printf("nombre_pokemon : %s\n", nombre_pokemon);
-    fflush(stdout);
     printf("indice_de_busqueda : %i\n", indice_de_busqueda);
-    fflush(stdout);
-    printf("posicion_buscada_en_string : %s\n", posicion_buscada_en_string);
     fflush(stdout);
 	pthread_mutex_unlock(MUTEX_LOGGER);
 
@@ -1515,8 +1531,7 @@ void reducir_cantidad_en_archivo_pokemon(char* nombre_pokemon, int indice_de_bus
     char* cantidad_anterior_de_pokemones = key_y_value[1];
 
 	pthread_mutex_lock(MUTEX_LOGGER);
-    printf("cantidad_anterior_de_pokemones : %s\n", cantidad_anterior_de_pokemones);
-    fflush(stdout);
+    log_info(LOGGER, "Archivo pokemon < %s > : Cantidad anterior < %s > en la posicion < %s >", nombre_pokemon, cantidad_anterior_de_pokemones, posicion_buscada_en_string);
 	pthread_mutex_unlock(MUTEX_LOGGER);
 
     if(atoi(cantidad_anterior_de_pokemones) == 1)
@@ -1549,6 +1564,10 @@ void reducir_cantidad_en_archivo_pokemon(char* nombre_pokemon, int indice_de_bus
     			}
     		}
     	}
+
+    	pthread_mutex_lock(MUTEX_LOGGER);
+    	log_info(LOGGER, "Archivo pokemon < %s > : Se esta eliminando el ultimo pokemon de la posicion < %s >", nombre_pokemon, posicion_buscada_en_string);
+    	pthread_mutex_unlock(MUTEX_LOGGER);
     }
     else
     {	//ESTO SE EJECUTA SI SOLAMENTE HAY QUE REDUCIR LA CANTIDAD EN 1
@@ -1565,6 +1584,10 @@ void reducir_cantidad_en_archivo_pokemon(char* nombre_pokemon, int indice_de_bus
            	string_append_with_format(&nuevo_archivo_pokemon_en_un_string, "\n%s", array_de_todo_el_archivo_pokemon_con_posiciones_y_cantidades[i]);
            	i++;
         }
+
+    	pthread_mutex_lock(MUTEX_LOGGER);
+    	log_info(LOGGER, "Archivo pokemon < %s > : Se esta eliminando un pokemon de la posicion < %s >. Todavia hay pokemon de este tipo en esta posicion", nombre_pokemon, posicion_buscada_en_string);
+    	pthread_mutex_unlock(MUTEX_LOGGER);
     }
     free(key_y_value[0]);
     free(key_y_value[1]);
@@ -1651,13 +1674,30 @@ void reducir_cantidad_en_archivo_pokemon(char* nombre_pokemon, int indice_de_bus
     if((atoi(nuevo_value_SIZE_archivo_pokemon) % tamanio_bloques_del_file_system) != 0) segundo_es_division_con_resto = 1;
     int cantidad_de_bloques_necesaria = (atoi(nuevo_value_SIZE_archivo_pokemon) / tamanio_bloques_del_file_system) + segundo_es_division_con_resto;
 
+    pthread_mutex_lock(MUTEX_LOGGER);
+	log_info(LOGGER, "Archivo pokemon < %s > : tamanio anterior < %i > ---- tamanio nuevo < %s >", nombre_pokemon,
+			tamanio_anterior_archivo_pokemon, nuevo_value_SIZE_archivo_pokemon);
+
+	log_info(LOGGER, "Archivo pokemon < %s > : cantidad de bloques anterior < %i > ---- cantidad de bloques nueva < %i >", nombre_pokemon,
+			cantidad_de_bloques_anterior, cantidad_de_bloques_necesaria);
+	pthread_mutex_unlock(MUTEX_LOGGER);
+
     if(cantidad_de_bloques_anterior != cantidad_de_bloques_necesaria)
     {	//ESTO SE EJECUTA SI TENGO QUE LIBERAR EL ULTIMO BLOQUE
 
       	char* bloque_que_se_elimina_en_string = array_bloques_del_archivo_pokemon[cantidad_de_bloques_necesaria];
+
+		char* path_bloque_a_eliminar = string_from_format("%s/Blocks/%s.bin", punto_montaje_file_system, bloque_que_se_elimina_en_string);
+		sobrescribir_y_cerrar_archivo(path_bloque_a_eliminar, "", 0);
+		free(path_bloque_a_eliminar);
+
     	pthread_mutex_lock(MUTEX_BITMAP);
     	bitarray_clean_bit(BITMAP, atoi(bloque_que_se_elimina_en_string) - 1);
     	pthread_mutex_unlock(MUTEX_BITMAP);
+
+        pthread_mutex_lock(MUTEX_LOGGER);
+        log_info(LOGGER, "Archivo pokemon < %s > : Se libero el bloque < %s >", nombre_pokemon, bloque_que_se_elimina_en_string);
+    	pthread_mutex_unlock(MUTEX_LOGGER);
 
     	char* nuevo_value_blocks_sin_corchetes = string_new();
 
