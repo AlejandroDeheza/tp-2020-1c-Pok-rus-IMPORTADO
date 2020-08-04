@@ -607,11 +607,6 @@ void* atender_new_pokemon(void* argumentos)
     		(char*) mensaje->nombre);
     char* posicion_buscada_en_string = string_from_format("%i-%i", mensaje->coordenadas.posx, mensaje->coordenadas.posy);
 
-	pthread_mutex_lock(MUTEX_LOGGER);
-    printf("posicion_buscada_en_string : %s\n", posicion_buscada_en_string);
-    fflush(stdout);
-	pthread_mutex_unlock(MUTEX_LOGGER);
-
 	int retorno_agregar = agregar_cantidad_en_archivo_pokemon(mensaje, array_de_todo_el_archivo_pokemon_con_posiciones_y_cantidades, posicion_buscada_en_string);
 
 	if(retorno_agregar == -1)
@@ -1083,13 +1078,6 @@ t_list* obtener_todas_las_posiciones_de_archivo_pokemon(char* nombre_pokemon)
         coordenadas->posx = atoi(pos_x_pos_y[0]);
         coordenadas->posy = atoi(pos_x_pos_y[1]);
 
-    	pthread_mutex_lock(MUTEX_LOGGER);
-    	printf("coordenadas->posx: %i\n", coordenadas->posx);
-    	fflush(stdout);
-    	printf("coordenadas->posy: %i\n", coordenadas->posy);
-    	fflush(stdout);
-    	pthread_mutex_unlock(MUTEX_LOGGER);
-
         list_add(lista_coordenadas, coordenadas);
 
         i++;
@@ -1186,19 +1174,8 @@ char** generar_array_de_todo_el_archivo_pokemon_con_posiciones_y_cantidades(char
 	    i++;
     }
 
-	pthread_mutex_lock(MUTEX_LOGGER);
-    printf("todo_el_archivo_pokemon_en_un_string : <%s>\n", todo_el_archivo_pokemon_en_un_string);
-    fflush(stdout);
-	pthread_mutex_unlock(MUTEX_LOGGER);
-
     char** array_de_todo_el_archivo_pokemon_con_posiciones_y_cantidades = string_split(todo_el_archivo_pokemon_en_un_string, "\n");
     free(todo_el_archivo_pokemon_en_un_string);
-
-	pthread_mutex_lock(MUTEX_LOGGER);
-    printf("array 1 : <%s>\n", array_de_todo_el_archivo_pokemon_con_posiciones_y_cantidades[0]);
-   // printf("array 2 : <%s>\n", array_de_todo_el_archivo_pokemon_con_posiciones_y_cantidades[1]);
-    fflush(stdout);
-	pthread_mutex_unlock(MUTEX_LOGGER);
 
     i = 0;
     while(array_bloques_del_archivo_pokemon[i] != NULL)
@@ -1241,21 +1218,12 @@ int agregar_cantidad_en_archivo_pokemon(t_new_pokemon* mensaje, char** array_de_
 
 	if(se_encontro_bit == -1) return -1;
 
-	pthread_mutex_lock(MUTEX_LOGGER);
-	printf("bit encontrado: %i\n", se_encontro_bit);
-	pthread_mutex_unlock(MUTEX_LOGGER);
-
 	bitarray_set_bit(BITMAP, se_encontro_bit);
 	pthread_mutex_unlock(MUTEX_BITMAP);
 
 
     //**** SE AGREGA CANTIDAD EN EL nuevo_archivo_pokemon_en_un_string  ****//
     int indice_de_busqueda = buscar_posicion_en_archivo_pokemon(array_de_todo_el_archivo_pokemon_con_posiciones_y_cantidades, posicion_buscada_en_string);
-
-	pthread_mutex_lock(MUTEX_LOGGER);
-    printf("indice_de_busqueda : %i\n", indice_de_busqueda);
-    fflush(stdout);
-	pthread_mutex_unlock(MUTEX_LOGGER);
 
     char* nuevo_archivo_pokemon_en_un_string = string_new();
 
@@ -1317,10 +1285,6 @@ int agregar_cantidad_en_archivo_pokemon(t_new_pokemon* mensaje, char** array_de_
     	pthread_mutex_unlock(MUTEX_LOGGER);
     }
 
-	pthread_mutex_lock(MUTEX_LOGGER);
-    printf("nuevo_archivo_pokemon_en_un_string : %s\n", nuevo_archivo_pokemon_en_un_string);
-    fflush(stdout);
-	pthread_mutex_unlock(MUTEX_LOGGER);
     //**** SE INTERPRETA SI HAY QUE AGREGAR UN BLOQUE MAS  ****//
 
 	pthread_mutex_lock(MUTEX_CONFIG);
@@ -1373,11 +1337,6 @@ int agregar_cantidad_en_archivo_pokemon(t_new_pokemon* mensaje, char** array_de_
 
 	log_info(LOGGER, "Archivo pokemon < %s > : cantidad de bloques anterior < %i > ---- cantidad de bloques nueva < %i >", mensaje->nombre,
 			cantidad_de_bloques_anterior, cantidad_de_bloques_necesaria);
-
-	printf("nuevo array 0: %s\n", array_bloques_del_archivo_pokemon[0]);
-	fflush(stdout);
-	printf("nuevo array 1: %s\n", array_bloques_del_archivo_pokemon[1]);
-	fflush(stdout);
 	pthread_mutex_unlock(MUTEX_LOGGER);
 
     int j = 0;
@@ -1425,11 +1384,6 @@ int agregar_cantidad_en_archivo_pokemon(t_new_pokemon* mensaje, char** array_de_
 
    				char* string_bloques_sin_corchetes = string_substring(bloques_del_archivo_pokemon, 1, strlen(bloques_del_archivo_pokemon) - 2);
    				char* nuevo_value_blocks;
-
-   				pthread_mutex_lock(MUTEX_LOGGER);
-   				printf("string_bloques_sin_corchetes : %s\n", string_bloques_sin_corchetes);
-   				fflush(stdout);
-   				pthread_mutex_unlock(MUTEX_LOGGER);
 
    				if(strcmp(string_bloques_sin_corchetes, "") != 0)
    				{
@@ -1514,11 +1468,6 @@ void reducir_cantidad_en_archivo_pokemon(char* nombre_pokemon, int indice_de_bus
 {
     //**** SE REDUCE EN 1 LA CANTIDAD EN EL nuevo_archivo_pokemon_en_un_string  ****//
 
-	pthread_mutex_lock(MUTEX_LOGGER);
-    printf("indice_de_busqueda : %i\n", indice_de_busqueda);
-    fflush(stdout);
-	pthread_mutex_unlock(MUTEX_LOGGER);
-
     char* nuevo_archivo_pokemon_en_un_string = string_new();
 
     int i = 1;
@@ -1589,11 +1538,6 @@ void reducir_cantidad_en_archivo_pokemon(char* nombre_pokemon, int indice_de_bus
     free(key_y_value[0]);
     free(key_y_value[1]);
     free(key_y_value);
-
-	pthread_mutex_lock(MUTEX_LOGGER);
-    printf("nuevo_archivo_pokemon_en_un_string : %s\n", nuevo_archivo_pokemon_en_un_string);
-    fflush(stdout);
-	pthread_mutex_unlock(MUTEX_LOGGER);
 
     //**** SE INTERPRETA SI HAY QUE ELIMINAR EL ULTIMO BLOQUE  ****//
 
