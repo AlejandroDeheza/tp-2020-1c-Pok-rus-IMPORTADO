@@ -4,7 +4,7 @@ int crear_socket_para_escuchar(char *ipServidor, char* puertoServidor){
 	//esta funcion es equivalente a iniciar_servidor()
 	//pero esta retorna el socket del servidor
 
-	int socket_servidor;
+	int socket_servidor, retorno_bind;
 
     struct addrinfo hints, *servinfo, *p;
 
@@ -20,12 +20,14 @@ int crear_socket_para_escuchar(char *ipServidor, char* puertoServidor){
         if ((socket_servidor = socket(p->ai_family, p->ai_socktype, p->ai_protocol)) == -1)
             continue;
 
-        if (bind(socket_servidor, p->ai_addr, p->ai_addrlen) == -1) {
+        if ((retorno_bind = bind(socket_servidor, p->ai_addr, p->ai_addrlen)) == -1) {
             close(socket_servidor);
             continue;
         }
         break;
     }
+
+    if((socket_servidor == -1) || (retorno_bind == -1)) return -1;
 
 	listen(socket_servidor, SOMAXCONN);
 

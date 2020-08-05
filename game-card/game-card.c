@@ -361,9 +361,16 @@ void* recibir_conexiones()
 
 	int socket_servidor = crear_socket_para_escuchar(ip, puerto);
 
+	if(socket_servidor == -1)
+		imprimir_error_y_terminar_programa_perzonalizado("Error al usar socket() o bind() en crear_socket_para_escuchar()",
+				finalizar_gamecard, MUTEX_LOGGER);
+
     while(true)
     {
     	int socket_cliente = aceptar_una_conexion(socket_servidor);
+
+		if(socket_cliente == -1)
+			imprimir_error_y_terminar_programa_perzonalizado("Error al usar accept() en aceptar_una_conexion()", finalizar_gamecard, MUTEX_LOGGER);
 
     	int id_correlativo = 0;
 		int id_mensaje_recibido = 0; 	//EL GAMECARD SOLO USA ID MENSAJE
@@ -911,7 +918,6 @@ void crear_archivo_pokemon(char* nombre_pokemon)
 	pthread_mutex_unlock(MUTEX_DICCIONARIO);
 
 	sobrescribir_y_cerrar_archivo(path_archivo_con_nombre, "DIRECTORY=N\nSIZE=0\nBLOCKS=[]\nOPEN=N", strlen("DIRECTORY=N\nSIZE=0\nBLOCKS=[0]\nOPEN=N"));
-	//DEBERIA PONER BLOCK=[0] ? O DEJARLO ASI? REVISAR TODO
 
 	pthread_mutex_lock(MUTEX_LOGGER);
 	log_info(LOGGER, "Nuevo archivo pokemon creado : %s", path_carpeta_con_nombre);
@@ -1134,7 +1140,7 @@ char** generar_array_de_todo_el_archivo_pokemon_con_posiciones_y_cantidades(char
 	log_info(LOGGER, "Archivo pokemon < %s > : tiene los bloques < %s >", nombre_pokemon, bloques_del_archivo_pokemon);
 	pthread_mutex_unlock(MUTEX_LOGGER);
 
-	char** array_bloques_del_archivo_pokemon = string_get_string_as_array(bloques_del_archivo_pokemon);	//REVISAR QUE PASA CON LISTA VACIA TODO
+	char** array_bloques_del_archivo_pokemon = string_get_string_as_array(bloques_del_archivo_pokemon);
 
 
 	//**** METO TODA LA INFO DEL ARCHIVO POKEMON (QUE ESTABA SEPARADA EN BLOQUES) EN UN STRING ****//
@@ -1328,7 +1334,7 @@ int agregar_cantidad_en_archivo_pokemon(t_new_pokemon* mensaje, char** array_de_
     int cantidad_de_bloques_necesaria = (atoi(nuevo_value_SIZE_archivo_pokemon) / tamanio_bloques_del_file_system) + segundo_es_division_con_resto;
 
 	char* bloques_del_archivo_pokemon = asignar_string_property(archivo_pokemon_metadata_bin, "BLOCKS");
-	char** array_bloques_del_archivo_pokemon = string_get_string_as_array(bloques_del_archivo_pokemon);	//REVISAR QUE PASA CON LISTA VACIA TODO
+	char** array_bloques_del_archivo_pokemon = string_get_string_as_array(bloques_del_archivo_pokemon);
 	pthread_mutex_unlock(mutex_archivo_pokemon);
 
 	pthread_mutex_lock(MUTEX_LOGGER);
