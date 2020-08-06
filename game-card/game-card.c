@@ -1518,7 +1518,7 @@ void reducir_cantidad_en_archivo_pokemon(char* nombre_pokemon, int indice_de_bus
     	}
 
     	pthread_mutex_lock(MUTEX_LOGGER);
-    	log_info(LOGGER, "Archivo pokemon < %s > : Se esta eliminando el ultimo pokemon de la posicion < %s >", nombre_pokemon, posicion_buscada_en_string);
+    	log_info(LOGGER, "Archivo pokemon < %s > : Se esta eliminando el ULTIMO pokemon de la posicion < %s >", nombre_pokemon, posicion_buscada_en_string);
     	pthread_mutex_unlock(MUTEX_LOGGER);
     }
     else
@@ -1538,7 +1538,7 @@ void reducir_cantidad_en_archivo_pokemon(char* nombre_pokemon, int indice_de_bus
         }
 
     	pthread_mutex_lock(MUTEX_LOGGER);
-    	log_info(LOGGER, "Archivo pokemon < %s > : Se esta eliminando un pokemon de la posicion < %s >. Todavia hay pokemon de este tipo en esta posicion", nombre_pokemon, posicion_buscada_en_string);
+    	log_info(LOGGER, "Archivo pokemon < %s > : Se esta eliminando SOLO UN pokemon de la posicion < %s >", nombre_pokemon, posicion_buscada_en_string);
     	pthread_mutex_unlock(MUTEX_LOGGER);
     }
     free(key_y_value[0]);
