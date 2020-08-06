@@ -13,6 +13,9 @@
 #include <cliente.h>
 #include "../utils/config.h"
 
+char* ARGV1;
+int HILO;
+
 int CONEXION = 0;
 t_config* CONFIG = NULL;
 t_log* LOGGER = NULL;

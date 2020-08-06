@@ -14,6 +14,8 @@ int main(int argc, char *argv[]) {
 
 	establecer_comunicaciones_gamecard();
 
+	esperar_a_todos_los_hilos();
+
 
 
 	finalizar_gamecard();
@@ -24,12 +26,12 @@ int main(int argc, char *argv[]) {
 void ejecutar_antes_de_terminar(int numero_senial)
 {
 	pthread_mutex_lock(MUTEX_LOGGER);
-	log_info(LOGGER, "Se recibio la senial : %i  -- terminando programa", numero_senial);
+	log_info(LOGGER, "Se recibio la senial : %i  -- terminando programa cuando terminen todos los hilos", numero_senial);
 	pthread_mutex_unlock(MUTEX_LOGGER);
 
-	finalizar_gamecard();
-
-	exit(0);
+	pthread_mutex_lock(MUTEX_HAY_QUE_TERMINAR);
+	HAY_QUE_TERMINAR = true;
+	pthread_mutex_unlock(MUTEX_HAY_QUE_TERMINAR);
 }
 
 void finalizar_gamecard()
@@ -58,6 +60,10 @@ void finalizar_gamecard()
 	dictionary_destroy_and_destroy_elements(DICCIONARIO_CON_MUTEX, eliminador_de_mutex_en_diccionario);
 	pthread_mutex_unlock(MUTEX_DICCIONARIO);
 
+	pthread_mutex_lock(MUTEX_DICCIONARIO_HILOS);
+	dictionary_destroy(DICCIONARIO_HILOS);
+	pthread_mutex_unlock(MUTEX_DICCIONARIO_HILOS);
+
 	pthread_mutex_destroy(MUTEX_CONFIG);
 	pthread_mutex_destroy(MUTEX_LOGGER);
 	pthread_mutex_destroy(MUTEX_METADATA_METADATA_BIN);
@@ -66,6 +72,8 @@ void finalizar_gamecard()
 	pthread_mutex_destroy(MUTEX_ID_MANUAL_DEL_PROCESO);
 	pthread_mutex_destroy(MUTEX_DICCIONARIO);
 	pthread_mutex_destroy(MUTEX_CONSULTA_POKEMON);
+	pthread_mutex_destroy(MUTEX_DICCIONARIO_HILOS);
+	pthread_mutex_destroy(MUTEX_HAY_QUE_TERMINAR);
 }
 
 void eliminador_de_mutex_en_diccionario(void* argumento)
@@ -88,10 +96,13 @@ void verificar_e_interpretar_entrada(int argc, char *argv[])
 
 void iniciar_variables_globales_gamecard()
 {
+	HAY_QUE_TERMINAR = false;
+
 	CONFIG = leer_config("../gamecard.config");
 	LOGGER = generar_logger(CONFIG, "gamecard");
 	ID_PROCESOS_TP = asignar_string_property(CONFIG, "ID_PROCESOS_TP");
 	DICCIONARIO_CON_MUTEX = dictionary_create();
+	DICCIONARIO_HILOS = dictionary_create();
 
 	MUTEX_CONFIG = malloc(sizeof(pthread_mutex_t));
 	MUTEX_LOGGER = malloc(sizeof(pthread_mutex_t));
@@ -101,6 +112,8 @@ void iniciar_variables_globales_gamecard()
 	MUTEX_ID_MANUAL_DEL_PROCESO = malloc(sizeof(pthread_mutex_t));
 	MUTEX_DICCIONARIO = malloc(sizeof(pthread_mutex_t));
 	MUTEX_CONSULTA_POKEMON = malloc(sizeof(pthread_mutex_t));
+	MUTEX_DICCIONARIO_HILOS = malloc(sizeof(pthread_mutex_t));
+	MUTEX_HAY_QUE_TERMINAR = malloc(sizeof(pthread_mutex_t));
 
 	pthread_mutex_init(MUTEX_CONFIG, NULL);
 	pthread_mutex_init(MUTEX_LOGGER, NULL);
@@ -110,6 +123,19 @@ void iniciar_variables_globales_gamecard()
 	pthread_mutex_init(MUTEX_ID_MANUAL_DEL_PROCESO, NULL);
 	pthread_mutex_init(MUTEX_DICCIONARIO, NULL);
 	pthread_mutex_init(MUTEX_CONSULTA_POKEMON, NULL);
+	pthread_mutex_init(MUTEX_DICCIONARIO_HILOS, NULL);
+	pthread_mutex_init(MUTEX_HAY_QUE_TERMINAR, NULL);
+}
+
+void esperar_a_todos_los_hilos()
+{
+	pthread_mutex_lock(MUTEX_DICCIONARIO_HILOS);
+	while(dictionary_is_empty(DICCIONARIO_HILOS) == false)
+	{
+		pthread_mutex_unlock(MUTEX_DICCIONARIO_HILOS);
+		sleep(2);
+	}
+	pthread_mutex_unlock(MUTEX_DICCIONARIO_HILOS);
 }
 
 void iniciar_file_system()
@@ -126,6 +152,8 @@ void iniciar_file_system()
 	char* path_metadata_bitmap_bin = string_from_format("%s/Metadata/Bitmap.bin", punto_montaje_file_system);
 
 	BITMAP = mapear_bitmap_en_memoria(path_metadata_bitmap_bin, cant_max_bloques/8);
+
+	log_info(LOGGER, "\n\n\n");	//ESTO ES SOLO UNA AYUDA VISUAL A LA HORA DE LEER LOGS
 
 	log_info(LOGGER, "Se realizo con exito el mapeado en memoria de : %s", path_metadata_bitmap_bin);
 	free(path_metadata_bitmap_bin);
@@ -365,8 +393,10 @@ void* recibir_conexiones()
 		imprimir_error_y_terminar_programa_perzonalizado("Error al usar socket() o bind() en crear_socket_para_escuchar()",
 				finalizar_gamecard, MUTEX_LOGGER);
 
-    while(true)
+	pthread_mutex_lock(MUTEX_HAY_QUE_TERMINAR);
+    while(HAY_QUE_TERMINAR == false)
     {
+    	pthread_mutex_unlock(MUTEX_HAY_QUE_TERMINAR);
     	int socket_cliente = aceptar_una_conexion(socket_servidor);
 
 		if(socket_cliente == -1)
@@ -398,7 +428,13 @@ void* recibir_conexiones()
 			imprimir_error_y_terminar_programa_perzonalizado("Error al cerrar socket en recibir_conexiones()", finalizar_gamecard, MUTEX_LOGGER);
 
 		iniciar_hilo_para_tratar_y_responder_mensaje(id_mensaje_recibido, mensaje, codigo_operacion_recibido);
+
+    	pthread_mutex_lock(MUTEX_HAY_QUE_TERMINAR);
     }
+	pthread_mutex_unlock(MUTEX_HAY_QUE_TERMINAR);
+
+	shutdown(socket_servidor, SHUT_RDWR);
+    close(socket_servidor);
 
 	return NULL;
 }
@@ -423,11 +459,22 @@ void* conectar_recibir_y_enviar_mensajes(void* argumentos)
 	op_code codigo_suscripcion = args->entero;
 	free(args);
 
-	while(true)
+	pthread_mutex_lock(MUTEX_HAY_QUE_TERMINAR);
+	while(HAY_QUE_TERMINAR == false)
 	{
+    	pthread_mutex_unlock(MUTEX_HAY_QUE_TERMINAR);
+
 		char* mensaje_de_logueo_al_reintentar_conexion = string_from_format("La conexion con el BROKER para suscribirse a cola %s fallo.", cola_a_suscribirse);
 		int conexion = conectar_a_broker_y_reintentar_si_hace_falta(mensaje_de_logueo_al_reintentar_conexion);
 		free(mensaje_de_logueo_al_reintentar_conexion);
+
+    	pthread_mutex_lock(MUTEX_HAY_QUE_TERMINAR);
+		if(HAY_QUE_TERMINAR == true)
+		{
+	    	pthread_mutex_unlock(MUTEX_HAY_QUE_TERMINAR);
+			break;
+		}
+    	pthread_mutex_unlock(MUTEX_HAY_QUE_TERMINAR);
 
 		int estado_envio = enviar_mensaje_de_suscripcion(conexion, codigo_suscripcion, ID_MANUAL_DEL_PROCESO, MUTEX_ID_MANUAL_DEL_PROCESO);
 		if(estado_envio == 0) continue;
@@ -438,8 +485,11 @@ void* conectar_recibir_y_enviar_mensajes(void* argumentos)
 		log_info(LOGGER, "Se realizo una suscripcion a la cola de mensajes %s del BROKER", cola_a_suscribirse);
 		pthread_mutex_unlock(MUTEX_LOGGER);
 
-		while(true)
+    	pthread_mutex_lock(MUTEX_HAY_QUE_TERMINAR);
+		while(HAY_QUE_TERMINAR == false)
 		{
+	    	pthread_mutex_unlock(MUTEX_HAY_QUE_TERMINAR);
+
 			int id_correlativo = 0;
 			int id_mensaje_recibido = 0; 	//EL GAMECARD SOLO USA ID MENSAJE
 
@@ -467,8 +517,17 @@ void* conectar_recibir_y_enviar_mensajes(void* argumentos)
 			free(mensaje_para_loguear);
 
 			iniciar_hilo_para_tratar_y_responder_mensaje(id_mensaje_recibido, mensaje, codigo_suscripcion);
+
+	    	pthread_mutex_lock(MUTEX_HAY_QUE_TERMINAR);
 		}
+    	pthread_mutex_unlock(MUTEX_HAY_QUE_TERMINAR);
+
+		shutdown(conexion, SHUT_RDWR);
+		close(conexion);
+
+    	pthread_mutex_lock(MUTEX_HAY_QUE_TERMINAR);
 	}
+	pthread_mutex_unlock(MUTEX_HAY_QUE_TERMINAR);
 
 	return NULL;
 }
@@ -495,8 +554,11 @@ int conectar_a_broker_y_reintentar_si_hace_falta(char* mensaje_de_logueo_al_rein
 	int tiempo_de_reintento_conexion = asignar_int_property(CONFIG, "TIEMPO_DE_REINTENTO_CONEXION");
 	pthread_mutex_unlock(MUTEX_CONFIG);
 
-	while(conexion <= 0)
+	pthread_mutex_lock(MUTEX_HAY_QUE_TERMINAR);
+	while((conexion <= 0) && (HAY_QUE_TERMINAR == false))
 	{
+    	pthread_mutex_unlock(MUTEX_HAY_QUE_TERMINAR);
+
 		pthread_mutex_lock(MUTEX_LOGGER);
 		log_info(LOGGER, "%s Reintentando conexion en : %i segundos", mensaje_de_logueo_al_reintentar_conexion, tiempo_de_reintento_conexion);
 		pthread_mutex_unlock(MUTEX_LOGGER);
@@ -519,7 +581,18 @@ int conectar_a_broker_y_reintentar_si_hace_falta(char* mensaje_de_logueo_al_rein
 				imprimir_error_y_terminar_programa_perzonalizado("Error al usar send() en enviar_identificacion_general()",
 						finalizar_gamecard, MUTEX_LOGGER);
 		}
+
+    	pthread_mutex_lock(MUTEX_HAY_QUE_TERMINAR);
 	}
+	pthread_mutex_unlock(MUTEX_HAY_QUE_TERMINAR);
+
+	pthread_mutex_lock(MUTEX_HAY_QUE_TERMINAR);
+	if(HAY_QUE_TERMINAR == true)
+	{
+    	pthread_mutex_unlock(MUTEX_HAY_QUE_TERMINAR);
+		return conexion;
+	}
+	pthread_mutex_unlock(MUTEX_HAY_QUE_TERMINAR);
 
 	pthread_mutex_lock(MUTEX_LOGGER);
 	log_info(LOGGER, "Conexion con BROKER exitosa");
@@ -550,6 +623,12 @@ void verificar_estado_del_envio_y_cerrar_conexion(char* tipo_mensaje, int estado
 
 	close(conexion);
 
+	char* id_hilo = string_from_format("%i", process_get_thread_id());
+	pthread_mutex_lock(MUTEX_DICCIONARIO_HILOS);
+	dictionary_remove(DICCIONARIO_HILOS, id_hilo);
+	pthread_mutex_unlock(MUTEX_DICCIONARIO_HILOS);
+	free(id_hilo);
+
 	pthread_exit(NULL);
 }
 
@@ -561,33 +640,35 @@ void iniciar_hilo_para_tratar_y_responder_mensaje(int id_mensaje_recibido, void*
 
 	pthread_t thread;
 
+	int thread_id = 0;
+
 	switch (codigo_suscripcion) {
 			case SUBSCRIBE_NEW_POKEMON:
-				if(0 != pthread_create(&thread, NULL, atender_new_pokemon, (void*)arg))
+				if(0 != (thread_id = pthread_create(&thread, NULL, atender_new_pokemon, (void*)arg)))
 					imprimir_error_y_terminar_programa_perzonalizado("No se pudo crear hilo para atender_new_pokemon()", finalizar_gamecard, MUTEX_LOGGER);
 				break;
 
 			case SUBSCRIBE_CATCH_POKEMON:
-				if(0 != pthread_create(&thread, NULL, atender_catch_pokemon, (void*)arg))
+				if(0 != (thread_id = pthread_create(&thread, NULL, atender_catch_pokemon, (void*)arg)))
 					imprimir_error_y_terminar_programa_perzonalizado("No se pudo crear hilo para atender_catch_pokemon()", finalizar_gamecard, MUTEX_LOGGER);
 				break;
 
 			case SUBSCRIBE_GET_POKEMON:
-				if(0 != pthread_create(&thread, NULL, atender_get_pokemon, (void*)arg))
+				if(0 != (thread_id = pthread_create(&thread, NULL, atender_get_pokemon, (void*)arg)))
 					imprimir_error_y_terminar_programa_perzonalizado("No se pudo crear hilo para atender_get_pokemon()", finalizar_gamecard, MUTEX_LOGGER);
 				break;
 			case NEW_POKEMON:
-				if(0 != pthread_create(&thread, NULL, atender_new_pokemon, (void*)arg))
+				if(0 != (thread_id = pthread_create(&thread, NULL, atender_new_pokemon, (void*)arg)))
 					imprimir_error_y_terminar_programa_perzonalizado("No se pudo crear hilo para atender_new_pokemon()", finalizar_gamecard, MUTEX_LOGGER);
 				break;
 
 			case CATCH_POKEMON:
-				if(0 != pthread_create(&thread, NULL, atender_catch_pokemon, (void*)arg))
+				if(0 != (thread_id = pthread_create(&thread, NULL, atender_catch_pokemon, (void*)arg)))
 					imprimir_error_y_terminar_programa_perzonalizado("No se pudo crear hilo para atender_catch_pokemon()", finalizar_gamecard, MUTEX_LOGGER);
 				break;
 
 			case GET_POKEMON:
-				if(0 != pthread_create(&thread, NULL, atender_get_pokemon, (void*)arg))
+				if(0 != (thread_id = pthread_create(&thread, NULL, atender_get_pokemon, (void*)arg)))
 					imprimir_error_y_terminar_programa_perzonalizado("No se pudo crear hilo para atender_get_pokemon()", finalizar_gamecard, MUTEX_LOGGER);
 				break;
 			default:
@@ -595,6 +676,12 @@ void iniciar_hilo_para_tratar_y_responder_mensaje(int id_mensaje_recibido, void*
 			}
 
 	pthread_detach(thread);
+
+	char* id_hilo = string_from_format("%i", thread_id);
+	pthread_mutex_lock(MUTEX_DICCIONARIO_HILOS);
+	dictionary_put(DICCIONARIO_HILOS, id_hilo, "a");
+	pthread_mutex_unlock(MUTEX_DICCIONARIO_HILOS);
+	free(id_hilo);
 }
 
 void* atender_new_pokemon(void* argumentos)
@@ -638,6 +725,12 @@ void* atender_new_pokemon(void* argumentos)
 
 		free(mensaje->nombre);
 		free(mensaje);
+
+		char* id_hilo = string_from_format("%i", process_get_thread_id());
+		pthread_mutex_lock(MUTEX_DICCIONARIO_HILOS);
+		dictionary_remove(DICCIONARIO_HILOS, id_hilo);
+		pthread_mutex_unlock(MUTEX_DICCIONARIO_HILOS);
+		free(id_hilo);
 
 		return NULL;
 	}
@@ -750,6 +843,12 @@ void* atender_get_pokemon(void* argumentos)
 		log_error(LOGGER, "Se recibio GET_POKEMON. No existe pokemon solicitado en file system. "
 				"Se decide no enviar LOCALIZED_POKEMON y continuar con la ejecucion normal de Game-Card. Nombre del pokemon: << %s >>", mensaje->nombre);
 		pthread_mutex_unlock(MUTEX_LOGGER);
+
+		char* id_hilo = string_from_format("%i", process_get_thread_id());
+		pthread_mutex_lock(MUTEX_DICCIONARIO_HILOS);
+		dictionary_remove(DICCIONARIO_HILOS, id_hilo);
+		pthread_mutex_unlock(MUTEX_DICCIONARIO_HILOS);
+		free(id_hilo);
 
 		pthread_exit(NULL);
 	}

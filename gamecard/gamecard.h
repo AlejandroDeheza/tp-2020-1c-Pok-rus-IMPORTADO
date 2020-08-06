@@ -7,6 +7,7 @@
 #include<commons/string.h>
 #include<commons/config.h>
 #include<commons/bitarray.h>
+#include<commons/process.h>
 #include<readline/readline.h>
 #include<semaphore.h>
 #include<pthread.h>
@@ -22,6 +23,9 @@
 #include "../utils/config.h"
 #include "servidor.h"
 
+t_dictionary* DICCIONARIO_HILOS;
+bool HAY_QUE_TERMINAR;
+
 pthread_mutex_t* MUTEX_CONFIG;
 pthread_mutex_t* MUTEX_LOGGER;
 pthread_mutex_t* MUTEX_METADATA_METADATA_BIN;
@@ -31,6 +35,9 @@ pthread_mutex_t* MUTEX_ID_MANUAL_DEL_PROCESO;
 
 pthread_mutex_t* MUTEX_DICCIONARIO;
 pthread_mutex_t* MUTEX_CONSULTA_POKEMON;
+
+pthread_mutex_t* MUTEX_DICCIONARIO_HILOS;
+pthread_mutex_t* MUTEX_HAY_QUE_TERMINAR;
 
 t_dictionary* DICCIONARIO_CON_MUTEX;
 
@@ -56,6 +63,7 @@ void finalizar_gamecard();
 
 void verificar_e_interpretar_entrada(int argc, char *argv[]);
 void iniciar_variables_globales_gamecard();
+void esperar_a_todos_los_hilos();
 void establecer_comunicaciones_gamecard();
 
 
