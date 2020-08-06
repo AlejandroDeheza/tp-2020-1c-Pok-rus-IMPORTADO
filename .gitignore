@@ -54,18 +54,20 @@ dkms.conf
 # Logs
 *.log
 
-*/src/subir.mk
 /team/Debug/team
 /game-card/Debug/game-card
 /game-boy/Debug/game-boy
+
 /broker/.settings
 /team/.settings
 /game-boy/.settings
 /game-card/.settings
 /utils/.settings
 
+*/.cproject
+*/.project
+.project
+
 *.swn
 *.swo
 core
-makefile
-*.mk
