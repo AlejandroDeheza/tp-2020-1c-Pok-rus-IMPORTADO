@@ -55,13 +55,13 @@ dkms.conf
 *.log
 
 /team/Debug/team
-/game-card/Debug/gamecard
-/game-boy/Debug/gameboy
+/gamecard/Debug/gamecard
+/gameboy/Debug/gameboy
 
 /broker/.settings
 /team/.settings
-/game-boy/.settings
-/game-card/.settings
+/gameboy/.settings
+/gamecard/.settings
 /utils/.settings
 
 */.cproject
@@ -72,12 +72,12 @@ dkms.conf
 *.swo
 core
 
-/game-boy/Debug/OTRA_PRUEBA
-/game-boy/Debug/UNA_PRUEBA
-/game-boy/Debug/cargar_memoria_complejo_EDITADO.sh
-/game-boy/Debug/catch_charmander.sh
-/game-boy/Debug/new_pikachu.sh
-/game-boy/Debug/new_pokemons_varios.sh
+/gameboy/Debug/OTRA_PRUEBA
+/gameboy/Debug/UNA_PRUEBA
+/gameboy/Debug/cargar_memoria_complejo_EDITADO.sh
+/gameboy/Debug/catch_charmander.sh
+/gameboy/Debug/new_pikachu.sh
+/gameboy/Debug/new_pokemons_varios.sh
 
-/game-boy/.gitignore
+/gameboy/.gitignore
 
