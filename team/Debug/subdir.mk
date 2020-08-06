@@ -7,10 +7,6 @@ C_SRCS += \
 ../planificador.c \
 ../team.c 
 
-O_SRCS += \
-../team.o \
-../utils.o 
-
 OBJS += \
 ./planificador.o \
 ./team.o 
