@@ -1,5 +1,5 @@
 #ifndef GAMECARD_H_
-#define GGAMECARD_H_
+#define GAMECARD_H_
 
 #include<stdio.h>
 #include<stdlib.h>

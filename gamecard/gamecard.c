@@ -88,8 +88,8 @@ void verificar_e_interpretar_entrada(int argc, char *argv[])
 
 void iniciar_variables_globales_gamecard()
 {
-	CONFIG = leer_config("../game-card.config");
-	LOGGER = generar_logger(CONFIG, "game-card");
+	CONFIG = leer_config("../gamecard.config");
+	LOGGER = generar_logger(CONFIG, "gamecard");
 	ID_PROCESOS_TP = asignar_string_property(CONFIG, "ID_PROCESOS_TP");
 	DICCIONARIO_CON_MUTEX = dictionary_create();
 
@@ -115,7 +115,7 @@ void iniciar_variables_globales_gamecard()
 void iniciar_file_system()
 {
 	char* punto_montaje_file_system = asignar_string_property(CONFIG, "PUNTO_MONTAJE_TALLGRASS");
-	if(punto_montaje_file_system == NULL) imprimir_error_y_terminar_programa("Parece que PUNTO_MONTAJE_TALLGRASS no esta en game-card.config");
+	if(punto_montaje_file_system == NULL) imprimir_error_y_terminar_programa("Parece que PUNTO_MONTAJE_TALLGRASS no esta en gamecard.config");
 
 	generar_estructura_file_system_si_hace_falta(punto_montaje_file_system);
 

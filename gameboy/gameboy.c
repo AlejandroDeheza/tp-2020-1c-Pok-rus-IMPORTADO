@@ -4,8 +4,8 @@ int main(int argc, char *argv[]) {
 
 	signal(SIGINT, &ejecutar_antes_de_terminar);
 
-	CONFIG = leer_config("../game-boy.config");
-	LOGGER = generar_logger(CONFIG, "game-boy");
+	CONFIG = leer_config("../gameboy.config");
+	LOGGER = generar_logger(CONFIG, "gameboy");
 	ID_PROCESOS_TP = asignar_string_property(CONFIG, "ID_PROCESOS_TP");
 
 	//verifico que lo ingresado por consola sea correcto
