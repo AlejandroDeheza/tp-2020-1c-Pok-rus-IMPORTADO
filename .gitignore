@@ -71,3 +71,11 @@ dkms.conf
 *.swn
 *.swo
 core
+
+/game-boy/Debug/OTRA_PRUEBA
+/game-boy/Debug/UNA_PRUEBA
+/game-boy/Debug/cargar_memoria_complejo_EDITADO.sh
+/game-boy/Debug/catch_charmander.sh
+/game-boy/Debug/new_pikachu.sh
+/game-boy/Debug/new_pokemons_varios.sh
+
