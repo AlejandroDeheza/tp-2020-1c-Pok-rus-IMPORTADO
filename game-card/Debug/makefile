@@ -25,7 +25,7 @@ endif
 all: game-card
 
 dependents:
-	-cd /home/utnso/workspace/tp-2020-1c-Pok-rus/utils/Debug && $(MAKE) all
+	-cd /home/utnso/workspace/tp-2020-1c-Pok-rus/utils/Debug && $(MAKE) clean all
 
 # Tool invocations
 game-card: $(OBJS) $(USER_OBJS) /home/utnso/workspace/tp-2020-1c-Pok-rus/utils/Debug/libutils.so
