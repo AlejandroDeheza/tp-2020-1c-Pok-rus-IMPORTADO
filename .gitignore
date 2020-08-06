@@ -55,8 +55,8 @@ dkms.conf
 *.log
 
 /team/Debug/team
-/game-card/Debug/game-card
-/game-boy/Debug/game-boy
+/game-card/Debug/gamecard
+/game-boy/Debug/gameboy
 
 /broker/.settings
 /team/.settings
@@ -78,4 +78,6 @@ core
 /game-boy/Debug/catch_charmander.sh
 /game-boy/Debug/new_pikachu.sh
 /game-boy/Debug/new_pokemons_varios.sh
+
+/game-boy/.gitignore
 

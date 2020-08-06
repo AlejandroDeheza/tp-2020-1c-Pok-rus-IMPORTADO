@@ -1,4 +1,4 @@
-#include "game-card.h"
+#include "gamecard.h"
 
 int main(int argc, char *argv[]) {
 

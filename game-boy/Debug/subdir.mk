@@ -4,13 +4,13 @@
 
 # Add inputs and outputs from these tool invocations to the build variables 
 C_SRCS += \
-../game-boy.c 
+../gameboy.c 
 
 OBJS += \
-./game-boy.o 
+./gameboy.o 
 
 C_DEPS += \
-./game-boy.d 
+./gameboy.d 
 
 
 # Each subdirectory must supply rules for building sources it contributes
