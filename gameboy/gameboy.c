@@ -97,7 +97,6 @@ int main(int argc, char *argv[]) {
 
 	finalizar_gameboy();
 
-	printf("El GAMEBOY termino correctamente\n");
 	return EXIT_SUCCESS;
 }
 
@@ -163,42 +162,36 @@ void verificar_Entrada(int argc, char *argv[]){
 	if(strcmp(argv[1],"BROKER")==0)
 	{
 		if(strcmp(argv[2],"NEW_POKEMON")==0 && argc != 7){
-			error_show(" Escribiste una cantidad incorrecta de argumentos\n\n");
 			error_show(" Para enviar NEW_POKEMON a BROKER debe ingresar los argumentos con el siguiente formato:\n"
 			"./gameboy BROKER NEW_POKEMON [POKEMON] [POSX] [POSY] [CANTIDAD]\n\n");
 			exit(-1);
 		}
 
 		if(strcmp(argv[2],"APPEARED_POKEMON")==0 && argc != 7){
-			error_show(" Escribiste una cantidad incorrecta de argumentos\n\n");
 			error_show(" Para enviar APPEARED_POKEMON a BROKER debe ingresar los argumentos con el siguiente formato:\n"
 			"./gameboy BROKER APPEARED_POKEMON [POKEMON] [POSX] [POSY] [ID_MENSAJE_CORRELATIVO]\n\n");
 			exit(-1);
 		}
 
 		if(strcmp(argv[2],"CATCH_POKEMON")==0 && argc != 6){
-			error_show(" Escribiste una cantidad incorrecta de argumentos\n\n");
 			error_show(" Para enviar CATCH_POKEMON a BROKER debe ingresar los argumentos con el siguiente formato:\n"
 			"./gameboy BROKER CATCH_POKEMON [POKEMON] [POSX] [POSY]\n\n");
 			exit(-1);
 		}
 
 		if(strcmp(argv[2],"CAUGHT_POKEMON")==0 && argc != 5){
-			error_show(" Escribiste una cantidad incorrecta de argumentos\n\n");
 			error_show(" Para enviar CAUGHT_POKEMON a BROKER debe ingresar los argumentos con el siguiente formato:\n"
 			"./gameboy BROKER CAUGHT_POKEMON [ID_MENSAJE_CORRELATIVO] [OK/FAIL]\n\n");
 			exit(-1);
 		}
 
 		if(strcmp(argv[2],"GET_POKEMON")==0 && argc != 4){
-			error_show(" Escribiste una cantidad incorrecta de argumentos\n\n");
 			error_show(" Para enviar GET_POKEMON a BROKER debe ingresar los argumentos con el siguiente formato:\n"
 			"./gameboy BROKER GET_POKEMON [POKEMON]\n\n");
 			exit(-1);
 		}
 
 		if(strcmp(argv[2],"CAUGHT_POKEMON")==0 && argc == 5 && strcmp(argv[4],"OK")!=0 && strcmp(argv[4],"FAIL")!=0){
-			error_show(" El resultado solo puede ser OK o FAIL\n\n");
 			error_show(" Para enviar CAUGHT_POKEMON a BROKER debe ingresar los argumentos con el siguiente formato:\n"
 			"./gameboy BROKER CAUGHT_POKEMON [ID_MENSAJE_CORRELATIVO] [OK/FAIL]\n\n");
 			exit(-1);
@@ -208,7 +201,6 @@ void verificar_Entrada(int argc, char *argv[]){
 	if(strcmp(argv[1],"TEAM")==0)
 	{
 		if(strcmp(argv[2],"APPEARED_POKEMON")==0 && argc != 6){
-			error_show(" Escribiste una cantidad incorrecta de argumentos\n\n");
 			error_show(" Para enviar APPEARED_POKEMON a TEAM debe ingresar los argumentos con el siguiente formato:\n"
 			"./gameboy TEAM APPEARED_POKEMON [POKEMON] [POSX] [POSY]\n\n");
 			exit(-1);
@@ -223,21 +215,18 @@ void verificar_Entrada(int argc, char *argv[]){
 	if(strcmp(argv[1],"GAMECARD")==0)
 	{
 		if(strcmp(argv[2],"NEW_POKEMON")==0 && argc != 8){
-			error_show(" Escribiste una cantidad incorrecta de argumentos\n\n");
 			error_show(" Para enviar NEW_POKEMON a GAMECARD debe ingresar los argumentos con el siguiente formato:\n"
 			"./gameboy GAMECARD NEW_POKEMON [POKEMON] [POSX] [POSY] [CANTIDAD] [ID_MENSAJE]\n\n");
 			exit(-1);
 		}
 
 		if(strcmp(argv[2],"GET_POKEMON")==0 && argc != 5){
-			error_show(" Escribiste una cantidad incorrecta de argumentos\n\n");
 			error_show(" Para enviar GET_POKEMON a GAMECARD debe ingresar los argumentos con el siguiente formato:\n"
 			"./gameboy GAMECARD GET_POKEMON [POKEMON] [ID_MENSAJE]\n\n");
 			exit(-1);
 		}
 
 		if(strcmp(argv[2],"CATCH_POKEMON")==0 && argc != 7){
-			error_show(" Escribiste una cantidad incorrecta de argumentos\n\n");
 			error_show(" Para enviar CATCH_POKEMON a GAMECARD debe ingresar los argumentos con el siguiente formato:\n"
 			"./gameboy GAMECARD CATCH_POKEMON [POKEMON] [POSX] [POSY] [ID_MENSAJE]\n\n");
 			exit(-1);

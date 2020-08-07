@@ -39,7 +39,6 @@ void ejecutar_antes_de_terminar(int numero_senial)
 
 	pthread_mutex_lock(MUTEX_SOCKET_SERVIDOR);
 	shutdown(SOCKET_SERVIDOR, SHUT_RDWR);
-	//close(SOCKET_SERVIDOR);
 	pthread_mutex_unlock(MUTEX_SOCKET_SERVIDOR);
 }
 
@@ -212,7 +211,16 @@ void generar_estructura_file_system_si_hace_falta(char* punto_montaje_file_syste
 	struct stat datos_bitmap_bin;
 	t_bitarray* bitarray = NULL;
 
-	if(stat(path_metadata_bitmap_bin, &datos_bitmap_bin) == 0)
+	if(stat(path_metadata_bitmap_bin, &datos_bitmap_bin) != 0)
+	{
+		char* bytes = calloc(cantidad_bytes, sizeof(char));
+		bitarray = bitarray_create_with_mode(bytes, cantidad_bytes, LSB_FIRST);
+		//generar_bloques_bin_que_hagan_falta(punto_montaje_file_system, cantidad_bloques, bitarray);
+		sobrescribir_y_cerrar_archivo(path_metadata_bitmap_bin, bitarray->bitarray, cantidad_bytes);
+		bitarray_destroy(bitarray);
+		free(bytes);
+	}
+/*	else
 	{	// ESTO SE EJECUTA SI EL ARCHIVO EN path_metadata_bitmap_bin EXISTE
 		//N0 IMPORTA SI EL BITMAP.BIN TIENE DATOS ADENTRO O ESTA VACIO
 		bitarray = mapear_bitmap_en_memoria(path_metadata_bitmap_bin, cantidad_bytes);
@@ -221,16 +229,10 @@ void generar_estructura_file_system_si_hace_falta(char* punto_montaje_file_syste
 	    if(msync(bitarray->bitarray, bitarray->size, MS_SYNC) == -1) imprimir_error_y_terminar_programa("Ocurrio un error al usar mysinc() en generar_estructura_file_system_si_hace_falta");
 
 		munmap(bitarray->bitarray, bitarray->size);
-
-	}else{
-		char* bytes = calloc(cantidad_bytes, sizeof(char));
-		bitarray = bitarray_create_with_mode(bytes, cantidad_bytes, LSB_FIRST);
-		generar_bloques_bin_que_hagan_falta(punto_montaje_file_system, cantidad_bloques, bitarray);
-		sobrescribir_y_cerrar_archivo(path_metadata_bitmap_bin, bitarray->bitarray, cantidad_bytes);
-		free(bytes);
 	}
-	free(path_metadata_bitmap_bin);
 	bitarray_destroy(bitarray);
+*/
+	free(path_metadata_bitmap_bin);
 
 	/* SE CREA CARPETA FILES */
 	char* path_files = string_from_format("%s/Files", punto_montaje_file_system);
@@ -251,10 +253,8 @@ void generar_estructura_file_system_si_hace_falta(char* punto_montaje_file_syste
 
 	while ((ent = readdir (dir)) != NULL)
 	{
-		if (strcmp(ent->d_name, ".") == 0 || strcmp(ent->d_name, "..") == 0 || strcmp(ent->d_name, "Metadata.bin") == 0)
-	    {
-			continue;
-	    }
+		if (strcmp(ent->d_name, ".") == 0 || strcmp(ent->d_name, "..") == 0 || strcmp(ent->d_name, "Metadata.bin") == 0) continue;
+
 
 		char* metadata_bin_archivo_pokemon = string_from_format("%s/Files/%s/Metadata.bin", punto_montaje_file_system, ent->d_name);
 		struct stat datos_metadata_bin_archivo_pokemon;
@@ -465,8 +465,7 @@ void* recibir_conexiones()
     }
 	pthread_mutex_unlock(MUTEX_HAY_QUE_TERMINAR);
 
-	shutdown(socket_servidor, SHUT_RDWR);
-    close(socket_servidor);
+	close(socket_servidor);
 
 	return NULL;
 }
@@ -1546,10 +1545,6 @@ int agregar_cantidad_en_archivo_pokemon(t_new_pokemon* mensaje, char** array_de_
    		        config_set_value(archivo_pokemon_metadata_bin, "BLOCKS", nuevo_value_blocks);
    		        pthread_mutex_unlock(mutex_archivo_pokemon);
 
-   				pthread_mutex_lock(MUTEX_LOGGER);
-   				log_info(LOGGER, "Archivo pokemon < %s > : Se agrego el bloque < %i >", mensaje->nombre, se_encontro_bit + 1);
-   				pthread_mutex_unlock(MUTEX_LOGGER);
-
    		        free(nuevo_value_blocks);
 
                	char* path_bloque_con_nombre_nuevo = string_from_format("%s/Blocks/%i.bin", punto_montaje_file_system, se_encontro_bit + 1);
@@ -1557,6 +1552,10 @@ int agregar_cantidad_en_archivo_pokemon(t_new_pokemon* mensaje, char** array_de_
                	free(path_bloque_con_nombre_nuevo);
 
                	fwrite(cadena_a_grabar, strlen(cadena_a_grabar), 1, archivo_bloque_nuevo);
+
+   				pthread_mutex_lock(MUTEX_LOGGER);
+   				log_info(LOGGER, "Archivo pokemon < %s > : Se agrego el bloque < %i >", mensaje->nombre, se_encontro_bit + 1);
+   				pthread_mutex_unlock(MUTEX_LOGGER);
 
             	fflush(archivo_bloque_nuevo);
                	fclose(archivo_bloque_nuevo);
