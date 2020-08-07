@@ -20,6 +20,9 @@ int main(int argc, char *argv[]) {
 
 	finalizar_gamecard();
 
+	printf("El GAMECARD termino correctamente\n");
+	fflush(stdout);
+
 	return EXIT_SUCCESS;
 }
 
@@ -27,11 +30,17 @@ void ejecutar_antes_de_terminar(int numero_senial)
 {
 	pthread_mutex_lock(MUTEX_LOGGER);
 	log_info(LOGGER, "Se recibio la senial : %i  -- terminando programa cuando terminen todos los hilos", numero_senial);
+	printf("Se recibio la senial : %i  -- terminando programa cuando terminen todos los hilos\n", numero_senial);
 	pthread_mutex_unlock(MUTEX_LOGGER);
 
 	pthread_mutex_lock(MUTEX_HAY_QUE_TERMINAR);
 	HAY_QUE_TERMINAR = true;
 	pthread_mutex_unlock(MUTEX_HAY_QUE_TERMINAR);
+
+	pthread_mutex_lock(MUTEX_SOCKET_SERVIDOR);
+	shutdown(SOCKET_SERVIDOR, SHUT_RDWR);
+	//close(SOCKET_SERVIDOR);
+	pthread_mutex_unlock(MUTEX_SOCKET_SERVIDOR);
 }
 
 void finalizar_gamecard()
@@ -74,6 +83,7 @@ void finalizar_gamecard()
 	pthread_mutex_destroy(MUTEX_CONSULTA_POKEMON);
 	pthread_mutex_destroy(MUTEX_DICCIONARIO_HILOS);
 	pthread_mutex_destroy(MUTEX_HAY_QUE_TERMINAR);
+	pthread_mutex_destroy(MUTEX_SOCKET_SERVIDOR);
 }
 
 void eliminador_de_mutex_en_diccionario(void* argumento)
@@ -97,6 +107,7 @@ void verificar_e_interpretar_entrada(int argc, char *argv[])
 void iniciar_variables_globales_gamecard()
 {
 	HAY_QUE_TERMINAR = false;
+	SOCKET_SERVIDOR = 0;
 
 	CONFIG = leer_config("../gamecard.config");
 	LOGGER = generar_logger(CONFIG, "gamecard");
@@ -114,6 +125,7 @@ void iniciar_variables_globales_gamecard()
 	MUTEX_CONSULTA_POKEMON = malloc(sizeof(pthread_mutex_t));
 	MUTEX_DICCIONARIO_HILOS = malloc(sizeof(pthread_mutex_t));
 	MUTEX_HAY_QUE_TERMINAR = malloc(sizeof(pthread_mutex_t));
+	MUTEX_SOCKET_SERVIDOR = malloc(sizeof(pthread_mutex_t));
 
 	pthread_mutex_init(MUTEX_CONFIG, NULL);
 	pthread_mutex_init(MUTEX_LOGGER, NULL);
@@ -125,6 +137,7 @@ void iniciar_variables_globales_gamecard()
 	pthread_mutex_init(MUTEX_CONSULTA_POKEMON, NULL);
 	pthread_mutex_init(MUTEX_DICCIONARIO_HILOS, NULL);
 	pthread_mutex_init(MUTEX_HAY_QUE_TERMINAR, NULL);
+	pthread_mutex_init(MUTEX_SOCKET_SERVIDOR, NULL);
 }
 
 void esperar_a_todos_los_hilos()
@@ -134,6 +147,8 @@ void esperar_a_todos_los_hilos()
 	{
 		pthread_mutex_unlock(MUTEX_DICCIONARIO_HILOS);
 		sleep(2);
+
+		pthread_mutex_lock(MUTEX_DICCIONARIO_HILOS);
 	}
 	pthread_mutex_unlock(MUTEX_DICCIONARIO_HILOS);
 }
@@ -389,6 +404,10 @@ void* recibir_conexiones()
 
 	int socket_servidor = crear_socket_para_escuchar(ip, puerto);
 
+	pthread_mutex_lock(MUTEX_SOCKET_SERVIDOR);
+	SOCKET_SERVIDOR = socket_servidor;
+	pthread_mutex_unlock(MUTEX_SOCKET_SERVIDOR);
+
 	if(socket_servidor == -1)
 		imprimir_error_y_terminar_programa_perzonalizado("Error al usar socket() o bind() en crear_socket_para_escuchar()",
 				finalizar_gamecard, MUTEX_LOGGER);
@@ -397,7 +416,12 @@ void* recibir_conexiones()
     while(HAY_QUE_TERMINAR == false)
     {
     	pthread_mutex_unlock(MUTEX_HAY_QUE_TERMINAR);
+
     	int socket_cliente = aceptar_una_conexion(socket_servidor);
+
+    	pthread_mutex_lock(MUTEX_HAY_QUE_TERMINAR);
+    	if(HAY_QUE_TERMINAR == true) break;
+    	pthread_mutex_unlock(MUTEX_HAY_QUE_TERMINAR);
 
 		if(socket_cliente == -1)
 			imprimir_error_y_terminar_programa_perzonalizado("Error al usar accept() en aceptar_una_conexion()", finalizar_gamecard, MUTEX_LOGGER);
@@ -407,14 +431,22 @@ void* recibir_conexiones()
 		op_code codigo_operacion_recibido = 0;
 
 		//IDENTIFICA Y RECHAZA PROCESOS QUE NO ESTA ESPERANDO
-		if(es_un_proceso_esperado(socket_cliente, ID_PROCESOS_TP, MUTEX_ID_PROCESOS_TP, finalizar_gamecard, MUTEX_LOGGER) == false) continue;
+		if(es_un_proceso_esperado(socket_cliente, ID_PROCESOS_TP, MUTEX_ID_PROCESOS_TP, finalizar_gamecard, MUTEX_LOGGER) == false)
+		{
+			pthread_mutex_lock(MUTEX_HAY_QUE_TERMINAR);
+			continue;
+		}
 
 		//queda bloqueado hasta que el gamecard recibe un mensaje del gameboy
 		void* mensaje = recibir_mensaje_por_socket(&codigo_operacion_recibido, socket_cliente, &id_correlativo, &id_mensaje_recibido,
 				finalizar_gamecard, MUTEX_LOGGER);
 
 		//si se recibe el mensaje de error (que se genera si se CAE EL GAMEBOY O SI HAY UN ERROR), ESPERA OTRA CONEXION
-		if(mensaje == NULL) continue;
+		if(mensaje == NULL)
+		{
+			pthread_mutex_lock(MUTEX_HAY_QUE_TERMINAR);
+			continue;
+		}
 
 		char* mensaje_para_loguear = generar_mensaje_para_loggear(mensaje, codigo_operacion_recibido);
 
@@ -469,11 +501,7 @@ void* conectar_recibir_y_enviar_mensajes(void* argumentos)
 		free(mensaje_de_logueo_al_reintentar_conexion);
 
     	pthread_mutex_lock(MUTEX_HAY_QUE_TERMINAR);
-		if(HAY_QUE_TERMINAR == true)
-		{
-	    	pthread_mutex_unlock(MUTEX_HAY_QUE_TERMINAR);
-			break;
-		}
+		if(HAY_QUE_TERMINAR == true) break;
     	pthread_mutex_unlock(MUTEX_HAY_QUE_TERMINAR);
 
 		int estado_envio = enviar_mensaje_de_suscripcion(conexion, codigo_suscripcion, ID_MANUAL_DEL_PROCESO, MUTEX_ID_MANUAL_DEL_PROCESO);
@@ -500,7 +528,11 @@ void* conectar_recibir_y_enviar_mensajes(void* argumentos)
 					finalizar_gamecard, MUTEX_LOGGER);
 
 			//si se recibe el mensaje de error (que se genera si se CAE EL BROKER), se sale de este while(true) y reintenta la conexion
-			if(mensaje == NULL) break;
+			if(mensaje == NULL)
+			{
+				pthread_mutex_lock(MUTEX_HAY_QUE_TERMINAR);
+				break;
+			}
 
 			int estado_ack = enviar_ack(conexion, id_mensaje_recibido); //NO VERIFICO EL ESTADO PORQUE NO IMPORTA, EL GAMECARD VA A REALIZAR SU TAREA ASIGNADA DE TODAS FORMAS
 			//ADEMAS EL BROKER, COMO PERDIO TODOS LOS MENSAJES QUE TENIA EN MEMORIA, NO VA A REENVIAR NADA A GAMECARD
@@ -671,21 +703,21 @@ void iniciar_hilo_para_tratar_y_responder_mensaje(int id_mensaje_recibido, void*
 				if(0 != (thread_id = pthread_create(&thread, NULL, atender_get_pokemon, (void*)arg)))
 					imprimir_error_y_terminar_programa_perzonalizado("No se pudo crear hilo para atender_get_pokemon()", finalizar_gamecard, MUTEX_LOGGER);
 				break;
+
 			default:
 				break;
 			}
 
 	pthread_detach(thread);
-
-	char* id_hilo = string_from_format("%i", thread_id);
-	pthread_mutex_lock(MUTEX_DICCIONARIO_HILOS);
-	dictionary_put(DICCIONARIO_HILOS, id_hilo, "a");
-	pthread_mutex_unlock(MUTEX_DICCIONARIO_HILOS);
-	free(id_hilo);
 }
 
 void* atender_new_pokemon(void* argumentos)
 {
+	char* id_hilo = string_from_format("%i", process_get_thread_id());
+	pthread_mutex_lock(MUTEX_DICCIONARIO_HILOS);
+	dictionary_put(DICCIONARIO_HILOS, id_hilo, "a");
+	pthread_mutex_unlock(MUTEX_DICCIONARIO_HILOS);
+
 	argumentos_de_hilo* args = argumentos;
 	int id_mensaje_recibido = args->entero;
 	t_new_pokemon* mensaje = args->stream;
@@ -791,6 +823,11 @@ void* atender_new_pokemon(void* argumentos)
 
 void* atender_catch_pokemon(void* argumentos)
 {
+	char* id_hilo = string_from_format("%i", process_get_thread_id());
+	pthread_mutex_lock(MUTEX_DICCIONARIO_HILOS);
+	dictionary_put(DICCIONARIO_HILOS, id_hilo, "a");
+	pthread_mutex_unlock(MUTEX_DICCIONARIO_HILOS);
+
 	argumentos_de_hilo* args = argumentos;
 	int id_mensaje_recibido = args->entero;
 	t_catch_pokemon* mensaje = args->stream;
@@ -832,6 +869,11 @@ void* atender_catch_pokemon(void* argumentos)
 
 void* atender_get_pokemon(void* argumentos)
 {
+	char* id_hilo = string_from_format("%i", process_get_thread_id());
+	pthread_mutex_lock(MUTEX_DICCIONARIO_HILOS);
+	dictionary_put(DICCIONARIO_HILOS, id_hilo, "a");
+	pthread_mutex_unlock(MUTEX_DICCIONARIO_HILOS);
+
 	argumentos_de_hilo* args = argumentos;
 	int id_mensaje_recibido = args->entero;
 	t_get_pokemon* mensaje = args->stream;
@@ -995,7 +1037,7 @@ bool verificar_si_existe_archivo_pokemon(char* nombre_pokemon)
 
 	if(datos_archivo.st_size == 0) return false;
 
-	return true;	//DEBERIA MIRAR SI EL CONTENIDO ADENTRO DEL ARCHIVO ME SIRVE... TODO . por ahora no lo mires...no creo que me den archivos asi
+	return true;	//DEBERIA MIRAR SI EL CONTENIDO ADENTRO DEL ARCHIVO ME SIRVE... TODO . no creo que me den archivos asi...
 }
 
 void crear_archivo_pokemon(char* nombre_pokemon)
@@ -1046,7 +1088,7 @@ void pedir_archivo_pokemon(char* nombre_pokemon)
 	}
 
 	pthread_mutex_lock(MUTEX_LOGGER);
-	log_info(LOGGER, "Archivo pokemon < %s > : Se pudo abrir ", nombre_pokemon);
+	log_info(LOGGER, "Archivo pokemon < %s > : Se pudo abrir", nombre_pokemon);
 	pthread_mutex_unlock(MUTEX_LOGGER);
 }
 

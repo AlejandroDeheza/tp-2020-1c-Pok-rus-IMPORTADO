@@ -163,7 +163,16 @@ char* generar_caught_pokemon_para_loggear(void* mensaje_a_imprimir)
 {
 	t_caught_pokemon* mensaje = mensaje_a_imprimir;
 
-	char* mensaje_para_loguear = string_from_format("CAUGHT_POKEMON    resultado: %i", (char*) mensaje->resultado);
+	char* mensaje_para_loguear;
+
+	if(mensaje->resultado == 0)
+	{
+		mensaje_para_loguear = string_from_format("CAUGHT_POKEMON    resultado: FAIL");
+	}
+	else
+	{
+		mensaje_para_loguear = string_from_format("CAUGHT_POKEMON    resultado: OK");
+	}
 
 	//free(mensaje);
 
@@ -186,7 +195,8 @@ char* generar_localized_pokemon_para_loggear(void* mensaje_a_imprimir)
 {
 	t_localized_pokemon* mensaje = mensaje_a_imprimir;
 
-	char* mensaje_para_loguear = string_from_format("LOCALIZED_POKEMON    nombre: %s    cantidad de posiciones: %i", (char*) mensaje->nombre, mensaje->coordenadas->elements_count);
+	char* mensaje_para_loguear = string_from_format("LOCALIZED_POKEMON    nombre: %s    cantidad de posiciones: %i"
+			"    posiciones:", (char*) mensaje->nombre, mensaje->coordenadas->elements_count);
 
 	for(int i = 0 ; i < mensaje->coordenadas->elements_count ; i++)
 	{
@@ -195,7 +205,7 @@ char* generar_localized_pokemon_para_loggear(void* mensaje_a_imprimir)
 		int posx = coordenadas->posx;
 		int posy = coordenadas->posy;
 
-		string_append_with_format(&mensaje_para_loguear, "    x: %i    y: %i", posx, posy);
+		string_append_with_format(&mensaje_para_loguear, "   %i-%i", posx, posy);
 	}
 	//list_destroy_and_destroy_elements(mensaje->coordenadas, free);
 	//free(mensaje->nombre);
@@ -206,11 +216,8 @@ char* generar_localized_pokemon_para_loggear(void* mensaje_a_imprimir)
 
 void imprimir_error_y_terminar_programa(char* mensaje)
 {
-	printf("\n");
 	error_show(" %s\n", mensaje);
 	perror("Descripcion ");
-
-	printf("\n");
 	printf("\n");
 	fflush(stdout);
 	exit(-1);
@@ -222,28 +229,24 @@ void imprimir_error_y_terminar_programa_perzonalizado(char* mensaje, void(*funci
 	if(mutex_logger != NULL)
 	{
 		pthread_mutex_lock(mutex_logger);
-		printf("\n");
 		error_show(" %s\n", mensaje);
 		perror("Descripcion ");
-
 		printf("\n");
-		printf("\n");
+		fflush(stdout);
 		pthread_mutex_unlock(mutex_logger);
 	}
 	else
 	{
-		printf("\n");
 		error_show(" %s\n", mensaje);
 		perror("Descripcion ");
-
 		printf("\n");
-		printf("\n");
+		fflush(stdout);
 	}
-	fflush(stdout);
 
 	if(funcion_para_finalizar != NULL)
 	{
 		funcion_para_finalizar();
+		exit(-1);
 	}
 	else
 	{
@@ -253,9 +256,8 @@ void imprimir_error_y_terminar_programa_perzonalizado(char* mensaje, void(*funci
 
 void imprimir_error_y_terminar_hilo(char* mensaje, t_log* logger)
 {
-	log_error(logger, "%s\n", mensaje);
+	log_error(logger, "%s. Strerror : ", mensaje, strerror(errno));
 	perror("Descripcion ");
-
 	printf("\n");
 	fflush(stdout);
 	pthread_exit(NULL);

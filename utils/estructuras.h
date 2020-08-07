@@ -5,8 +5,7 @@
 #include<stdlib.h>
 #include<commons/collections/list.h>
 
-typedef enum
-{
+typedef enum {
 	NEW_POKEMON = 1,
 	APPEARED_POKEMON = 2,
 	CATCH_POKEMON = 3,

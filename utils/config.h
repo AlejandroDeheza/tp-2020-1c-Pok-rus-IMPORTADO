@@ -4,12 +4,14 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <unistd.h>
+#include <string.h>
 #include <commons/string.h>
 #include <commons/config.h>
 #include <commons/log.h>
 #include <commons/error.h>
 #include <sys/socket.h>
 #include <pthread.h>
+#include <errno.h>
 
 #include "estructuras.h"
 

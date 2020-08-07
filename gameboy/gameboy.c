@@ -96,12 +96,15 @@ int main(int argc, char *argv[]) {
 	}
 
 	finalizar_gameboy();
+
+	printf("El GAMEBOY termino correctamente\n");
 	return EXIT_SUCCESS;
 }
 
 void ejecutar_antes_de_terminar(int numero_senial)
 {
 	log_info(LOGGER, "Se recibio la senial : %i  -- terminando programa cuando se alcance un estado seguro", numero_senial);
+	printf("Se recibio la senial : %i  -- terminando programa cuando se alcance un estado seguro\n", numero_senial);
 
 	if(strcmp(ARGV1,"SUSCRIPTOR")==0)
 	{
@@ -300,13 +303,9 @@ void iniciar_modo_suscriptor(int conexion, char* cola_a_suscribirse, int tiempo_
 		if(estado_ack == -1)
 			imprimir_error_y_terminar_programa_perzonalizado("Error al usar send() en enviar_ack()", finalizar_gameboy, NULL);
 
-		//se imprime por pantalla el mensaje recibido
-		imprimir_mensaje_recibido(mensaje, codigo_suscripcion);	//COMENTAR PARA LAS PRUEBAS ?? TODO O DEBERIA DESCTIVAR LOS LOGS POR PANTALLA?
-
 		char* mensaje_para_loguear = generar_mensaje_para_loggear(mensaje, codigo_suscripcion);
-
 		//se loguea el mensaje y vuelve a empezar el bucle
-		log_info(LOGGER, "Se recibio el mensaje <<%s>> de la cola %s", mensaje_para_loguear, cola_a_suscribirse);
+		log_info(LOGGER, "Se recibio el mensaje << %s >> de la cola %s", mensaje_para_loguear, cola_a_suscribirse);
 
 		free(mensaje_para_loguear);
 	}
@@ -354,113 +353,6 @@ void* contador_de_tiempo(void* argumentos)
 	shutdown(conexion_con_broker, SHUT_RDWR);
 
 	return NULL;
-}
-
-void imprimir_mensaje_recibido(void* mensaje, op_code codigo_operacion)
-{
-	switch (codigo_operacion)
-	{
-		case SUBSCRIBE_NEW_POKEMON:
-			imprimir_new_pokemon(mensaje);
-			break;
-
-		case SUBSCRIBE_APPEARED_POKEMON:
-			imprimir_appeared_pokemon(mensaje);
-			break;
-
-		case SUBSCRIBE_CATCH_POKEMON:
-			imprimir_catch_pokemon(mensaje);
-			break;
-
-		case SUBSCRIBE_CAUGHT_POKEMON:
-			imprimir_caught_pokemon(mensaje);
-			break;
-
-		case SUBSCRIBE_GET_POKEMON:
-			imprimir_get_pokemon(mensaje);
-			break;
-
-		case SUBSCRIBE_LOCALIZED_POKEMON:
-			imprimir_localized_pokemon(mensaje);
-			break;
-
-		default:
-			break;
-	}
-}
-
-void imprimir_new_pokemon(void* mensaje_a_imprimir)
-{
-	t_new_pokemon* mensaje = mensaje_a_imprimir;
-
-	printf("\n		NEW_POKEMON\n"
-			"		nombre: %s\n"
-			"		posicion x: %i\n"
-			"		posicion y: %i\n"
-			"		cantidad: %i\n",
-	(char*) mensaje->nombre, mensaje->coordenadas.posx, mensaje->coordenadas.posy, mensaje->cantidad);
-}
-
-void imprimir_appeared_pokemon(void* mensaje_a_imprimir)
-{
-	t_appeared_pokemon* mensaje = mensaje_a_imprimir;
-
-
-	printf("\n		APPEARED_POKEMON\n"
-			"		nombre: %s\n"
-			"		posicion x: %i\n"
-			"		posicion y: %i\n",
-	(char*) mensaje->nombre, mensaje->coordenadas.posx, mensaje->coordenadas.posy);
-}
-
-void imprimir_catch_pokemon(void* mensaje_a_imprimir)
-{
-	t_catch_pokemon* mensaje = mensaje_a_imprimir;
-
-	printf("\n		CATCH_POKEMON\n"
-			"		nombre: %s\n"
-			"		posicion x: %i\n"
-			"		posicion y: %i\n",
-	(char*) mensaje->nombre, mensaje->coordenadas.posx, mensaje->coordenadas.posy);
-}
-
-void imprimir_caught_pokemon(void* mensaje_a_imprimir)
-{
-	t_caught_pokemon* mensaje = mensaje_a_imprimir;
-
-	printf("\n		CAUGHT_POKEMON\n"
-			"		resultado: %i\n",
-	mensaje->resultado);
-}
-
-void imprimir_get_pokemon(void* mensaje_a_imprimir)
-{
-	t_get_pokemon* mensaje = mensaje_a_imprimir;
-
-	printf("\n		GET_POKEMON\n"
-			"		nombre: %s\n",
-			(char*) mensaje->nombre);
-}
-
-void imprimir_localized_pokemon(void* mensaje_a_imprimir)
-{
-	t_localized_pokemon* mensaje = mensaje_a_imprimir;
-
-	printf("\n		LOCALIZED_POKEMON\n"
-			"		nombre: %s\n",
-			(char*) mensaje->nombre);
-
-	for(int i = 0 ; i < mensaje->coordenadas->elements_count ; i++)
-	{
-		t_coordenadas* coordenadas = list_get(mensaje->coordenadas, i);
-
-		int posx = coordenadas->posx;
-		int posy = coordenadas->posy;
-
-		printf( "		posicion x: %i\n"
-				"		posicion y: %i\n\n",
-				posx, posy);
-	}
 }
 
 int despachar_Mensaje(int conexion, char *argv[]){

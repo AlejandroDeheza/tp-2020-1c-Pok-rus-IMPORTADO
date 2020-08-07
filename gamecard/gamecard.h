@@ -25,6 +25,7 @@
 
 t_dictionary* DICCIONARIO_HILOS;
 bool HAY_QUE_TERMINAR;
+int SOCKET_SERVIDOR;
 
 pthread_mutex_t* MUTEX_CONFIG;
 pthread_mutex_t* MUTEX_LOGGER;
@@ -38,6 +39,7 @@ pthread_mutex_t* MUTEX_CONSULTA_POKEMON;
 
 pthread_mutex_t* MUTEX_DICCIONARIO_HILOS;
 pthread_mutex_t* MUTEX_HAY_QUE_TERMINAR;
+pthread_mutex_t* MUTEX_SOCKET_SERVIDOR;
 
 t_dictionary* DICCIONARIO_CON_MUTEX;
 

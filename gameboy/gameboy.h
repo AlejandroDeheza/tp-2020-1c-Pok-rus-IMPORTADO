@@ -41,16 +41,6 @@ op_code obtener_codigo_suscripcion(char* cola_a_suscribirse);
 void iniciar_hilo_para_desuscripcion(int tiempo_suscripcion, int conexion_con_broker);
 void* contador_de_tiempo(void* argumentos);
 
-/* IMPRIMIR MENSAJES  */
-void imprimir_mensaje_recibido(void* mensaje_a_imprimir, op_code codigo_operacion);
-
-void imprimir_new_pokemon(void* mensaje_a_imprimir);
-void imprimir_appeared_pokemon(void* mensaje_a_imprimir);
-void imprimir_catch_pokemon(void* mensaje_a_imprimir);
-void imprimir_caught_pokemon(void* mensaje_a_imprimir);
-void imprimir_get_pokemon(void* mensaje_a_imprimir);
-void imprimir_localized_pokemon(void* mensaje_a_imprimir);
-
 /* DESPACHAR MENSAJES  */
 int despachar_Mensaje(int conexion, char *argv[]);
 
