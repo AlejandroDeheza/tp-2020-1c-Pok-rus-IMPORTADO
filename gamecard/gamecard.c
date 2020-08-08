@@ -38,7 +38,7 @@ void ejecutar_antes_de_terminar(int numero_senial)
 	pthread_mutex_unlock(MUTEX_HAY_QUE_TERMINAR);
 
 	pthread_mutex_lock(MUTEX_SOCKET_SERVIDOR);
-	shutdown(SOCKET_SERVIDOR, SHUT_RDWR);
+	if(SOCKET_SERVIDOR > 0) shutdown(SOCKET_SERVIDOR, SHUT_RDWR);
 	pthread_mutex_unlock(MUTEX_SOCKET_SERVIDOR);
 }
 
@@ -63,6 +63,10 @@ void finalizar_gamecard()
 	terminar_programa(0, LOGGER, CONFIG, NULL);
 	pthread_mutex_unlock(MUTEX_CONFIG);
 	pthread_mutex_unlock(MUTEX_LOGGER);
+
+	pthread_mutex_lock(MUTEX_SOCKET_SERVIDOR);
+	if(SOCKET_SERVIDOR > 0) close(SOCKET_SERVIDOR);
+	pthread_mutex_unlock(MUTEX_SOCKET_SERVIDOR);
 
 	pthread_mutex_lock(MUTEX_DICCIONARIO);
 	dictionary_destroy_and_destroy_elements(DICCIONARIO_CON_MUTEX, eliminador_de_mutex_en_diccionario);
@@ -465,8 +469,6 @@ void* recibir_conexiones()
     }
 	pthread_mutex_unlock(MUTEX_HAY_QUE_TERMINAR);
 
-	close(socket_servidor);
-
 	return NULL;
 }
 
@@ -673,6 +675,15 @@ void iniciar_hilo_para_tratar_y_responder_mensaje(int id_mensaje_recibido, void*
 
 	int thread_id = 0;
 
+	pthread_mutex_lock(MUTEX_DICCIONARIO_HILOS);
+	while(dictionary_size(DICCIONARIO_HILOS) > 50)
+	{
+		pthread_mutex_unlock(MUTEX_DICCIONARIO_HILOS);
+		sleep(5);
+		pthread_mutex_lock(MUTEX_DICCIONARIO_HILOS);
+	}
+	pthread_mutex_unlock(MUTEX_DICCIONARIO_HILOS);
+
 	switch (codigo_suscripcion) {
 			case SUBSCRIBE_NEW_POKEMON:
 				if(0 != (thread_id = pthread_create(&thread, NULL, atender_new_pokemon, (void*)arg)))
@@ -716,6 +727,7 @@ void* atender_new_pokemon(void* argumentos)
 	pthread_mutex_lock(MUTEX_DICCIONARIO_HILOS);
 	dictionary_put(DICCIONARIO_HILOS, id_hilo, "a");
 	pthread_mutex_unlock(MUTEX_DICCIONARIO_HILOS);
+	free(id_hilo);
 
 	argumentos_de_hilo* args = argumentos;
 	int id_mensaje_recibido = args->entero;
@@ -826,6 +838,7 @@ void* atender_catch_pokemon(void* argumentos)
 	pthread_mutex_lock(MUTEX_DICCIONARIO_HILOS);
 	dictionary_put(DICCIONARIO_HILOS, id_hilo, "a");
 	pthread_mutex_unlock(MUTEX_DICCIONARIO_HILOS);
+	free(id_hilo);
 
 	argumentos_de_hilo* args = argumentos;
 	int id_mensaje_recibido = args->entero;
@@ -872,6 +885,7 @@ void* atender_get_pokemon(void* argumentos)
 	pthread_mutex_lock(MUTEX_DICCIONARIO_HILOS);
 	dictionary_put(DICCIONARIO_HILOS, id_hilo, "a");
 	pthread_mutex_unlock(MUTEX_DICCIONARIO_HILOS);
+	free(id_hilo);
 
 	argumentos_de_hilo* args = argumentos;
 	int id_mensaje_recibido = args->entero;
@@ -1082,6 +1096,21 @@ void pedir_archivo_pokemon(char* nombre_pokemon)
 		pthread_mutex_unlock(MUTEX_LOGGER);
 
 		sleep(tiempo_de_reintento_operacion);
+
+		pthread_mutex_lock(MUTEX_HAY_QUE_TERMINAR);
+		if(HAY_QUE_TERMINAR == true)
+		{
+			pthread_mutex_unlock(MUTEX_HAY_QUE_TERMINAR);
+
+			char* id_hilo = string_from_format("%i", process_get_thread_id());
+			pthread_mutex_lock(MUTEX_DICCIONARIO_HILOS);
+			dictionary_remove(DICCIONARIO_HILOS, id_hilo);
+			pthread_mutex_unlock(MUTEX_DICCIONARIO_HILOS);
+			free(id_hilo);
+
+			pthread_exit(NULL);
+		}
+		pthread_mutex_unlock(MUTEX_HAY_QUE_TERMINAR);
 
 		se_pudo_abrir = intentar_abrir_archivo_pokemon(nombre_pokemon);
 	}

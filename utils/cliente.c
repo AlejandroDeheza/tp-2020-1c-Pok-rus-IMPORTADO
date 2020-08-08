@@ -20,7 +20,11 @@ int iniciar_conexion_como_cliente(char *ip, char* puerto)
 
 	freeaddrinfo(server_info);
 
-	if(retorno_connect == -1) return 0;
+	if(retorno_connect == -1)
+	{
+		close(socket_cliente);
+		return 0;
+	}
 
 	return socket_cliente;
 }

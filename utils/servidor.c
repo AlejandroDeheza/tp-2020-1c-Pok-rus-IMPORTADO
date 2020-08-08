@@ -27,11 +27,11 @@ int crear_socket_para_escuchar(char *ipServidor, char* puertoServidor){
         break;
     }
 
+    freeaddrinfo(servinfo);
+
     if((socket_servidor == -1) || (retorno_bind == -1)) return -1;
 
 	listen(socket_servidor, SOMAXCONN);
-
-    freeaddrinfo(servinfo);
 
     return socket_servidor;
 }
@@ -90,13 +90,13 @@ bool es_un_proceso_esperado(int socket_cliente, char* id_procesos_tp, pthread_mu
 	int primer_retorno = recv(socket_cliente, &size, sizeof(int), MSG_WAITALL);
 	if(primer_retorno == 0) return false;
 	if(primer_retorno == -1)
-		imprimir_error_y_terminar_programa_perzonalizado("Error al usar recv() en es_un_proceso_esperado()", funcion_para_finalizar, mutex_logger);
+		imprimir_error_y_terminar_programa_perzonalizado("Error 1 al usar recv() en es_un_proceso_esperado()", funcion_para_finalizar, mutex_logger);
 
 	void* cadena_recibida = malloc(size);
 	int segundo_retorno = recv(socket_cliente, cadena_recibida, size, MSG_WAITALL);
 	if(segundo_retorno == 0) return false;
 	if(segundo_retorno == -1)
-		imprimir_error_y_terminar_programa_perzonalizado("Error al usar recv() en es_un_proceso_esperado()", funcion_para_finalizar, mutex_logger);
+		imprimir_error_y_terminar_programa_perzonalizado("Error 2 al usar recv() en es_un_proceso_esperado()", funcion_para_finalizar, mutex_logger);
 
 	pthread_mutex_lock(mutex_id_procesos_tp);
 	if(strcmp((char*) cadena_recibida, id_procesos_tp) == 0)

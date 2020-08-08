@@ -6,7 +6,7 @@ t_log* generar_logger(t_config* config, char* nombre_proceso)
 
 	if(!log_file) imprimir_error_y_terminar_programa("No se encontro LOG_FILE en el archivo de configuracion");
 
-	return log_create(log_file, nombre_proceso , true, LOG_LEVEL_INFO);
+	return log_create(log_file, nombre_proceso , false, LOG_LEVEL_INFO);
 }
 
 int leer_ip_y_puerto(char** ip, char** puerto, t_config* config, char* nombre_proceso)
@@ -265,7 +265,7 @@ void imprimir_error_y_terminar_hilo(char* mensaje, t_log* logger)
 
 void terminar_programa(int conexion, t_log* logger, t_config* config, pthread_mutex_t* mutex_logger)
 {
-	int retorno;
+	int retorno = 0;
 
 	if (logger != NULL){
 		log_destroy(logger);
