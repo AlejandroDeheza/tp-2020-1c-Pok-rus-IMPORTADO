@@ -402,11 +402,14 @@ pthread_t iniciar_hilo_para_recibir_conexiones()
 void* recibir_conexiones()
 {
 	pthread_mutex_lock(MUTEX_CONFIG);
-	char* ip = asignar_string_property(CONFIG, "IP_GAMECARD");
-	char* puerto = asignar_string_property(CONFIG, "PUERTO_GAMECARD");
+	char* ip = string_duplicate(asignar_string_property(CONFIG, "IP_GAMECARD"));
+	char* puerto = string_duplicate(asignar_string_property(CONFIG, "PUERTO_GAMECARD"));
 	pthread_mutex_unlock(MUTEX_CONFIG);
 
 	int socket_servidor = crear_socket_para_escuchar(ip, puerto);
+
+	free(ip);
+	free(puerto);
 
 	pthread_mutex_lock(MUTEX_SOCKET_SERVIDOR);
 	SOCKET_SERVIDOR = socket_servidor;
@@ -661,8 +664,6 @@ void verificar_estado_del_envio_y_cerrar_conexion(char* tipo_mensaje, int estado
 	dictionary_remove(DICCIONARIO_HILOS, id_hilo);
 	pthread_mutex_unlock(MUTEX_DICCIONARIO_HILOS);
 	free(id_hilo);
-
-	pthread_exit(NULL);
 }
 
 void iniciar_hilo_para_tratar_y_responder_mensaje(int id_mensaje_recibido, void* mensaje, op_code codigo_suscripcion)
@@ -852,6 +853,11 @@ void* atender_catch_pokemon(void* argumentos)
 		pthread_mutex_unlock(MUTEX_LOGGER);
 
 		conectar_enviar_verificar_caught(id_mensaje_recibido, 0);
+
+		free(mensaje->nombre);
+		free(mensaje);
+
+		pthread_exit(NULL);
 	}
 
 	pedir_archivo_pokemon(mensaje->nombre);
@@ -869,6 +875,8 @@ void* atender_catch_pokemon(void* argumentos)
 
 		retener_conectar_librerar_recursos_caught(mensaje, id_mensaje_recibido, 0, posicion_buscada_en_string,
 				array_de_todo_el_archivo_pokemon_con_posiciones_y_cantidades);
+
+		return NULL;
 	}
 
 	reducir_cantidad_en_archivo_pokemon(mensaje->nombre, indice_de_busqueda, array_de_todo_el_archivo_pokemon_con_posiciones_y_cantidades, posicion_buscada_en_string);
@@ -904,6 +912,9 @@ void* atender_get_pokemon(void* argumentos)
 		dictionary_remove(DICCIONARIO_HILOS, id_hilo);
 		pthread_mutex_unlock(MUTEX_DICCIONARIO_HILOS);
 		free(id_hilo);
+
+		free(mensaje->nombre);
+		free(mensaje);
 
 		pthread_exit(NULL);
 	}
@@ -1016,6 +1027,7 @@ void conectar_enviar_verificar_caught(int id_mensaje_recibido, int resultado_cau
 	}
 
 	verificar_estado_del_envio_y_cerrar_conexion("CAUGHT_POKEMON", estado, conexion);
+
 }
 
 bool verificar_si_existe_archivo_pokemon(char* nombre_pokemon)
@@ -1146,10 +1158,11 @@ bool intentar_abrir_archivo_pokemon(char* nombre_pokemon)
 	}
 	free(path_archivo_pokemon_metadata_bin);
 
-	char* estado_apertura = asignar_string_property(archivo_pokemon_metadata_bin, "OPEN");
+	char* estado_apertura = string_duplicate(asignar_string_property(archivo_pokemon_metadata_bin, "OPEN"));
 
 	if(strcmp(estado_apertura,"N") == 0)
 	{
+		free(estado_apertura);
 		config_set_value(archivo_pokemon_metadata_bin, "OPEN", "Y");
 		config_save(archivo_pokemon_metadata_bin);
 		config_destroy(archivo_pokemon_metadata_bin);
@@ -1158,6 +1171,7 @@ bool intentar_abrir_archivo_pokemon(char* nombre_pokemon)
 		return true;
 	}
 
+	free(estado_apertura);
 	config_destroy(archivo_pokemon_metadata_bin);
 	pthread_mutex_unlock(mutex_archivo_pokemon);
 
@@ -1261,6 +1275,8 @@ t_list* obtener_todas_las_posiciones_de_archivo_pokemon(char* nombre_pokemon)
         free(key_y_value[1]);
         free(key_y_value);
 
+        free(pos_x_pos_y[0]);
+        free(pos_x_pos_y[1]);
         free(pos_x_pos_y);
     }
 
